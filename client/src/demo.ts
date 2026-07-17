@@ -26,16 +26,17 @@ async function main() {
     console.log(`  - ${collection.slug} (${collection.name})`);
   }
 
-  // Get FAQ items.
+  // Get general FAQ items using a typed query filter.
   const { data: faqItems, error: faqError } = await client.GET(
     "/collections/faq/content",
+    {
+      params: {
+        query: { scope: "general" },
+      },
+    },
   );
   if (faqError) throw faqError;
-  const generalFaqItems = faqItems.filter(
-    (item) => item.data.scope === "general",
-  );
-  console.log(`\nFAQ items: ${faqItems.length}`);
-  console.log(`  General FAQ items: ${generalFaqItems.length}`);
+  console.log(`\nGeneral FAQ items: ${faqItems.length}`);
   console.log(`  First question: ${faqItems[0]?.data.question}`);
 
   // Get best deals.

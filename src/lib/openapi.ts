@@ -15,6 +15,73 @@ const baseInfo = {
 const contentWrapperSchemaRef = (slug: string) => `__Content_${slug}`;
 const contentInputSchemaRef = (slug: string) => `__ContentInput_${slug}`;
 
+const FILTER_OPERATORS = ["eq", "gt", "gte", "lt", "lte", "ne"] as const;
+
+type JsonSchemaProperty = {
+	type?: string | string[];
+	format?: string;
+	enum?: unknown[];
+};
+
+const buildParameterSchema = (
+	property: JsonSchemaProperty,
+): Record<string, unknown> => {
+	const schema: Record<string, unknown> = {};
+
+	if (property.enum) {
+		schema.enum = property.enum;
+	}
+
+	if (property.type === "integer") {
+		schema.type = "integer";
+		return schema;
+	}
+
+	if (property.type === "number") {
+		schema.type = "number";
+		return schema;
+	}
+
+	if (property.type === "boolean") {
+		schema.type = "boolean";
+		return schema;
+	}
+
+	schema.type = "string";
+
+	if (property.format) {
+		schema.format = property.format;
+	}
+
+	return schema;
+};
+
+const buildContentQueryParameters = (
+	schema: Record<string, unknown>,
+): Array<Record<string, unknown>> => {
+	const parameters: Array<Record<string, unknown>> = [];
+
+	if (!schema.properties || typeof schema.properties !== "object") {
+		return parameters;
+	}
+
+	const properties = schema.properties as Record<string, JsonSchemaProperty>;
+
+	for (const [field, property] of Object.entries(properties)) {
+		for (const op of FILTER_OPERATORS) {
+			const name = op === "eq" ? field : `${field}[${op}]`;
+			parameters.push({
+				name,
+				in: "query",
+				required: false,
+				schema: buildParameterSchema(property),
+			});
+		}
+	}
+
+	return parameters;
+};
+
 const buildContentWrapperSchema = (slug: string) => ({
 	type: "object",
 	properties: {
@@ -54,11 +121,15 @@ const buildContentInputSchema = (slug: string) => ({
 	additionalProperties: false,
 });
 
-const buildCollectionContentPaths = (slug: string) => ({
+const buildCollectionContentPaths = (
+	slug: string,
+	schema: Record<string, unknown>,
+) => ({
 	[`/collections/${slug}/content`]: {
 		get: {
 			summary: `List ${slug} content`,
 			operationId: `list${slug}Content`,
+			parameters: buildContentQueryParameters(schema),
 			responses: {
 				"200": {
 					description: `List of ${slug} content`,
@@ -232,7 +303,7 @@ export const assembleOpenAPIDocument = (
 
 			Object.assign(
 				dynamicPaths,
-				buildCollectionContentPaths(collection.slug),
+				buildCollectionContentPaths(collection.slug, collection.schema),
 			);
 		}
 
