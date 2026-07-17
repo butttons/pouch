@@ -1,4 +1,6 @@
+import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
+import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { Type } from "typebox";
 
@@ -9,7 +11,8 @@ import { jsonValidator } from "./lib/validator";
 import { depsMiddleware } from "./middleware/deps";
 import { requireScopes, SCOPES } from "./middleware/auth";
 import { collectionRouter } from "./routes/collection/_route";
-import { createRouter } from "./utils";
+import { createMcpRouter } from "./routes/mcp/_route";
+import { createRouter, type HonoVariables } from "./utils";
 
 const SIX_MONTHS = 60 * 60 * 24 * 180;
 
@@ -26,7 +29,8 @@ const createKeyInputSchema = Type.Object(
 
 type CreateKeyInput = Type.Static<typeof createKeyInputSchema>;
 
-const app = createRouter()
+const app: Hono<HonoVariables> = createRouter()
+	.use(contextStorage())
 	.use(depsMiddleware)
 	.post(
 		"/auth/keys",
@@ -96,5 +100,7 @@ const app = createRouter()
 
 		return c.json(normalizedError.toJSON(), status as never);
 	});
+
+app.route("/mcp", createMcpRouter(app));
 
 export default app;

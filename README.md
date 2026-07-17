@@ -308,6 +308,125 @@ const { data, error } = await client.GET("/collections/posts/content", {
 
 Because feedr expands `/collections/:slug/content` into concrete paths per collection (`/collections/posts/content`, `/collections/faq/content`, etc.), the generated client uses those concrete paths directly. Query filters are typed from each collection's JSON Schema, including comparison operators like `price[gt]=20000`.
 
+## MCP server
+
+feedr also exposes its REST API as a Model Context Protocol (MCP) server at `/mcp`. Any MCP client (Cursor, Claude Code, Claude Desktop, etc.) can connect and call existing endpoints as tools without any extra configuration.
+
+The MCP layer reads the live OpenAPI spec at `/openapi.json` and registers one tool per operation. Tool calls are dispatched internally through the same Hono handlers, so auth, scopes, validation, and response formatting stay identical to the REST API.
+
+### Enable the MCP endpoint
+
+The MCP endpoint uses AsyncLocalStorage to forward the request context to tool handlers. Cloudflare Workers needs the `nodejs_als` compatibility flag, which is already set in `wrangler.jsonc`.
+
+Install the dependencies:
+
+```sh
+pnpm add @hono/mcp @modelcontextprotocol/sdk zod
+```
+
+Then restart the dev server:
+
+```sh
+pnpm dev
+```
+
+The MCP server is available at:
+
+```
+http://localhost:3200/mcp
+```
+
+Tools are generated from `/openapi.json` on the first `/mcp` request. New collections added after the worker starts will not appear as tools until the next worker restart.
+
+### Connect an MCP client
+
+Most MCP clients accept a server configuration like this:
+
+```json
+{
+  "mcpServers": {
+    "feedr": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/inspector",
+        "https://feedr.[ACCOUNT].workers.dev/mcp"
+      ],
+      "env": {
+        "OPENAPI_BASE_URL": "https://feedr.[ACCOUNT].workers.dev"
+      }
+    }
+  }
+}
+```
+
+For local development, point the client at `http://localhost:3200/mcp`.
+
+The client must send a valid `Authorization` header with each tool call. The simplest pattern is to include the token in the request path or to configure the client to forward a static Bearer token. In practice, most MCP clients pass headers on the initial connection; those headers are forwarded to the REST handlers.
+
+### Scopes and security
+
+The MCP endpoint itself does not introduce a new auth layer. Each tool call is forwarded to the REST API with the same `Authorization: Bearer [TOKEN]` header, so the existing scope checks apply:
+
+- Read tools (`GET`) require `content:read`.
+- Write tools (`POST`, `PATCH`, `DELETE`) require `content:write` or `schema:admin` depending on the route.
+
+`/auth/keys` and any other sensitive operations are excluded from the MCP tool list.
+
+### Tool naming
+
+Tools are named from the OpenAPI `operationId` when available. For example:
+
+- `listCollections`
+- `getPostsContentById`
+- `createPostsContent`
+- `patchCollectionsSlugSchema`
+
+If an operation has no `operationId`, a name is generated from the method and path. Tool names longer than 48 characters are hashed to stay within MCP limits.
+
+### Testing the MCP server
+
+1. Start the local dev server:
+
+```sh
+pnpm dev
+```
+
+2. Generate an API key:
+
+```sh
+curl -X POST http://localhost:3200/auth/keys \
+  -H "Content-Type: application/json" \
+  -d '{
+    "secret": "your-local-dev-secret-min-32-chars-long",
+    "scopes": ["schema:admin", "content:write", "content:read"]
+  }'
+```
+
+3. Use the MCP Inspector to list and call tools:
+
+```sh
+npx -y @modelcontextprotocol/inspector \
+  --header "Authorization: Bearer [TOKEN]" \
+  http://localhost:3200/mcp
+```
+
+4. Or test with `curl` directly:
+
+```sh
+curl -X POST http://localhost:3200/mcp \
+  -H "Authorization: Bearer [TOKEN]" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list"
+  }'
+```
+
+For Claude Code or Cursor, add the MCP server URL to the client's MCP settings and provide a token with the scopes you want to test.
+
 ## Updating
 
 When a new version is released, update your worker while preserving your `wrangler.jsonc` bindings.
