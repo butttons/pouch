@@ -1,0 +1,6 @@
+.env
+.env.local
+feedr.db
+node_modules
+dist
+.wrangler

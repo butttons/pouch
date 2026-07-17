@@ -1,0 +1,33 @@
+{
+  "name": "feedr",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler types && wrangler build",
+    "deploy": "wrangler types && wrangler deploy",
+    "cf-typegen": "wrangler types",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply feedr --local",
+    "db:migrate:prod": "wrangler d1 migrations apply feedr",
+    "db:codegen": "dotenv -e .env -- drizzle-kit migrate --config=./src/lib/db/config.dev.ts && DATABASE_URL='./feedr.db' kysely-codegen --dialect sqlite --out-file ./src/lib/db/types.ts --exclude-pattern=__drizzle_migrations"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.33.0",
+    "hono": "^4.9.9",
+    "kysely": "^0.27.6",
+    "kysely-d1": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "22.13.0",
+    "@types/service-worker-mock": "^2.0.4",
+    "better-sqlite3": "^11.8.1",
+    "dotenv-cli": "^7.4.2",
+    "drizzle-kit": "^0.24.2",
+    "kysely-codegen": "^0.17.0",
+    "typescript": "^5.9.2",
+    "wrangler": "^4.107.1"
+  }
+}

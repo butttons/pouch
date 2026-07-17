@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "feedr",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-27",
+  "observability": {
+    "enabled": true,
+  },
+  "dev": {
+    "port": 3200,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "feedr",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "src/lib/db/migrations",
+    },
+  ],
+}
