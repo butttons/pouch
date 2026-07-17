@@ -313,16 +313,16 @@ DL methods are thin wrappers around Kysely queries. They return `ResultAsync<T, 
 
 ## Testing strategy
 
-There is no test suite yet. Until one is added, verify every endpoint with the following steps before finishing work:
+Tests run with **Vitest** and **`@cloudflare/vitest-pool-workers`**. They execute in the Workers runtime with real D1 bindings, against the actual `worker.fetch()` handler. No mocked data layer, no unit tests for thin wrappers.
 
-1. **Static type check:** `npx tsc --noEmit` must pass with zero errors.
-2. **Smoke test against the local dev server:** the `feedr-dev` herdr workspace runs at `http://localhost:3200`. Use `curl` to hit the new endpoint(s).
-   - Happy path: confirm the response body and HTTP status.
-   - Error paths: confirm at least `404 NOT_FOUND` and `400 VALIDATION_FAILED` / `409 CONFLICT` where applicable.
-3. **OpenAPI contract check:** `curl -s http://localhost:3200/openapi.json` and verify the new path(s) and any new `__`-prefixed system schema components appear correctly.
-4. **Stateful mutation check:** for `POST`/`PATCH`/`DELETE`, inspect the resulting state with a follow-up `GET` or by querying `/collections` to confirm the mutation persisted (or was rejected) as expected.
+- `pnpm test` runs the suite.
+- `pnpm generate-test-migrations` regenerates `test/generated-migrations.ts` from `src/lib/db/migrations/*.sql` after schema changes.
+- `test/setup.ts` applies migrations once (`beforeAll`) and truncates all tables before each test (`beforeEach`).
+- Use `fetchWorker()` / `createCollection()` / `createContent()` in `test/utils.ts` for common operations.
 
-When adding tests later, prefer spec-driven tests that assert the live `/openapi.json` contract over hand-written mocks, since consumers rely on the generated spec.
+Add integration tests for real, complex behavior only: schema versioning, destructive change force-gates, content validation, partial content updates, `json_extract` filters, and collection delete guards. Avoid testing data-layer wrappers or validators in isolation.
+
+When smoke testing manually, the `feedr-dev` herdr workspace runs at `http://localhost:3200`. Use `curl` to hit endpoints and verify both happy and error paths, then inspect state with follow-up requests.
 
 ## Explicitly cut (considered, deliberately not building)
 

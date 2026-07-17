@@ -1,7 +1,11 @@
 import app from "./app";
 
 export default {
-	async fetch(req, env, ctx) {
-		return app.fetch(req, env, ctx);
+	async fetch(
+		request: Request,
+		env: Env,
+		ctx: ExecutionContext,
+	): Promise<Response> {
+		return app.fetch(request, env, ctx);
 	},
 } satisfies ExportedHandler<Env>;
