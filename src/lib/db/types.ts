@@ -30,6 +30,18 @@ export interface Content {
   updated_at: number;
 }
 
+export interface ContentIndexes {
+  collection_id: string;
+  column_name: string;
+  column_type: string;
+  created_at: number;
+  deleted_at: number | null;
+  field: string;
+  id: string;
+  index_name: string;
+  schema_version_id: string;
+}
+
 export interface Media {
   created_at: number;
   filename: string;
@@ -51,6 +63,7 @@ export interface SchemaVersions {
 export interface DB {
   collections: Collections;
   content: Content;
+  content_indexes: ContentIndexes;
   media: Media;
   schema_versions: SchemaVersions;
 }

@@ -4,6 +4,7 @@ import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { typedId } from "@/lib/typed-id";
+import { diffIndexedFields } from "@/lib/content-index";
 import {
 	 diffCollectionSchemas,
 	 getRelationTargets,
@@ -82,6 +83,34 @@ export const patchCollectionSchema = (
 			schema: schemaString,
 			changeDiff: JSON.stringify(diff),
 		});
+
+		const { added, removed, changed } = diffIndexedFields(
+			collection.schema,
+			input.schema,
+		);
+
+		for (const { field } of removed) {
+			yield* deps.DL.contentIndex.dropIndex({
+				collectionId: collection.id,
+				field,
+			});
+		}
+
+		for (const { field } of changed) {
+			yield* deps.DL.contentIndex.dropIndex({
+				collectionId: collection.id,
+				field,
+			});
+		}
+
+		for (const { field, type } of [...added, ...changed]) {
+			yield* deps.DL.contentIndex.createIndex({
+				collectionId: collection.id,
+				field,
+				schemaVersionId: versionId,
+				columnType: type,
+			});
+		}
 
 		const updated = yield* deps.DL.collection.updateCollectionSchema({
 			id: collection.id,

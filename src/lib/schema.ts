@@ -2,6 +2,7 @@ import { err, ok, Result } from "neverthrow";
 import { atomizeChangeset, diff, type IAtomicChange } from "json-diff-ts";
 import Schema from "typebox/schema";
 
+import { validateIndexedFields } from "./content-index";
 import { AppHTTPException, ErrorCodes } from "./errors";
 
 export type ContentValidationError = {
@@ -114,12 +115,37 @@ const validateSchemaStructure = (
 	return null;
 };
 
+const validateIndexConstraints = (
+	schema: Record<string, unknown>,
+): AppHTTPException | null => {
+	const errors = validateIndexedFields(schema);
+
+	if (errors.length === 0) {
+		return null;
+	}
+
+	const details = errors
+		.map((error) => `${error.field}: ${error.message}`)
+		.join("; ");
+
+	return new AppHTTPException({
+		code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
+		message: `Invalid x-index usage: ${details}`,
+		status: 400,
+	});
+};
+
 export const validateCollectionSchema = (
 	schema: Record<string, unknown>,
 ): Result<void, AppHTTPException> => {
 	const structuralError = validateSchemaStructure(schema);
 	if (structuralError) {
 		return err(structuralError);
+	}
+
+	const indexError = validateIndexConstraints(schema);
+	if (indexError) {
+		return err(indexError);
 	}
 
 	const compileResult = Result.fromThrowable(

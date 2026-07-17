@@ -7,7 +7,7 @@ import { assembleOpenAPIDocument } from "./lib/openapi";
 import { typedId } from "./lib/typed-id";
 import { jsonValidator } from "./lib/validator";
 import { depsMiddleware } from "./middleware/deps";
-import { requireScopes, SCOPES, type Scope } from "./middleware/auth";
+import { requireScopes, SCOPES } from "./middleware/auth";
 import { collectionRouter } from "./routes/collection/_route";
 import { createRouter } from "./utils";
 
@@ -24,11 +24,7 @@ const createKeyInputSchema = Type.Object(
 	{ additionalProperties: false },
 );
 
-type CreateKeyInput = {
-	secret: string;
-	scopes?: Scope[];
-	expiresInSeconds?: number;
-};
+type CreateKeyInput = Type.Static<typeof createKeyInputSchema>;
 
 const app = createRouter()
 	.use(depsMiddleware)

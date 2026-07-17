@@ -3,6 +3,7 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
+import { getIndexColumnType, getIndexedFieldsWithTypes } from "@/lib/content-index";
 import type { CollectionWithSchema, CreateCollectionInput } from "./_schema";
 import { getRelationTargets, validateCollectionSchema } from "@/lib/schema";
 import { typedId } from "@/lib/typed-id";
@@ -63,6 +64,17 @@ export const createCollection = (
 			schema: schemaString,
 			changeDiff: null,
 		});
+
+		const indexedFields = getIndexedFieldsWithTypes(input.schema);
+
+		for (const { field, type } of indexedFields) {
+			yield* deps.DL.contentIndex.createIndex({
+				collectionId: created.id,
+				field,
+				schemaVersionId: versionId,
+				columnType: type,
+			});
+		}
 
 		const updated = yield* deps.DL.collection.updateCollectionSchema({
 			id: created.id,

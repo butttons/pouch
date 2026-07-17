@@ -1,13 +1,3 @@
-CREATE TABLE `audit_log` (
-	`id` text PRIMARY KEY NOT NULL,
-	`actor` text,
-	`action` text NOT NULL,
-	`target_type` text NOT NULL,
-	`target_id` text NOT NULL,
-	`diff` text,
-	`created_at` integer NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE `collections` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
@@ -17,6 +7,18 @@ CREATE TABLE `collections` (
 	`title_field` text,
 	`created_at` integer NOT NULL,
 	`updated_at` integer NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE `content_indexes` (
+	`id` text PRIMARY KEY NOT NULL,
+	`collection_id` text NOT NULL,
+	`field` text NOT NULL,
+	`index_name` text NOT NULL,
+	`column_name` text NOT NULL,
+	`column_type` text NOT NULL,
+	`schema_version_id` text NOT NULL,
+	`created_at` integer NOT NULL,
+	`deleted_at` integer
 );
 --> statement-breakpoint
 CREATE TABLE `content` (

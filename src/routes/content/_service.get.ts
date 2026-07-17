@@ -3,6 +3,7 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 import type { ContentFilter, DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
+import { computeIndexColumnName } from "@/lib/content-index";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import type { ContentListResponse, ContentQuery } from "./_schema";
 import { resolveRelations } from "./_service.resolve";
@@ -128,7 +129,15 @@ export const listContent = (
 			) ?? "";
 			const value = coerceValue(String(valueString), property.type);
 
-			filters.push({ field, op, value });
+			const indexedColumn =
+				property["x-index"] === true
+					? computeIndexColumnName({
+							collectionId: collection.id,
+							field,
+					  })
+					: undefined;
+
+			filters.push({ field, op, value, indexedColumn });
 		}
 
 		const limit = parseLimit(input.query.limit);

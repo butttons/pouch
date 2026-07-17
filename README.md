@@ -184,6 +184,69 @@ curl -X POST https://feedr.[ACCOUNT].workers.dev/collections \
   }'
 ```
 
+### Schema keywords
+
+Collection schemas are standard JSON Schema (draft 2020-12). Add `x-` prefixed keywords for CMS-specific behavior. All four are optional.
+
+A simple collection only needs property names and types. The keywords below are there when you need them.
+
+#### `x-label`
+
+Sets a human-readable display name for the field. The property key itself stays immutable; the label can change any time.
+
+```json
+{
+  "title": { "type": "string", "x-label": "Headline" }
+}
+```
+
+#### `x-widget`
+
+Hints at how the field should be rendered for authoring. Only `"richtext"` is supported today. It does not affect validation.
+
+```json
+{
+  "body": { "type": "string", "x-widget": "richtext" }
+}
+```
+
+#### `x-relation`
+
+Marks the field as a relation to another collection. Use `type: "string"` for a single relation and `type: "array"` with `items: { "type": "string" }` for many.
+
+```json
+{
+  "author": { "type": "string", "x-relation": "authors" },
+  "tags": {
+    "type": "array",
+    "items": { "type": "string" },
+    "x-relation": "tags"
+  }
+}
+```
+
+Relations are stored as plain IDs. Use `?resolve=author,tags` to embed the related content in responses.
+
+#### `x-index`
+
+When `true`, creates a generated column + SQLite index for that field on the shared `content` table, scoped to the collection. This makes equality and comparison filters fast. Only scalar fields can be indexed: `string`, `integer`, `number`, or `boolean`.
+
+```json
+{
+  "published": { "type": "boolean", "x-index": true },
+  "price": { "type": "number", "x-index": true }
+}
+```
+
+Indexed fields can then be queried with operators:
+
+```sh
+curl "https://feedr.[ACCOUNT].workers.dev/collections/products/content?published=true&price[gt]=100" \
+  -H "Authorization: Bearer [TOKEN]"
+```
+
+`x-index` is applied automatically when a collection is created or its schema is patched, and removed when the field is removed.
+
 ### Example: create content
 
 ```sh
@@ -202,28 +265,9 @@ curl "https://feedr.[ACCOUNT].workers.dev/collections/posts/content?title=Hello%
   -H "Authorization: Bearer [TOKEN]"
 ```
 
-### Relations
+### Resolving relations
 
-A property with `x-relation` becomes a relation to another collection. Store the related content ID (or IDs for arrays) in the field:
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "title": { "type": "string" },
-    "author": { "type": "string", "x-relation": "authors" },
-    "tags": {
-      "type": "array",
-      "items": { "type": "string" },
-      "x-relation": "tags"
-    }
-  },
-  "required": ["title", "author"],
-  "additionalProperties": false
-}
-```
-
-Relations are plain IDs by default. To embed the related content in a single request, pass the `resolve` query parameter with a comma-separated list of relation field names:
+Relations defined with `x-relation` are stored and returned as plain IDs by default. To embed the related content in a single request, pass the `resolve` query parameter with a comma-separated list of relation field names:
 
 ```sh
 curl "https://feedr.[ACCOUNT].workers.dev/collections/posts/content?resolve=author,tags" \

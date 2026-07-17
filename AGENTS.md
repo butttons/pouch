@@ -18,11 +18,12 @@ API-first headless CMS for Cloudflare (D1 + Workers). No admin UI — API is the
 
 ## Field type → JSON Schema mapping
 
-Three `x-` keywords total, kept minimal on purpose — everything else is standard JSON Schema doing real validation work.
+Four `x-` keywords total, kept minimal on purpose — everything else is standard JSON Schema doing real validation work.
 
 - **`x-widget`** — presentation/authoring hint only, never affects validation. `"richtext"` for now; general-purpose escape hatch for future same-JSON-type-different-meaning cases (extend the enum, don't add a new keyword).
 - **`x-relation`** — target collection slug. Field `type: "string"` + `x-relation` = single relation; `type: "array"` + `x-relation` = many. No separate boolean needed, `type` already carries that distinction. `media` is just a relation to the system `media` collection, not its own construct.
 - **`x-label`** — display name, mutable, separate from the immutable property key (see Schema philosophy above).
+- **`x-index`** — when `true`, creates a single-field generated column + index on the shared `content` table for that collection only. Scalar fields only (`string`, `integer`, `number`, `boolean`). Query builder uses the generated column instead of `json_extract` for filters on indexed fields. Indexes are created on collection creation and schema patches, and dropped when the field is removed or the collection is deleted.
 
 ```jsonc
 // text
@@ -52,6 +53,9 @@ Three `x-` keywords total, kept minimal on purpose — everything else is standa
 // media
 { "type": "string", "x-relation": "media" }
 
+// indexed field
+{ "type": "number", "x-index": true }
+
 // json
 {}
 ```
@@ -64,7 +68,7 @@ Three `x-` keywords total, kept minimal on purpose — everything else is standa
 - CMS-specific metadata goes in `x-` prefixed custom keywords (spec-legal, ignored harmlessly by validators) — full mapping above.
 - Property **key is immutable**; `x-label` is freely renamable. This is what makes diff-based versioning correctly distinguish "renamed label" (in-place edit) from "removed+added key" (structural, destructive).
 - No EAV (join-per-field cost, broken type-affinity/indexing, multiplies D1 query count).
-- No table-per-collection, no generated/indexed columns, no views. Considered and cut for simplicity at current scale — see "Explicitly cut" below.
+- No table-per-collection, no views. Generated columns are created only through the `x-index` escape hatch (single-field, per-collection) — see Indexing below.
 
 ## D1 Schema
 
@@ -103,6 +107,18 @@ CREATE TABLE schema_versions (
   created_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE content_indexes (
+  id                 TEXT PRIMARY KEY,   -- cix_<uuidv7>
+  collection_id      TEXT NOT NULL REFERENCES collections(id),
+  field              TEXT NOT NULL,
+  index_name         TEXT NOT NULL,
+  column_name        TEXT NOT NULL,
+  column_type        TEXT NOT NULL,
+  schema_version_id  TEXT NOT NULL REFERENCES schema_versions(id),
+  created_at         TEXT NOT NULL DEFAULT (datetime('now')),
+  deleted_at         TEXT
+);
+
 CREATE TABLE media (
   id          TEXT PRIMARY KEY,   -- med_<uuidv7>
   r2_key      TEXT NOT NULL,
@@ -125,7 +141,8 @@ Order: cheap structural checks first, expensive compile last — reject junk bef
 2. Property key format — `^[a-zA-Z_][a-zA-Z0-9_]*$`. Keys get interpolated into `json_extract(data, '$.{key}')` in the Kysely filter layer; reject anything that'd be ambiguous or break as a JSON path before it ever reaches query time.
 3. Reserved key check — block `id`, `collection_id`, `data`, `status`, `created_at`, `updated_at`, `schema_version_id` (fixed `content` columns).
 4. `x-relation` target exists — if present, the referenced collection slug must currently exist.
-5. Compile — `TypeCompiler.Compile(newSchema)` in a `try/catch`. This is the real validity check: same function that validates every future content write, so failure here means failure later, caught at definition time instead. Reject with the compiler's error on throw.
+5. `x-index` constraints — scalar types only (`string`, `integer`, `number`, `boolean`), and the resulting generated-column/index name must fit within the SQLite identifier limit (max 63 bytes; field keys longer than 42 characters are rejected when `x-index: true`).
+6. Compile — `TypeCompiler.Compile(newSchema)` in a `try/catch`. This is the real validity check: same function that validates every future content write, so failure here means failure later, caught at definition time instead. Reject with the compiler's error on throw.
 
 ## Schema mutation flow
 
@@ -144,6 +161,15 @@ PATCH /collections/:slug/schema
   - Required for: **removed property key**, **changed `type`** on an existing key. These can silently corrupt or hide existing `content` rows (stale values failing to coerce, e.g. `"unlimited"` under a new `number` type).
   - Not required for: new property, `x-label` change, enum/options extended, `required` toggled. These are always safe — old rows read back `NULL` via `json_extract` for missing keys, which is the entire resolution mechanism, no migration step needed.
   - Checked **per property** in the diff, not per request — one PATCH adding a field and removing another needs `force` because of the removal.
+
+## Indexing
+
+- `x-index: true` on a scalar field creates a single-field generated column + index on the shared `content` table.
+- Names are deterministic and per-collection: `idx_{hash(collection.id)}_{field}` for the column, with `_idx` appended for the index name. The hash is the first 12 hex characters of a 48-bit FNV-1a hash of the collection id.
+- Field keys are limited to 42 characters when `x-index: true` so the resulting identifiers stay within SQLite's 63-byte limit.
+- The query builder reads `x-index` directly from the collection schema at request time; it does not need to query `content_indexes`.
+- Indexes are applied on `POST /collections` and `PATCH /collections/:slug/schema` (added/removed/changed fields), and dropped when a field is removed or the collection is deleted.
+- DDL runs outside transactions because D1 does not support transactions via `kysely-d1`.
 
 ## Resolution at read time
 
@@ -174,6 +200,7 @@ PATCH /collections/:slug/schema
   }
   ```
 - **Filter field names must be whitelisted against the collection's actual schema properties before use in the raw fragment** — genuine injection surface now that there's no DDL-time generated-column boundary.
+- Fields with `x-index: true` are filtered against the generated column directly; all other fields use `json_extract(data, '$.field')`.
 - No dedicated query language for v1 — equality/comparison on whitelisted fields only.
 
 ## API
@@ -310,13 +337,13 @@ Tests run with **Vitest** and **`@cloudflare/vitest-pool-workers`**. They execut
 - `test/setup.ts` applies migrations once (`beforeAll`) and truncates all tables before each test (`beforeEach`).
 - Use `fetchWorker()` / `createCollection()` / `createContent()` in `test/utils.ts` for common operations.
 
-Add integration tests for real, complex behavior only: schema versioning, destructive change force-gates, content validation, partial content updates, `json_extract` filters, and collection delete guards. Avoid testing data-layer wrappers or validators in isolation.
+Add integration tests for real, complex behavior only: schema versioning, destructive change force-gates, content validation, partial content updates, `json_extract` filters, `x-index` generated-column lifecycle, and collection delete guards. Avoid testing data-layer wrappers or validators in isolation.
 
 When smoke testing manually, the `feedr-dev` herdr workspace runs at `http://localhost:3200`. Use `curl` to hit endpoints and verify both happy and error paths, then inspect state with follow-up requests.
 
 ## Explicitly cut (considered, deliberately not building)
 
-- Generated/indexed columns, `x-indexed` keyword, per-collection SQLite views — cut for simplicity at current scale. `json_extract` filtering is a full scan of the collection's rows; fine at hundreds–low-thousands of rows per collection. Escape hatch if a specific collection's filtered list endpoint gets slow: selectively promote just that field back to a real generated column + index, on that collection only — not a redesign.
+- Ad-hoc generated/indexed columns, `x-indexed` keyword, per-collection SQLite views — cut for simplicity at current scale. `json_extract` filtering is a full scan of the collection's rows; fine at hundreds–low-thousands of rows per collection. The only supported indexing path is the `x-index` keyword on scalar fields (see Indexing above).
 - Content versioning/history.
 - Relation referential integrity (app-level, deliberate).
 - Schema-mutation concurrency lock (Durable Object) — needed only once multiple humans/schema-editing agents can mutate the same collection's schema concurrently. Single-actor for now.

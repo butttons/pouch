@@ -45,6 +45,17 @@ export const deleteCollection = (
 			}
 		}
 
+		const activeIndexes = yield* deps.DL.contentIndex.listActiveIndexesByCollectionId({
+			collectionId: collection.id,
+		});
+
+		for (const { field } of activeIndexes) {
+			yield* deps.DL.contentIndex.dropIndex({
+				collectionId: collection.id,
+				field,
+			});
+		}
+
 		yield* deps.DL.collection.deleteCollectionById({ id: collection.id });
 
 		return ok(undefined);

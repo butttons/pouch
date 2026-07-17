@@ -11,7 +11,7 @@
     "type-check": "tsc",
     "test": "vitest run",
     "generate-test-migrations": "tsx scripts/generate-test-migrations.ts",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate --config=./src/lib/db/config.dev.ts",
     "db:migrate": "wrangler d1 migrations apply feedr --local",
     "db:migrate:prod": "wrangler d1 migrations apply feedr",
     "db:codegen": "dotenv -e .env -- drizzle-kit migrate --config=./src/lib/db/config.dev.ts && DATABASE_URL='./feedr.db' kysely-codegen --dialect sqlite --out-file ./src/lib/db/types.ts --exclude-pattern=__drizzle_migrations"

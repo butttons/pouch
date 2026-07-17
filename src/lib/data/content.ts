@@ -11,6 +11,7 @@ export type ContentFilter = {
 	field: string;
 	op: "eq" | "gt" | "gte" | "lt" | "lte" | "ne";
 	value: string | number | boolean;
+	indexedColumn?: string;
 };
 
 const OP_MAP: Record<ContentFilter["op"], string> = {
@@ -23,8 +24,13 @@ const OP_MAP: Record<ContentFilter["op"], string> = {
 };
 
 const getFilterExpression = (filter: ContentFilter) => {
-	const path = "$." + filter.field;
 	const op = OP_MAP[filter.op];
+
+	if (filter.indexedColumn) {
+		return sql<boolean>`${sql.ref(filter.indexedColumn)} ${sql.raw(op)} ${filter.value}`;
+	}
+
+	const path = "$." + filter.field;
 	return sql<boolean>`json_extract(data, ${path}) ${sql.raw(op)} ${filter.value}`;
 };
 

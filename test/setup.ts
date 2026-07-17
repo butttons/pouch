@@ -6,6 +6,7 @@ import { feedrMigrations } from "./generated-migrations.js";
 const TABLE_NAMES = [
   "collections",
   "content",
+  "content_indexes",
   "media",
   "schema_versions",
 ];
