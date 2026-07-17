@@ -167,7 +167,7 @@ Requirements:
 Connect a client to:
 
 ```
-https://pouch-cms.zomunk.workers.dev/mcp
+https://pouch-cms.[account].workers.dev/mcp
 ```
 
 For local development, use `http://localhost:3200/mcp`.
@@ -193,7 +193,7 @@ npm install -D openapi-typescript
 Generate the types from your deployed pouch instance:
 
 ```sh
-npx openapi-typescript https://pouch-cms.zomunk.workers.dev/openapi.json \
+npx openapi-typescript https://pouch-cms.[account].workers.dev/openapi.json \
   --header "Authorization: Bearer [TOKEN]" \
   -o ./src/generated/pouch.ts
 ```
@@ -205,7 +205,7 @@ import createClient from "openapi-fetch";
 import type { paths } from "./generated/pouch.js";
 
 const client = createClient<paths>({
-  baseUrl: "https://pouch-cms.zomunk.workers.dev",
+  baseUrl: "https://pouch-cms.[account].workers.dev",
   headers: { Authorization: `Bearer ${TOKEN}` },
 });
 
