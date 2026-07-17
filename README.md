@@ -77,13 +77,9 @@ Copy the database ID from the output and update `wrangler.jsonc`:
 pnpm run deploy
 ```
 
-5. Apply database migrations
+`pnpm run deploy` runs `db:migrate:prod` before deploying, so the D1 migrations are applied automatically.
 
-```sh
-npx wrangler d1 migrations apply pouch --remote
-```
-
-6. Set the `JWT_SECRET` secret
+5. Set the `JWT_SECRET` secret
 
 ```sh
 npx wrangler secret put JWT_SECRET
@@ -155,6 +151,27 @@ Response:
 ```
 
 If `scopes` is omitted, the key gets all scopes. Use `expiresInSeconds` to override the default 180-day expiry.
+
+## Read replication
+
+pouch uses D1 [global read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/) through the [Sessions API](https://developers.cloudflare.com/d1/worker-api/d1-database/#withsession). Every request creates a fresh D1 session.
+
+- Pass the bookmark from a previous response in the `x-d1-bookmark` header.
+- If the header is missing, the session starts at `first-unconstrained` (any replica).
+- Use `first-primary` as the header value when you need the latest data on the first read.
+- Each response returns the updated bookmark in the `x-d1-bookmark` header.
+
+Example:
+
+```sh
+curl -H "Authorization: Bearer [TOKEN]" \
+  -H "x-d1-bookmark: first-unconstrained" \
+  https://pouch-cms.[account].workers.dev/collections/faqs/content
+```
+
+The response will include `x-d1-bookmark`, which you can send on the next request to keep sequential consistency.
+
+Note: `served_by_region` and `served_by_primary` are only returned by remote D1. They are `undefined` in local development.
 
 ## MCP server
 

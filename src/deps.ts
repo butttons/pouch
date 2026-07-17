@@ -1,20 +1,19 @@
 import { createDB } from "./lib/db/client";
 import { createDL } from "./lib/data";
 
-let cachedDB: ReturnType<typeof createDB> | null = null;
-let cachedDL: ReturnType<typeof createDL> | null = null;
-
-export const createDeps = ({ env }: { env: Env }) => {
-	if (!cachedDB) {
-		cachedDB = createDB(env.DB);
-	}
-
-	if (!cachedDL) {
-		cachedDL = createDL({ db: cachedDB });
-	}
+export const createDeps = ({
+	env,
+	bookmark,
+}: {
+	env: Env;
+	bookmark: string;
+}) => {
+	const session = env.DB.withSession(bookmark);
+	const db = createDB(session);
 
 	return {
-		DL: cachedDL,
+		DL: createDL({ db }),
+		session,
 	};
 };
 

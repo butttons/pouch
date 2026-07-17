@@ -9,7 +9,7 @@ import {
 
 const baseInfo = {
 	title: "pouch",
-	version: "0.0.5",
+	version: "0.0.7",
 };
 
 const contentWrapperSchemaRef = (slug: string) => `__Content_${slug}`;
