@@ -1,7 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPTransport } from "@hono/mcp";
-import { getContext } from "hono/context-storage";
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { z } from "zod";
 
 import type { Deps } from "@/deps";
@@ -40,6 +39,19 @@ type OpenApiPathItem = Partial<Record<HttpMethod, OpenApiOperation>>;
 
 type OpenApiDocument = {
 	paths?: Record<string, OpenApiPathItem>;
+};
+
+type ToolDefinition = {
+	name: string;
+	description: string;
+	inputSchema: Record<string, z.ZodTypeAny>;
+	handler: (
+		args: Record<string, unknown>,
+		context: Context<HonoVariables>,
+	) => Promise<{
+		isError: boolean;
+		content: Array<{ type: "text"; text: string }>;
+	}>;
 };
 
 const isHttpMethod = (value: string): value is HttpMethod =>
@@ -188,120 +200,116 @@ const buildRequest = (
 	return { url, init };
 };
 
-export const createMcpRouter = (app: Hono<HonoVariables>) => {
-	const mcpServer = new McpServer({
-		name: "pouch",
-		version: "0.0.2",
-	});
+const buildToolDefinitions = async (
+	deps: Deps,
+	app: Hono<HonoVariables>,
+): Promise<ToolDefinition[]> => {
+	const result = await assembleOpenAPIDocument(deps);
+	const spec = result.isOk() ? result.value : null;
 
-	const transport = new StreamableHTTPTransport();
-	let hasRegisteredTools = false;
+	if (!spec || typeof spec !== "object") {
+		return [];
+	}
 
-	const registerToolsFromOpenApi = async (deps: Deps) => {
-		if (hasRegisteredTools) {
-			return;
+	const openApiSpec = spec as OpenApiDocument;
+	const tools: ToolDefinition[] = [];
+
+	for (const [path, pathItem] of Object.entries(openApiSpec.paths ?? {})) {
+		if (!pathItem || isExcludedPath(path)) {
+			continue;
 		}
 
-		const result = await assembleOpenAPIDocument(deps);
-		const spec = result.isOk() ? result.value : null;
-
-		if (!spec || typeof spec !== "object") {
-			return;
-		}
-
-		const openApiSpec = spec as OpenApiDocument;
-
-		for (const [path, pathItem] of Object.entries(
-			openApiSpec.paths ?? {},
-		)) {
-			if (!pathItem || isExcludedPath(path)) {
+		for (const [method, operation] of Object.entries(pathItem)) {
+			if (!isHttpMethod(method) || !operation) {
 				continue;
 			}
 
-			for (const [method, operation] of Object.entries(pathItem)) {
-				if (!isHttpMethod(method) || !operation) {
-					continue;
-				}
+			const toolName = buildToolName(method, path, operation);
+			const description = [
+				operation.summary,
+				operation.description,
+				`Method: ${method.toUpperCase()}`,
+				`Path: ${path}`,
+			]
+				.filter(Boolean)
+				.join("\n\n");
 
-				const toolName = buildToolName(method, path, operation);
-				const description = [
-					operation.summary,
-					operation.description,
-					`Method: ${method.toUpperCase()}`,
-					`Path: ${path}`,
-				]
-					.filter(Boolean)
-					.join("\n\n");
+			const inputSchema = buildInputSchema(operation);
 
-				const inputSchema = buildInputSchema(operation);
+			tools.push({
+				name: toolName,
+				description,
+				inputSchema,
+				handler: async (args, context) => {
+					try {
+						const baseUrl = "http://localhost";
+						const { url, init } = buildRequest(
+							baseUrl,
+							path,
+							method,
+							args,
+						);
 
-				mcpServer.registerTool(
-					toolName,
-					{
-						description,
-						inputSchema,
-					},
-					async (args) => {
-						try {
-							const baseUrl = "http://localhost";
-							const { url, init } = buildRequest(
-								baseUrl,
-								path,
-								method,
-								args as Record<string, unknown>,
-							);
-
-							const headers = new Headers(init.headers);
-							const context = getContext<HonoVariables>();
-							const authHeader =
-								context.req.header("authorization") ?? context.var.accessToken;
-							if (authHeader) {
-								headers.set("authorization", authHeader);
-							}
-
-							const request = new Request(url, {
-								...init,
-								headers,
-							});
-
-							const response = await app.fetch(
-								request,
-								context.env,
-								context.executionCtx,
-							);
-
-							const responseText = await response.text();
-							const text = truncateText(responseText, MAX_RESPONSE_CHARS);
-
-							return {
-								isError: !response.ok,
-								content: [
-									{
-										type: "text" as const,
-										text: `HTTP ${response.status}\n\n${text}`,
-									},
-								],
-							};
-						} catch (error) {
-							const message =
-								error instanceof Error ? error.message : "Unknown error";
-
-							return {
-								isError: true,
-								content: [
-									{
-										type: "text" as const,
-										text: `Tool failed: ${message}`,
-									},
-								],
-							};
+						const headers = new Headers(init.headers);
+						const authHeader =
+							context.req.header("authorization") ?? context.var.accessToken;
+						if (authHeader) {
+							headers.set("authorization", authHeader);
 						}
-					},
-				);
-			}
-		}
 
-		hasRegisteredTools = true;
+						const request = new Request(url, {
+							...init,
+							headers,
+						});
+
+						const response = await app.fetch(
+							request,
+							context.env,
+							context.executionCtx,
+						);
+
+						const responseText = await response.text();
+						const text = truncateText(responseText, MAX_RESPONSE_CHARS);
+
+						return {
+							isError: !response.ok,
+							content: [
+								{
+									type: "text" as const,
+									text: `HTTP ${response.status}\n\n${text}`,
+								},
+							],
+						};
+					} catch (error) {
+						const message =
+							error instanceof Error ? error.message : "Unknown error";
+
+						return {
+							isError: true,
+							content: [
+								{
+									type: "text" as const,
+									text: `Tool failed: ${message}`,
+								},
+							],
+						};
+					}
+				},
+			});
+		}
+	}
+
+	return tools;
+};
+
+export const createMcpRouter = (app: Hono<HonoVariables>) => {
+	let cachedTools: Promise<ToolDefinition[]> | null = null;
+
+	const getTools = (deps: Deps): Promise<ToolDefinition[]> => {
+		if (!cachedTools) {
+			cachedTools = buildToolDefinitions(deps, app);
+		}
+		return cachedTools;
 	};
 
 	const router = createRouter().all("/", async (c) => {
@@ -310,11 +318,25 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 			c.set("accessToken", `Bearer ${accessToken}`);
 		}
 
-		if (!mcpServer.isConnected()) {
-			await registerToolsFromOpenApi(c.var.deps);
-			await mcpServer.connect(transport);
+		const mcpServer = new McpServer({
+			name: "pouch",
+			version: "0.0.3",
+		});
+		const transport = new StreamableHTTPTransport();
+
+		const tools = await getTools(c.var.deps);
+		for (const tool of tools) {
+			mcpServer.registerTool(
+				tool.name,
+				{
+					description: tool.description,
+					inputSchema: tool.inputSchema,
+				},
+				async (args) => tool.handler(args as Record<string, unknown>, c),
+			);
 		}
 
+		await mcpServer.connect(transport);
 		return transport.handleRequest(c);
 	});
 

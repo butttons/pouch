@@ -62,6 +62,7 @@ export class AppHTTPException extends HTTPException {
         return {
           name: value.name,
           message: value.message,
+          stack: value.stack,
           ...(value.cause !== undefined
             ? { cause: serialize(value.cause) }
             : {}),

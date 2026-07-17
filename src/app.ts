@@ -76,7 +76,7 @@ const app: Hono<HonoVariables> = createRouter()
 			404,
 		),
 	)
-	.onError((error, c) => {
+	.onError(async (error, c) => {
 		const status = error instanceof HTTPException ? error.status : 500;
 
 		const normalizedError =
@@ -89,14 +89,31 @@ const app: Hono<HonoVariables> = createRouter()
 						status,
 					});
 
-		console.error("Request failed", {
+		const logPayload: Record<string, unknown> = {
 			path: c.req.path,
 			method: c.req.method,
 			rayId: c.req.header("cf-ray"),
 			code: normalizedError.code,
 			status,
-			error: normalizedError,
-		});
+			message: normalizedError.message,
+		};
+
+		if (error instanceof HTTPException && error.res) {
+			logPayload.responseBody = await error.res
+				.clone()
+				.text()
+				.catch(() => "<failed to read response body>");
+		}
+
+		if (normalizedError.cause instanceof Error) {
+			logPayload.cause = {
+				name: normalizedError.cause.name,
+				message: normalizedError.cause.message,
+				stack: normalizedError.cause.stack,
+			};
+		}
+
+		console.error("Request failed", logPayload);
 
 		return c.json(normalizedError.toJSON(), status as never);
 	});
