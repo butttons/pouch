@@ -13,5 +13,11 @@ export const feedrMigrations = [
       "CREATE UNIQUE INDEX `collections_slug_unique` ON `collections` (`slug`);",
       "CREATE INDEX `idx_content_collection_status` ON `content` (`collection_id`,`status`);"
     ]
+  },
+  {
+    "name": "0001_parched_molten_man.sql",
+    "queries": [
+      "DROP TABLE `audit_log`;"
+    ]
   }
 ];

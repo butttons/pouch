@@ -1,7 +1,11 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-import { createCollection, fetchWorker } from "../utils.js";
+import {
+  adminToken,
+  createCollection,
+  fetchWorker,
+} from "../utils.js";
 
 describe("collections", () => {
   describe("POST /collections", () => {
@@ -54,20 +58,25 @@ describe("collections", () => {
         },
       });
 
-      const response = await fetchWorker("/collections/articles/schema", {
-        method: "PATCH",
-        body: JSON.stringify({
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              description: { type: "string" },
+      const token = await adminToken();
+      const response = await fetchWorker(
+        "/collections/articles/schema",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                description: { type: "string" },
+              },
+              required: ["title"],
+              additionalProperties: false,
             },
-            required: ["title"],
-            additionalProperties: false,
-          },
-        }),
-      });
+          }),
+        },
+        token,
+      );
 
       expect(response.status).toBe(200);
 
@@ -96,19 +105,24 @@ describe("collections", () => {
         },
       });
 
-      const response = await fetchWorker("/collections/pages/schema", {
-        method: "PATCH",
-        body: JSON.stringify({
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "number" },
+      const token = await adminToken();
+      const response = await fetchWorker(
+        "/collections/pages/schema",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "number" },
+              },
+              required: ["title"],
+              additionalProperties: false,
             },
-            required: ["title"],
-            additionalProperties: false,
-          },
-        }),
-      });
+          }),
+        },
+        token,
+      );
 
       expect(response.status).toBe(409);
 
@@ -136,20 +150,25 @@ describe("collections", () => {
         .bind(collection.id)
         .first<{ count: number }>();
 
-      const response = await fetchWorker("/collections/events/schema", {
-        method: "PATCH",
-        body: JSON.stringify({
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              xlabel: { type: "string", "x-label": "Label" },
+      const token = await adminToken();
+      const response = await fetchWorker(
+        "/collections/events/schema",
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            schema: {
+              type: "object",
+              properties: {
+                title: { type: "string" },
+                xlabel: { type: "string", "x-label": "Label" },
+              },
+              required: ["title"],
+              additionalProperties: false,
             },
-            required: ["title"],
-            additionalProperties: false,
-          },
-        }),
-      });
+          }),
+        },
+        token,
+      );
 
       expect(response.status).toBe(200);
 

@@ -1,5 +1,6 @@
 import { unwrapResult } from "@/lib/errors";
 import { jsonValidator, paramValidator, queryValidator } from "@/lib/validator";
+import { requireScopes } from "@/middleware/auth";
 import { createRouter } from "@/utils";
 
 import {
@@ -26,13 +27,14 @@ import { listCollections } from "./_service.get";
 import { patchCollectionSchema } from "./_service.patch-schema";
 
 export const collectionRouter = createRouter()
-  .get("/", async (c) => {
+  .get("/", requireScopes("content:read"), async (c) => {
     const result = await listCollections(c.var.deps);
     const value = unwrapResult(result);
     return c.json(value);
   })
   .post(
     "/",
+    requireScopes("schema:admin"),
     jsonValidator<CreateCollectionInput>(createCollectionInputSchema),
     async (c) => {
       const input = c.req.valid("json");
@@ -43,6 +45,7 @@ export const collectionRouter = createRouter()
   )
   .get(
     "/:slug/schema",
+    requireScopes("content:read"),
     paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     async (c) => {
       const input = c.req.valid("param");
@@ -53,6 +56,7 @@ export const collectionRouter = createRouter()
   )
   .patch(
     "/:slug/schema",
+    requireScopes("schema:admin"),
     paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     jsonValidator<PatchCollectionSchemaInput>(patchCollectionSchemaInputSchema),
     async (c) => {
@@ -72,6 +76,7 @@ export const collectionRouter = createRouter()
   )
   .post(
     "/:slug/content:validate",
+    requireScopes("content:write"),
     paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     jsonValidator<CreateContentInput>(validateContentInputSchema),
     async (c) => {
@@ -92,6 +97,7 @@ export const collectionRouter = createRouter()
   .route("/:slug/content", contentRouter)
   .get(
     "/:slug",
+    requireScopes("content:read"),
     paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     async (c) => {
       const input = c.req.valid("param");
@@ -102,6 +108,7 @@ export const collectionRouter = createRouter()
   )
   .delete(
     "/:slug",
+    requireScopes("schema:admin"),
     paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     queryValidator<DeleteCollectionQuery>(deleteCollectionQuerySchema),
     async (c) => {

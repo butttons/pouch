@@ -51,12 +51,3 @@ export const mediaTable = sqliteTable("media", {
 	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 });
 
-export const auditLogTable = sqliteTable("audit_log", {
-	id: text("id").primaryKey(),
-	actor: text("actor"),
-	action: text("action").notNull(),
-	targetType: text("target_type").notNull(),
-	targetId: text("target_id").notNull(),
-	diff: text("diff"),
-	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
-});

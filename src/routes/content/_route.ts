@@ -4,6 +4,7 @@ import {
 	paramValidator,
 	queryValidator,
 } from "@/lib/validator";
+import { requireScopes } from "@/middleware/auth";
 import {
 	collectionSlugParamSchema,
 	type CollectionSlugParam,
@@ -25,11 +26,11 @@ import { deleteContent } from "./_service.delete";
 import { getContentById } from "./_service.get-by-id";
 import { listContent } from "./_service.get";
 import { updateContent } from "./_service.patch";
-import { validateContent } from "./_service.validate";
 
 export const contentRouter = createRouter()
 	.get(
 		"/",
+		requireScopes("content:read"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		queryValidator<ContentQuery>(contentQuerySchema),
 		async (c) => {
@@ -42,6 +43,7 @@ export const contentRouter = createRouter()
 	)
 	.post(
 		"/",
+		requireScopes("content:write"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<CreateContentInput>(createContentInputSchema),
 		async (c) => {
@@ -61,6 +63,7 @@ export const contentRouter = createRouter()
 	)
 	.get(
 		"/:id",
+		requireScopes("content:read"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
 		async (c) => {
 			const params = c.req.valid("param");
@@ -71,6 +74,7 @@ export const contentRouter = createRouter()
 	)
 	.patch(
 		"/:id",
+		requireScopes("content:write"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
 		jsonValidator<UpdateContentInput>(updateContentInputSchema),
 		async (c) => {
@@ -91,6 +95,7 @@ export const contentRouter = createRouter()
 	)
 	.delete(
 		"/:id",
+		requireScopes("content:write"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
 		async (c) => {
 			const params = c.req.valid("param");

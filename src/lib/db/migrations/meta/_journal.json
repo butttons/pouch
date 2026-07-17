@@ -8,6 +8,13 @@
       "when": 1784260368113,
       "tag": "0000_solid_doctor_strange",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784268134793,
+      "tag": "0001_parched_molten_man",
+      "breakpoints": true
     }
   ]
 }

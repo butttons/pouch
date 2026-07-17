@@ -4,7 +4,6 @@ import { beforeAll, beforeEach } from "vitest";
 import { feedrMigrations } from "./generated-migrations.js";
 
 const TABLE_NAMES = [
-  "audit_log",
   "collections",
   "content",
   "media",

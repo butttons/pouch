@@ -9,16 +9,6 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
 
-export interface AuditLog {
-  action: string;
-  actor: string | null;
-  created_at: number;
-  diff: string | null;
-  id: string;
-  target_id: string;
-  target_type: string;
-}
-
 export interface Collections {
   created_at: number;
   current_schema_version_id: string | null;
@@ -59,7 +49,6 @@ export interface SchemaVersions {
 }
 
 export interface DB {
-  audit_log: AuditLog;
   collections: Collections;
   content: Content;
   media: Media;

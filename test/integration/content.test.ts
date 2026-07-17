@@ -1,7 +1,14 @@
 import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
-import { createCollection, createContent, fetchWorker } from "../utils.js";
+import {
+  adminToken,
+  createCollection,
+  createContent,
+  fetchWorker,
+  readerToken,
+  writerToken,
+} from "../utils.js";
 
 const makeCollectionSchema = (extraProperties: Record<string, unknown> = {}) => ({
   type: "object",
@@ -23,12 +30,17 @@ describe("content", () => {
         schema: makeCollectionSchema(),
       });
 
-      const response = await fetchWorker("/collections/posts/content", {
-        method: "POST",
-        body: JSON.stringify({
-          data: { title: 123, count: 1 },
-        }),
-      });
+      const token = await writerToken();
+      const response = await fetchWorker(
+        "/collections/posts/content",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: { title: 123, count: 1 },
+          }),
+        },
+        token,
+      );
 
       expect(response.status).toBe(400);
 
@@ -50,24 +62,34 @@ describe("content", () => {
         schema: makeCollectionSchema(),
       });
 
-      const validResponse = await fetchWorker("/collections/drafts/content:validate", {
-        method: "POST",
-        body: JSON.stringify({
-          data: { title: "Hello", count: 1 },
-        }),
-      });
+      const token = await writerToken();
+
+      const validResponse = await fetchWorker(
+        "/collections/drafts/content:validate",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: { title: "Hello", count: 1 },
+          }),
+        },
+        token,
+      );
 
       expect(validResponse.status).toBe(200);
 
       const validBody = (await validResponse.json()) as { valid: boolean };
       expect(validBody.valid).toBe(true);
 
-      const invalidResponse = await fetchWorker("/collections/drafts/content:validate", {
-        method: "POST",
-        body: JSON.stringify({
-          data: { title: "Hello" },
-        }),
-      });
+      const invalidResponse = await fetchWorker(
+        "/collections/drafts/content:validate",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: { title: "Hello" },
+          }),
+        },
+        token,
+      );
 
       expect(invalidResponse.status).toBe(400);
 
@@ -93,12 +115,18 @@ describe("content", () => {
         data: { title: "Original", count: 1 },
       });
 
-      const response = await fetchWorker(`/collections/items/content/${content.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          data: { count: 42 },
-        }),
-      });
+      const token = await writerToken();
+
+      const response = await fetchWorker(
+        `/collections/items/content/${content.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            data: { count: 42 },
+          }),
+        },
+        token,
+      );
 
       expect(response.status).toBe(200);
 
@@ -110,12 +138,16 @@ describe("content", () => {
       expect(body.data).toEqual({ title: "Original", count: 42 });
       expect(body.updatedAt).toBeGreaterThan(content.createdAt);
 
-      const invalidResponse = await fetchWorker(`/collections/items/content/${content.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          data: { title: 123 },
-        }),
-      });
+      const invalidResponse = await fetchWorker(
+        `/collections/items/content/${content.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            data: { title: 123 },
+          }),
+        },
+        token,
+      );
 
       expect(invalidResponse.status).toBe(400);
     });
@@ -133,7 +165,13 @@ describe("content", () => {
       await createContent("scores", { data: { title: "B", count: 5 } });
       await createContent("scores", { data: { title: "C", count: 10 } });
 
-      const eqResponse = await fetchWorker("/collections/scores/content?count=5");
+      const token = await readerToken();
+
+      const eqResponse = await fetchWorker(
+        "/collections/scores/content?count=5",
+        {},
+        token,
+      );
       expect(eqResponse.status).toBe(200);
 
       const eqBody = (await eqResponse.json()) as Array<{ data: Record<string, unknown> }>;
@@ -141,7 +179,11 @@ describe("content", () => {
       const first = eqBody[0]!;
       expect(first.data.title).toBe("B");
 
-      const gtResponse = await fetchWorker("/collections/scores/content?count[gt]=1");
+      const gtResponse = await fetchWorker(
+        "/collections/scores/content?count[gt]=1",
+        {},
+        token,
+      );
       expect(gtResponse.status).toBe(200);
 
       const gtBody = (await gtResponse.json()) as Array<{ data: Record<string, unknown> }>;
@@ -162,18 +204,28 @@ describe("content", () => {
 
       await createContent("notes", { data: { title: "Note", count: 1 } });
 
-      const withoutForce = await fetchWorker("/collections/notes", {
-        method: "DELETE",
-      });
+      const token = await adminToken();
+
+      const withoutForce = await fetchWorker(
+        "/collections/notes",
+        {
+          method: "DELETE",
+        },
+        token,
+      );
 
       expect(withoutForce.status).toBe(409);
 
       const withoutForceBody = (await withoutForce.json()) as { code: string };
       expect(withoutForceBody.code).toBe("COLLECTION_DELETE_FAILED");
 
-      const withForce = await fetchWorker("/collections/notes?force=true", {
-        method: "DELETE",
-      });
+      const withForce = await fetchWorker(
+        "/collections/notes?force=true",
+        {
+          method: "DELETE",
+        },
+        token,
+      );
 
       expect(withForce.status).toBe(204);
 
