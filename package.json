@@ -1,5 +1,5 @@
 {
-  "name": "feedr",
+  "name": "pouch",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -12,9 +12,9 @@
     "test": "vitest run",
     "generate-test-migrations": "tsx scripts/generate-test-migrations.ts",
     "db:generate": "drizzle-kit generate --config=./src/lib/db/config.dev.ts",
-    "db:migrate": "wrangler d1 migrations apply feedr --local",
-    "db:migrate:prod": "wrangler d1 migrations apply feedr",
-    "db:codegen": "dotenv -e .env -- drizzle-kit migrate --config=./src/lib/db/config.dev.ts && DATABASE_URL='./feedr.db' kysely-codegen --dialect sqlite --out-file ./src/lib/db/types.ts --exclude-pattern=__drizzle_migrations"
+    "db:migrate": "wrangler d1 migrations apply pouch --local",
+    "db:migrate:prod": "wrangler d1 migrations apply pouch",
+    "db:codegen": "dotenv -e .env -- drizzle-kit migrate --config=./src/lib/db/config.dev.ts && DATABASE_URL='./pouch.db' kysely-codegen --dialect sqlite --out-file ./src/lib/db/types.ts --exclude-pattern=__drizzle_migrations"
   },
   "dependencies": {
     "@hono/mcp": "^0.3.1",

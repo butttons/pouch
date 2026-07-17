@@ -23,7 +23,7 @@ const migrations = files.map((name) => {
 const ts = `// Generated from src/lib/db/migrations/*.sql
 // Do not edit manually. Run: pnpm generate-test-migrations
 
-export const feedrMigrations = ${JSON.stringify(migrations, null, 2)};
+export const pouchMigrations = ${JSON.stringify(migrations, null, 2)};
 `;
 
 writeFileSync(OUTPUT_FILE, ts);

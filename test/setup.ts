@@ -1,7 +1,7 @@
 import { applyD1Migrations, env } from "cloudflare:test";
 import { beforeAll, beforeEach } from "vitest";
 
-import { feedrMigrations } from "./generated-migrations.js";
+import { pouchMigrations } from "./generated-migrations.js";
 
 const TABLE_NAMES = [
   "collections",
@@ -18,7 +18,7 @@ async function clearDatabase() {
 }
 
 beforeAll(async () => {
-  await applyD1Migrations(env.DB, feedrMigrations);
+  await applyD1Migrations(env.DB, pouchMigrations);
 });
 
 beforeEach(async () => {

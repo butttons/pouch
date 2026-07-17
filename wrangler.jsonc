@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "feedr",
+  "name": "pouch",
   "main": "src/index.ts",
   "compatibility_date": "2025-09-27",
   "compatibility_flags": ["nodejs_als"],
@@ -13,7 +13,7 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "feedr",
+      "database_name": "pouch",
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "src/lib/db/migrations",
     },

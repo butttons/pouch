@@ -1,10 +1,10 @@
 {
-  "name": "@feedr/client",
+  "name": "@pouch/client",
   "version": "0.0.1",
   "private": true,
   "type": "module",
   "scripts": {
-    "typegen": "openapi-typescript ./openapi.json -o ./src/generated/feedr.ts",
+    "typegen": "openapi-typescript ./openapi.json -o ./src/generated/pouch.ts",
     "type-check": "tsc --noEmit",
     "demo": "tsx ./src/demo.ts"
   },

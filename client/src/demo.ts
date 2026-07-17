@@ -1,12 +1,12 @@
 import createClient from "openapi-fetch";
 
-import type { paths } from "./generated/feedr.js";
+import type { paths } from "./generated/pouch.js";
 
 const API_URL = "http://localhost:3200";
-const TOKEN = process.env.FEEDR_TOKEN;
+const TOKEN = process.env.POUCH_TOKEN;
 
 if (!TOKEN) {
-  console.error("Set FEEDR_TOKEN env var");
+  console.error("Set POUCH_TOKEN env var");
   process.exit(1);
 }
 

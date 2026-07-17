@@ -190,7 +190,7 @@ const buildRequest = (
 
 export const createMcpRouter = (app: Hono<HonoVariables>) => {
 	const mcpServer = new McpServer({
-		name: "feedr",
+		name: "pouch",
 		version: "0.0.1",
 	});
 

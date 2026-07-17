@@ -1,7 +1,7 @@
 // Generated from src/lib/db/migrations/*.sql
 // Do not edit manually. Run: pnpm generate-test-migrations
 
-export const feedrMigrations = [
+export const pouchMigrations = [
   {
     "name": "0000_strange_diamondback.sql",
     "queries": [

@@ -8,7 +8,7 @@ import {
 } from "@/routes/collection/_openapi";
 
 const baseInfo = {
-	title: "feedr",
+	title: "pouch",
 	version: "0.0.1",
 };
 
