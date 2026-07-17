@@ -1,6 +1,6 @@
 {
-  "name": "pouch",
-  "version": "0.0.5",
+  "name": "@butttons/pouch",
+  "version": "0.0.6",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,8 +12,8 @@
     "test": "vitest run",
     "generate-test-migrations": "tsx scripts/generate-test-migrations.ts",
     "db:generate": "drizzle-kit generate --config=./src/lib/db/config.dev.ts",
-    "db:migrate": "wrangler d1 migrations apply pouch --local",
-    "db:migrate:prod": "wrangler d1 migrations apply pouch --remote",
+    "db:migrate": "wrangler d1 migrations apply pouch-cms --local",
+    "db:migrate:prod": "wrangler d1 migrations apply pouch-cms --remote",
     "db:codegen": "dotenv -e .env -- drizzle-kit migrate --config=./src/lib/db/config.dev.ts && DATABASE_URL='./pouch.db' kysely-codegen --dialect sqlite --out-file ./src/lib/db/types.ts --exclude-pattern=__drizzle_migrations"
   },
   "dependencies": {
@@ -41,5 +41,12 @@
     "typescript": "^5.9.2",
     "vitest": "^4.1.10",
     "wrangler": "^4.107.1"
+  },
+  "cloudflare": {
+    "bindings": {
+      "JWT_SECRET": {
+        "description": "Generate a strong secret and keep it safe (`openssl rand -hex 32`). You will need it to create API keys."
+      }
+    }
   }
 }

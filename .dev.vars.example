@@ -1,0 +1,1 @@
+JWT_SECRET=your-local-dev-secret-min-32-chars-long
