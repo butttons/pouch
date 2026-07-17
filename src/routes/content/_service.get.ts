@@ -4,11 +4,14 @@ import type { ContentFilter, DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
-import type { Content, ContentQuery } from "./_schema";
+import type { ContentListResponse, ContentQuery } from "./_schema";
 import { resolveRelations } from "./_service.resolve";
 
 const QUERY_KEY_REGEX = /^([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([a-z]+)\])?$/;
 const ALLOWED_OPS = ["eq", "gt", "gte", "lt", "lte", "ne"] as const;
+
+const DEFAULT_LIMIT = 50;
+const MAX_LIMIT = 500;
 
 type AllowedOp = (typeof ALLOWED_OPS)[number];
 
@@ -30,12 +33,26 @@ const coerceValue = (
 	return value;
 };
 
-const QUERY_META_KEYS = new Set(["resolve"]);
+const QUERY_META_KEYS = new Set(["resolve", "limit", "cursor"]);
+
+const parseLimit = (raw: unknown): number => {
+	if (raw === undefined) {
+		return DEFAULT_LIMIT;
+	}
+
+	const parsed = typeof raw === "string" ? Number(raw) : Number(raw);
+
+	if (!Number.isFinite(parsed) || parsed < 1) {
+		return DEFAULT_LIMIT;
+	}
+
+	return Math.min(parsed, MAX_LIMIT);
+};
 
 export const listContent = (
 	input: CollectionSlugParam & { query: ContentQuery },
 	deps: Deps,
-): ResultAsync<Content[], AppHTTPException | DataLayerError> =>
+): ResultAsync<ContentListResponse, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
 		const collection = yield* deps.DL.collection.getCollectionBySlug({
 			slug: input.slug,
@@ -109,14 +126,20 @@ export const listContent = (
 			const valueString = (
 				Array.isArray(rawValue) ? rawValue[0] : rawValue
 			) ?? "";
-			const value = coerceValue(valueString, property.type);
+			const value = coerceValue(String(valueString), property.type);
 
 			filters.push({ field, op, value });
 		}
 
-		const rows = yield* deps.DL.content.listContent({
+		const limit = parseLimit(input.query.limit);
+		const cursor =
+			typeof input.query.cursor === "string" ? input.query.cursor : undefined;
+
+		const { rows, nextCursor } = yield* deps.DL.content.listContent({
 			collectionId: collection.id,
 			filters,
+			limit,
+			cursor,
 		});
 
 		const resolveValue = input.query.resolve;
@@ -124,7 +147,7 @@ export const listContent = (
 			typeof resolveValue === "string" ? resolveValue : resolveValue?.[0];
 
 		if (!resolve) {
-			return ok(rows);
+			return ok({ data: rows, nextCursor });
 		}
 
 		const resolved = yield* resolveRelations(
@@ -136,5 +159,5 @@ export const listContent = (
 			deps,
 		);
 
-		return ok(resolved);
+		return ok({ data: resolved, nextCursor });
 	});

@@ -22,13 +22,26 @@ const OP_MAP: Record<ContentFilter["op"], string> = {
 	ne: "!=",
 };
 
+const getFilterExpression = (filter: ContentFilter) => {
+	const path = "$." + filter.field;
+	const op = OP_MAP[filter.op];
+	return sql<boolean>`json_extract(data, ${path}) ${sql.raw(op)} ${filter.value}`;
+};
+
 export class ContentDataLayer extends BaseDataLayer {
 	constructor(private db: Database) {
 		super();
 		this.entity = "content";
 	}
 
-	listContent(input: { collectionId: string; filters: ContentFilter[] }) {
+	listContent(input: {
+		collectionId: string;
+		filters: ContentFilter[];
+		limit: number;
+		cursor?: string;
+	}) {
+		const pageSize = input.limit;
+
 		return fromPromise(
 			this.db
 				.selectFrom("content")
@@ -42,20 +55,20 @@ export class ContentDataLayer extends BaseDataLayer {
 					"updated_at as updatedAt",
 				])
 				.where("collection_id", "=", input.collectionId)
+				.$if(input.cursor !== undefined, (q) =>
+					q.where("id", "<", input.cursor!),
+				)
 				.$if(input.filters.length > 0, (q) => {
 					let filtered = q;
 
 					for (const filter of input.filters) {
-						const path = "$." + filter.field;
-						const op = OP_MAP[filter.op];
-						filtered = filtered.where(
-							sql<boolean>`json_extract(data, ${path}) ${sql.raw(op)} ${filter.value}`,
-						);
+						filtered = filtered.where(getFilterExpression(filter));
 					}
 
 					return filtered;
 				})
-				.orderBy("created_at", "desc")
+				.orderBy("id", "desc")
+				.limit(pageSize + 1)
 				.execute(),
 			this.passThroughError({
 				message: "Failed to list content",
@@ -63,7 +76,12 @@ export class ContentDataLayer extends BaseDataLayer {
 				source: "DL.content.listContent",
 				input,
 			}),
-		);
+		).map((rows) => {
+			const hasMore = rows.length > pageSize;
+			const data = hasMore ? rows.slice(0, pageSize) : rows;
+			const nextCursor = hasMore ? (data[data.length - 1]?.id ?? null) : null;
+			return { rows: data, nextCursor };
+		});
 	}
 
 	getContentById(input: { id: string }) {
@@ -104,7 +122,6 @@ export class ContentDataLayer extends BaseDataLayer {
 					"updated_at as updatedAt",
 				])
 				.where("id", "in", input.ids)
-				.orderBy("created_at", "desc")
 				.execute(),
 			this.passThroughError({
 				message: "Failed to get content by IDs",

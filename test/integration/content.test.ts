@@ -174,9 +174,11 @@ describe("content", () => {
       );
       expect(eqResponse.status).toBe(200);
 
-      const eqBody = (await eqResponse.json()) as Array<{ data: Record<string, unknown> }>;
-      expect(eqBody).toHaveLength(1);
-      const first = eqBody[0]!;
+      const eqBody = (await eqResponse.json()) as {
+        data: Array<{ data: Record<string, unknown> }>;
+      };
+      expect(eqBody.data).toHaveLength(1);
+      const first = eqBody.data[0]!;
       expect(first.data.title).toBe("B");
 
       const gtResponse = await fetchWorker(
@@ -186,9 +188,11 @@ describe("content", () => {
       );
       expect(gtResponse.status).toBe(200);
 
-      const gtBody = (await gtResponse.json()) as Array<{ data: Record<string, unknown> }>;
-      expect(gtBody).toHaveLength(2);
-      const titles = gtBody.map((item) => item.data.title);
+      const gtBody = (await gtResponse.json()) as {
+        data: Array<{ data: Record<string, unknown> }>;
+      };
+      expect(gtBody.data).toHaveLength(2);
+      const titles = gtBody.data.map((item) => item.data.title);
       expect(titles).toContain("B");
       expect(titles).toContain("C");
     });
@@ -303,11 +307,11 @@ describe("content", () => {
         token,
       );
       expect(listed.status).toBe(200);
-      const listedBody = (await listed.json()) as Array<{
-        data: Record<string, unknown>;
-      }>;
-      expect(listedBody).toHaveLength(1);
-      const listedAuthor = listedBody[0]!.data.author as {
+      const listedBody = (await listed.json()) as {
+        data: Array<{ data: Record<string, unknown> }>;
+      };
+      expect(listedBody.data).toHaveLength(1);
+      const listedAuthor = listedBody.data[0]!.data.author as {
         id: string;
         data: Record<string, unknown>;
       };

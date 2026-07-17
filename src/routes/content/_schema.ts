@@ -64,9 +64,25 @@ export const contentRouteParamsSchema = Type.Object(
 
 export type ContentRouteParams = Type.Static<typeof contentRouteParamsSchema>;
 
-export const contentQuerySchema = Type.Record(
-	Type.String(),
-	Type.Union([Type.String(), Type.Array(Type.String())]),
+export const contentQuerySchema = Type.Object(
+	{
+		limit: Type.Optional(Type.String()),
+		cursor: Type.Optional(Type.String({ pattern: "^con_" })),
+		resolve: Type.Optional(
+			Type.Union([Type.String(), Type.Array(Type.String())]),
+		),
+	},
+	{ additionalProperties: true },
 );
 
 export type ContentQuery = Type.Static<typeof contentQuerySchema>;
+
+export const contentListResponseSchema = Type.Object(
+	{
+		data: Type.Array(contentResponseSchema),
+		nextCursor: Type.Union([Type.String(), Type.Null()]),
+	},
+	{ additionalProperties: false },
+);
+
+export type ContentListResponse = Type.Static<typeof contentListResponseSchema>;

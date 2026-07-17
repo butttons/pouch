@@ -91,7 +91,30 @@ const getRelationFields = (
 const buildContentQueryParameters = (
 	schema: Record<string, unknown>,
 ): Array<Record<string, unknown>> => {
-	const parameters: Array<Record<string, unknown>> = [];
+	const parameters: Array<Record<string, unknown>> = [
+		{
+			name: "limit",
+			in: "query",
+			required: false,
+			schema: {
+				type: "integer",
+				minimum: 1,
+				maximum: 500,
+				default: 50,
+				description: "Maximum number of items to return.",
+			},
+		},
+		{
+			name: "cursor",
+			in: "query",
+			required: false,
+			schema: {
+				type: "string",
+				pattern: "^con_",
+				description: "ID of the last item from the previous page.",
+			},
+		},
+	];
 
 	if (!schema.properties || typeof schema.properties !== "object") {
 		return parameters;
@@ -281,8 +304,20 @@ const buildCollectionContentPaths = (
 					content: {
 						"application/json": {
 							schema: {
-								type: "array",
-								items: buildContentItemSchema(slug, schema),
+								type: "object",
+								properties: {
+									data: {
+										type: "array",
+										items: buildContentItemSchema(slug, schema),
+									},
+									nextCursor: {
+										type: ["string", "null"],
+										description:
+											"ID cursor for the next page, or null if there are no more items.",
+									},
+								},
+								required: ["data", "nextCursor"],
+								additionalProperties: false,
 							},
 						},
 					},

@@ -72,7 +72,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					"name",
 					"title_field as titleField",
 				])
-				.orderBy("created_at", "desc")
+				.orderBy("id", "desc")
 				.execute(),
 			this.passThroughError({
 				message: "Failed to list collections",
@@ -94,7 +94,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					"title_field as titleField",
 					sql<Record<string, unknown>>`schema`.as("schema"),
 				])
-				.orderBy("created_at", "desc")
+				.orderBy("id", "desc")
 				.execute(),
 			this.passThroughError({
 				message: "Failed to list collections with schema",
