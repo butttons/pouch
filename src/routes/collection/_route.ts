@@ -6,15 +6,18 @@ import {
   collectionSlugParamSchema,
   createCollectionInputSchema,
   deleteCollectionQuerySchema,
+  patchCollectionSchemaInputSchema,
   type CollectionSlugParam,
   type CreateCollectionInput,
   type DeleteCollectionQuery,
+  type PatchCollectionSchemaInput,
 } from "./_schema";
 import { createCollection } from "./_service.post";
 import { deleteCollection } from "./_service.delete";
 import { getCollectionBySlug } from "./_service.get-by-slug";
 import { getCollectionSchemaBySlug } from "./_service.get-schema";
 import { listCollections } from "./_service.get";
+import { patchCollectionSchema } from "./_service.patch-schema";
 
 export const collectionRouter = createRouter()
   .get("/", async (c) => {
@@ -38,6 +41,25 @@ export const collectionRouter = createRouter()
     async (c) => {
       const input = c.req.valid("param");
       const result = await getCollectionSchemaBySlug(input, c.var.deps);
+      const value = unwrapResult(result);
+      return c.json(value);
+    },
+  )
+  .patch(
+    "/:slug/schema",
+    paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
+    jsonValidator<PatchCollectionSchemaInput>(patchCollectionSchemaInputSchema),
+    async (c) => {
+      const params = c.req.valid("param");
+      const body = c.req.valid("json");
+      const result = await patchCollectionSchema(
+        {
+          slug: params.slug,
+          schema: body.schema,
+          force: body.force,
+        },
+        c.var.deps,
+      );
       const value = unwrapResult(result);
       return c.json(value);
     },

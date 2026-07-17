@@ -32,6 +32,7 @@ export const collectionWithSchemaSchema = Type.Object(
 		slug: Type.String(),
 		name: Type.String(),
 		titleField: Type.Union([Type.String(), Type.Null()]),
+		currentSchemaVersionId: Type.Union([Type.String(), Type.Null()]),
 		schema: Type.Record(Type.String(), Type.Unknown()),
 	},
 	{ additionalProperties: false },
@@ -59,6 +60,18 @@ export const collectionSchemaResponseSchema = Type.Record(
 
 export type CollectionSchemaResponse = Type.Static<
 	typeof collectionSchemaResponseSchema
+>;
+
+export const patchCollectionSchemaInputSchema = Type.Object(
+	{
+		schema: Type.Record(Type.String(), Type.Unknown()),
+		force: Type.Optional(Type.Boolean()),
+	},
+	{ additionalProperties: false },
+);
+
+export type PatchCollectionSchemaInput = Type.Static<
+	typeof patchCollectionSchemaInputSchema
 >;
 
 export const deleteCollectionQuerySchema = Type.Object(

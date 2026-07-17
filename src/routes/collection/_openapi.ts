@@ -3,6 +3,7 @@ import {
 	collectionSchemaResponseSchema,
 	collectionWithSchemaSchema,
 	createCollectionInputSchema,
+	patchCollectionSchemaInputSchema,
 } from "./_schema";
 
 export const SYSTEM_SCHEMA_PREFIX = "__";
@@ -11,12 +12,14 @@ export const collectionSchemaRef = `${SYSTEM_SCHEMA_PREFIX}Collection`;
 export const collectionWithSchemaSchemaRef = `${SYSTEM_SCHEMA_PREFIX}CollectionWithSchema`;
 export const createCollectionInputSchemaRef = `${SYSTEM_SCHEMA_PREFIX}CreateCollectionInput`;
 export const collectionSchemaResponseRef = `${SYSTEM_SCHEMA_PREFIX}CollectionSchema`;
+export const patchCollectionSchemaInputSchemaRef = `${SYSTEM_SCHEMA_PREFIX}PatchCollectionSchemaInput`;
 
 export const collectionOpenAPIComponents = {
 	[collectionSchemaRef]: collectionSchema,
 	[collectionWithSchemaSchemaRef]: collectionWithSchemaSchema,
 	[createCollectionInputSchemaRef]: createCollectionInputSchema,
 	[collectionSchemaResponseRef]: collectionSchemaResponseSchema,
+	[patchCollectionSchemaInputSchemaRef]: patchCollectionSchemaInputSchema,
 };
 
 export const collectionOpenAPIPaths = {
@@ -86,6 +89,40 @@ export const collectionOpenAPIPaths = {
 						"application/json": {
 							schema: {
 								$ref: `#/components/schemas/${collectionSchemaResponseRef}`,
+							},
+						},
+					},
+				},
+			},
+		},
+		patch: {
+			summary: "Patch collection schema",
+			operationId: "patchCollectionSchema",
+			parameters: [
+				{
+					name: "slug",
+					in: "path",
+					required: true,
+					schema: { type: "string" },
+				},
+			],
+			requestBody: {
+				required: true,
+				content: {
+					"application/json": {
+						schema: {
+							$ref: `#/components/schemas/${patchCollectionSchemaInputSchemaRef}`,
+						},
+					},
+				},
+			},
+			responses: {
+				"200": {
+					description: "Updated collection",
+					content: {
+						"application/json": {
+							schema: {
+								$ref: `#/components/schemas/${collectionWithSchemaSchemaRef}`,
 							},
 						},
 					},

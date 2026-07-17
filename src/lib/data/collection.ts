@@ -20,6 +20,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					"slug",
 					"name",
 					"title_field as titleField",
+					"current_schema_version_id as currentSchemaVersionId",
 					sql<Record<string, unknown>>`schema`.as("schema"),
 				])
 				.where("slug", "=", input.slug)
@@ -113,6 +114,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					"slug",
 					"name",
 					"title_field as titleField",
+					"current_schema_version_id as currentSchemaVersionId",
 					sql<Record<string, unknown>>`schema`.as("schema"),
 				])
 				.where("id", "=", input.id)
@@ -121,6 +123,67 @@ export class CollectionDataLayer extends BaseDataLayer {
 				message: "Failed to get collection by ID",
 				code: "GET_FAILED",
 				source: "DL.collection.getCollectionById",
+				input,
+			}),
+		);
+	}
+
+	createSchemaVersion(input: {
+		id: string;
+		collectionId: string;
+		schema: string;
+		changeDiff: string | null;
+	}) {
+		return fromPromise(
+			this.db
+				.insertInto("schema_versions")
+				.values({
+					id: input.id,
+					collection_id: input.collectionId,
+					schema: input.schema,
+					change_diff: input.changeDiff,
+					applied_by: null,
+					created_at: Date.now(),
+				})
+				.returning(["id"])
+				.executeTakeFirstOrThrow(),
+			this.passThroughError({
+				message: "Failed to create schema version",
+				code: "CREATE_FAILED",
+				source: "DL.collection.createSchemaVersion",
+				input,
+			}),
+		);
+	}
+
+	updateCollectionSchema(input: {
+		id: string;
+		schema: string;
+		currentSchemaVersionId: string;
+	}) {
+		return fromPromise(
+			this.db
+				.updateTable("collections")
+				.set(
+					this.forUpdate({
+						schema: input.schema,
+						current_schema_version_id: input.currentSchemaVersionId,
+					}),
+				)
+				.where("id", "=", input.id)
+				.returning([
+					"id",
+					"slug",
+					"name",
+					"title_field as titleField",
+					"current_schema_version_id as currentSchemaVersionId",
+					sql<Record<string, unknown>>`schema`.as("schema"),
+				])
+				.executeTakeFirstOrThrow(),
+			this.passThroughError({
+				message: "Failed to update collection schema",
+				code: "UPDATE_FAILED",
+				source: "DL.collection.updateCollectionSchema",
 				input,
 			}),
 		);
