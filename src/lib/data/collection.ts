@@ -34,6 +34,29 @@ export class CollectionDataLayer extends BaseDataLayer {
 		);
 	}
 
+	getCollectionsBySlugs(input: { slugs: string[] }) {
+		return fromPromise(
+			this.db
+				.selectFrom("collections")
+				.select([
+					"id",
+					"slug",
+					"name",
+					"title_field as titleField",
+					"current_schema_version_id as currentSchemaVersionId",
+					sql<Record<string, unknown>>`schema`.as("schema"),
+				])
+				.where("slug", "in", input.slugs)
+				.execute(),
+			this.passThroughError({
+				message: "Failed to get collections by slugs",
+				code: "GET_FAILED",
+				source: "DL.collection.getCollectionsBySlugs",
+				input,
+			}),
+		);
+	}
+
 	createCollection(input: {
 		slug: string;
 		name: string;

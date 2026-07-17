@@ -124,6 +124,22 @@ export const resolveRelations = (
 			requestedFields,
 		);
 
+		const relationSlugs = new Set<string>();
+
+		for (const [field, targetIds] of targetIdsByField.entries()) {
+			const relation = relationByField.get(field);
+			if (!relation || targetIds.size === 0) continue;
+
+			relationSlugs.add(relation.targetSlug);
+		}
+
+		const targetCollections =
+			relationSlugs.size > 0
+				? yield* deps.DL.collection.getCollectionsBySlugs({
+						slugs: Array.from(relationSlugs),
+				  })
+				: [];
+
 		const targetCollectionIds = new Map<string, string>();
 		const allTargetIds = new Set<string>();
 
@@ -131,9 +147,9 @@ export const resolveRelations = (
 			const relation = relationByField.get(field);
 			if (!relation) continue;
 
-			const targetCollection = yield* deps.DL.collection.getCollectionBySlug({
-				slug: relation.targetSlug,
-			});
+			const targetCollection = targetCollections.find(
+				(collection) => collection.slug === relation.targetSlug,
+			);
 
 			if (!targetCollection) {
 				continue;
