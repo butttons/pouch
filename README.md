@@ -21,6 +21,14 @@ The fastest way to deploy is through Cloudflare's GitHub integration.
 
 This clones the repo into your GitHub account and deploys the worker. You can configure the project name, D1 binding, and secrets during setup. Keep note of `JWT_SECRET`; you will need it to generate API keys.
 
+After the worker deploys, apply the D1 migrations:
+
+```sh
+npx wrangler d1 migrations apply pouch --remote
+```
+
+The deploy button creates the D1 binding but does not run the migration files automatically.
+
 ### Manual deploy
 
 You need the following installed:
@@ -97,7 +105,18 @@ pnpm install
 JWT_SECRET='your-local-dev-secret-min-32-chars-long'
 ```
 
-3. Run the local dev server
+3. Generate an admin key (optional)
+
+If you need an admin token for local scripts or remote management, post your `JWT_SECRET` to `/auth/keys` and store the token in `.env.local` (already ignored by git):
+
+```sh
+curl -X POST http://localhost:3200/auth/keys \
+  -H "Content-Type: application/json" \
+  -d '{"secret": "[JWT_SECRET]", "scopes": ["schema:admin","content:write","content:read"]}' \
+  | jq -r '.token' > .env.local
+```
+
+4. Run the local dev server
 
 ```sh
 pnpm dev
@@ -105,7 +124,7 @@ pnpm dev
 
 The worker runs at `http://localhost:3200`.
 
-4. Run tests
+5. Run tests
 
 ```sh
 pnpm test
