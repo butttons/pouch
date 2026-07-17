@@ -59,14 +59,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 		get: {
 			summary: `List ${slug} content`,
 			operationId: `list${slug}Content`,
-			parameters: [
-				{
-					name: "slug",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-			],
 			responses: {
 				"200": {
 					description: `List of ${slug} content`,
@@ -86,14 +78,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 		post: {
 			summary: `Create ${slug} content`,
 			operationId: `create${slug}Content`,
-			parameters: [
-				{
-					name: "slug",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-			],
 			requestBody: {
 				required: true,
 				content: {
@@ -122,14 +106,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 		post: {
 			summary: `Validate ${slug} content`,
 			operationId: `validate${slug}Content`,
-			parameters: [
-				{
-					name: "slug",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-			],
 			requestBody: {
 				required: true,
 				content: {
@@ -165,12 +141,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 			operationId: `get${slug}ContentById`,
 			parameters: [
 				{
-					name: "slug",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-				{
 					name: "id",
 					in: "path",
 					required: true,
@@ -194,12 +164,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 			summary: `Update ${slug} content`,
 			operationId: `update${slug}Content`,
 			parameters: [
-				{
-					name: "slug",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
 				{
 					name: "id",
 					in: "path",
@@ -234,12 +198,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 			summary: `Delete ${slug} content`,
 			operationId: `delete${slug}Content`,
 			parameters: [
-				{
-					name: "slug",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
 				{
 					name: "id",
 					in: "path",
