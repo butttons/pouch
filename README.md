@@ -156,6 +156,102 @@ Response:
 
 If `scopes` is omitted, the key gets all scopes. Use `expiresInSeconds` to override the default 180-day expiry.
 
+## MCP server
+
+pouch exposes its REST API as an MCP server at `/mcp`. Any MCP client (Cursor, Claude Code, Claude Desktop, etc.) can connect and use the API as tools without extra configuration.
+
+Requirements:
+
+- The worker needs the `nodejs_als` compatibility flag, which is already set in `wrangler.jsonc`.
+
+Connect a client to:
+
+```
+https://pouch-cms.zomunk.workers.dev/mcp
+```
+
+For local development, use `http://localhost:3200/mcp`.
+
+The MCP server reads `/openapi.json` on the first request and registers one tool per operation. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes:
+
+- `content:read` for read tools.
+- `content:write` / `schema:admin` for write tools.
+
+`/auth/keys` and other sensitive paths are excluded from the tool list.
+
+## Generating a typed client
+
+pouch serves a live OpenAPI 3.1 spec at `/openapi.json`. Because the assembler expands `/collections/{slug}/content` into concrete paths per collection, the generated client uses those concrete paths directly and types query filters from each collection's JSON Schema.
+
+Install the tooling in your consumer project:
+
+```sh
+npm install openapi-fetch
+npm install -D openapi-typescript
+```
+
+Generate the types from your deployed pouch instance:
+
+```sh
+npx openapi-typescript https://pouch-cms.zomunk.workers.dev/openapi.json \
+  --header "Authorization: Bearer [TOKEN]" \
+  -o ./src/generated/pouch.ts
+```
+
+Then create a client:
+
+```ts
+import createClient from "openapi-fetch";
+import type { paths } from "./generated/pouch.js";
+
+const client = createClient<paths>({
+  baseUrl: "https://pouch-cms.zomunk.workers.dev",
+  headers: { Authorization: `Bearer ${TOKEN}` },
+});
+
+const { data, error } = await client.GET("/collections/best_deals/content", {
+  params: { query: { price: 58036 } },
+});
+```
+
+## Using the client in Cloudflare Workers
+
+If you are calling pouch from another Cloudflare Worker, do not go over the network. Use a [service binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/http/) instead.
+
+Add the binding to your worker's `wrangler.jsonc`:
+
+```json
+"services": [
+  {
+    "binding": "POUCH_SERVICE",
+    "service": "pouch"
+  }
+]
+```
+
+Then pass the service binding's `fetch` to `openapi-fetch`. The binding ignores the hostname, so `baseUrl` can be anything:
+
+```ts
+import createClient from "openapi-fetch";
+import type { paths } from "./generated/pouch.js";
+
+export const createPouchClient = (env: Env) => createClient<paths>({
+  baseUrl: "http://pouch",
+  headers: { Authorization: `Bearer ${TOKEN}` },
+  fetch: (url, init) => env.POUCH_SERVICE.fetch(url, init),
+});
+```
+
+In your worker, use it like any other client:
+
+```ts
+const pouch = createPouchClient(env);
+
+const { data, error } = await pouch.GET("/collections/faqs/content", {
+  params: { query: { type: "faq", limit: 5 } },
+});
+```
+
 ## Updating
 
 Update your worker when a new version is released. Your `wrangler.jsonc` is never overwritten; all D1 bindings, secrets, and other settings are preserved.
@@ -203,3 +299,4 @@ npx wrangler d1 migrations apply pouch --remote
 ```sh
 pnpm run deploy
 ```
+

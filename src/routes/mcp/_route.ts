@@ -191,7 +191,7 @@ const buildRequest = (
 export const createMcpRouter = (app: Hono<HonoVariables>) => {
 	const mcpServer = new McpServer({
 		name: "pouch",
-		version: "0.0.1",
+		version: "0.0.2",
 	});
 
 	const transport = new StreamableHTTPTransport();
@@ -253,7 +253,8 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 
 							const headers = new Headers(init.headers);
 							const context = getContext<HonoVariables>();
-							const authHeader = context.req.header("authorization");
+							const authHeader =
+								context.req.header("authorization") ?? context.var.accessToken;
 							if (authHeader) {
 								headers.set("authorization", authHeader);
 							}
@@ -304,6 +305,11 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 	};
 
 	const router = createRouter().all("/", async (c) => {
+		const accessToken = c.req.query("access_token");
+		if (accessToken) {
+			c.set("accessToken", `Bearer ${accessToken}`);
+		}
+
 		if (!mcpServer.isConnected()) {
 			await registerToolsFromOpenApi(c.var.deps);
 			await mcpServer.connect(transport);
