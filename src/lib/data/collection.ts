@@ -82,4 +82,29 @@ export class CollectionDataLayer extends BaseDataLayer {
 			}),
 		);
 	}
+
+	listCollectionsWithSchema() {
+		return fromPromise(
+			this.db
+				.selectFrom("collections")
+				.select(["id", "slug", "name", "title_field", "schema"])
+				.orderBy("created_at", "desc")
+				.execute()
+				.then((rows) =>
+					rows.map((row) => ({
+						id: row.id,
+						slug: row.slug,
+						name: row.name,
+						titleField: row.title_field,
+						schema: row.schema,
+					})),
+				),
+			this.passThroughError({
+				message: "Failed to list collections with schema",
+				code: "GET_FAILED",
+				source: "DL.collection.listCollectionsWithSchema",
+				input: {},
+			}),
+		);
+	}
 }

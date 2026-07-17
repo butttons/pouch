@@ -1,6 +1,8 @@
 import { HTTPException } from "hono/http-exception";
 
 import { AppHTTPException, ErrorCodes } from "./lib/errors";
+import { unwrapResult } from "./lib/errors";
+import { assembleOpenAPIDocument } from "./lib/openapi";
 import { depsMiddleware } from "./middleware/deps";
 import { collectionRouter } from "./routes/collection/_route";
 import { createRouter } from "./utils";
@@ -10,6 +12,12 @@ const app = createRouter();
 app.use(depsMiddleware);
 
 app.get("/", (c) => c.text("Hello World"));
+
+app.get("/openapi.json", async (c) => {
+	const result = await assembleOpenAPIDocument(c.var.deps);
+	const value = unwrapResult(result);
+	return c.json(value);
+});
 
 app.route("/collections", collectionRouter);
 
