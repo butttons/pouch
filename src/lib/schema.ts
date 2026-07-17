@@ -1,3 +1,4 @@
+import { err, Result } from "neverthrow";
 import Schema from "typebox/schema";
 
 import { AppHTTPException, ErrorCodes } from "./errors";
@@ -34,9 +35,11 @@ const getDepth = (obj: unknown, currentDepth = 0): number => {
 	);
 };
 
-const validateSchemaStructure = (schema: Record<string, unknown>) => {
+const validateSchemaStructure = (
+	schema: Record<string, unknown>,
+): AppHTTPException | null => {
 	if (typeof schema !== "object" || schema === null) {
-		throw new AppHTTPException({
+		return new AppHTTPException({
 			code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
 			message: "Schema must be an object",
 			status: 400,
@@ -45,7 +48,7 @@ const validateSchemaStructure = (schema: Record<string, unknown>) => {
 
 	const depth = getDepth(schema);
 	if (depth > MAX_DEPTH) {
-		throw new AppHTTPException({
+		return new AppHTTPException({
 			code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
 			message: `Schema depth exceeds maximum of ${MAX_DEPTH}`,
 			status: 400,
@@ -56,7 +59,7 @@ const validateSchemaStructure = (schema: Record<string, unknown>) => {
 	if (properties && typeof properties === "object") {
 		const keys = Object.keys(properties);
 		if (keys.length > MAX_PROPERTIES) {
-			throw new AppHTTPException({
+			return new AppHTTPException({
 				code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
 				message: `Schema exceeds maximum of ${MAX_PROPERTIES} properties`,
 				status: 400,
@@ -65,14 +68,14 @@ const validateSchemaStructure = (schema: Record<string, unknown>) => {
 
 		for (const key of keys) {
 			if (!KEY_PATTERN.test(key)) {
-				throw new AppHTTPException({
+				return new AppHTTPException({
 					code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
 					message: `Invalid property key: ${key}`,
 					status: 400,
 				});
 			}
 			if (RESERVED_KEYS.has(key)) {
-				throw new AppHTTPException({
+				return new AppHTTPException({
 					code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
 					message: `Reserved property key: ${key}`,
 					status: 400,
@@ -80,20 +83,31 @@ const validateSchemaStructure = (schema: Record<string, unknown>) => {
 			}
 		}
 	}
+
+	return null;
 };
 
-export const validateCollectionSchema = (schema: Record<string, unknown>) => {
-	validateSchemaStructure(schema);
-
-	try {
-		Schema.Compile(schema);
-	} catch (error) {
-		const message = error instanceof Error ? error.message : "Invalid schema";
-		throw new AppHTTPException({
-			code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
-			message,
-			status: 400,
-			cause: error,
-		});
+export const validateCollectionSchema = (
+	schema: Record<string, unknown>,
+): Result<void, AppHTTPException> => {
+	const structuralError = validateSchemaStructure(schema);
+	if (structuralError) {
+		return err(structuralError);
 	}
+
+	const compileResult = Result.fromThrowable(
+		() => Schema.Compile(schema),
+		(error) => {
+			const message =
+				error instanceof Error ? error.message : "Invalid schema";
+			return new AppHTTPException({
+				code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
+				message,
+				status: 400,
+				cause: error,
+			});
+		},
+	)();
+
+	return compileResult.map(() => undefined);
 };

@@ -1,18 +1,27 @@
-export const createCollectionInputSchema = {
-	type: "object",
-	properties: {
-		slug: { type: "string", minLength: 1 },
-		name: { type: "string", minLength: 1 },
-		schema: { type: "object" },
-		titleField: { type: "string" },
-	},
-	required: ["slug", "name", "schema"],
-	additionalProperties: false,
-} as const;
+import { Type } from "typebox";
 
-export type CreateCollectionInput = {
-	slug: string;
-	name: string;
-	schema: Record<string, unknown>;
-	titleField?: string;
-};
+export const createCollectionInputSchema = Type.Object(
+	{
+		slug: Type.String({ minLength: 1 }),
+		name: Type.String({ minLength: 1 }),
+		schema: Type.Record(Type.String(), Type.Unknown()),
+		titleField: Type.Optional(Type.String()),
+	},
+	{ additionalProperties: false },
+);
+
+export type CreateCollectionInput = Type.Static<
+	typeof createCollectionInputSchema
+>;
+
+export const collectionSchema = Type.Object(
+	{
+		id: Type.String(),
+		slug: Type.String(),
+		name: Type.String(),
+		titleField: Type.Union([Type.String(), Type.Null()]),
+	},
+	{ additionalProperties: false },
+);
+
+export type Collection = Type.Static<typeof collectionSchema>;

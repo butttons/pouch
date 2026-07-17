@@ -2,19 +2,24 @@ import { unwrapResult } from "@/lib/errors";
 import { jsonValidator } from "@/lib/validator";
 import { createRouter } from "@/utils";
 
-import { createCollectionInputSchema } from "./_schema";
+import {
+	createCollectionInputSchema,
+	type CreateCollectionInput,
+} from "./_schema";
 import { createCollection } from "./_service.post";
+import { listCollections } from "./_service.get";
 
 export const collectionRouter = createRouter();
 
+collectionRouter.get("/", async (c) => {
+	const result = await listCollections(c.var.deps);
+	const value = unwrapResult(result);
+	return c.json(value);
+});
+
 collectionRouter.post(
 	"/",
-	jsonValidator<{
-		slug: string;
-		name: string;
-		schema: Record<string, unknown>;
-		titleField?: string;
-	}>(createCollectionInputSchema),
+	jsonValidator<CreateCollectionInput>(createCollectionInputSchema),
 	async (c) => {
 		const input = c.req.valid("json");
 		const result = await createCollection(input, c.var.deps);

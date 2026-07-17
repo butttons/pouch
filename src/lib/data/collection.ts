@@ -58,4 +58,28 @@ export class CollectionDataLayer extends BaseDataLayer {
 			}),
 		);
 	}
+
+	listCollections() {
+		return fromPromise(
+			this.db
+				.selectFrom("collections")
+				.select(["id", "slug", "name", "title_field"])
+				.orderBy("created_at", "desc")
+				.execute()
+				.then((rows) =>
+					rows.map((row) => ({
+						id: row.id,
+						slug: row.slug,
+						name: row.name,
+						titleField: row.title_field,
+					})),
+				),
+			this.passThroughError({
+				message: "Failed to list collections",
+				code: "GET_FAILED",
+				source: "DL.collection.listCollections",
+				input: {},
+			}),
+		);
+	}
 }
