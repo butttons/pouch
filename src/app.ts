@@ -7,34 +7,28 @@ import { depsMiddleware } from "./middleware/deps";
 import { collectionRouter } from "./routes/collection/_route";
 import { createRouter } from "./utils";
 
-const app = createRouter();
+const app = createRouter()
+  .use(depsMiddleware)
+  .get("/openapi.json", async (c) => {
+    const result = await assembleOpenAPIDocument(c.var.deps);
+    const value = unwrapResult(result);
+    return c.json(value);
+  })
+  .route("/collections", collectionRouter)
+  .onError((error, c) => {
+    const status = error instanceof HTTPException ? error.status : 500;
 
-app.use(depsMiddleware);
+    const normalizedError =
+      error instanceof AppHTTPException
+        ? error
+        : new AppHTTPException({
+            cause: error,
+            message: error.message ?? "Unknown error",
+            code: ErrorCodes.INTERNAL_ERROR,
+            status,
+          });
 
-app.get("/", (c) => c.text("Hello World"));
-
-app.get("/openapi.json", async (c) => {
-	const result = await assembleOpenAPIDocument(c.var.deps);
-	const value = unwrapResult(result);
-	return c.json(value);
-});
-
-app.route("/collections", collectionRouter);
-
-app.onError((error, c) => {
-	const status = error instanceof HTTPException ? error.status : 500;
-
-	const normalizedError =
-		error instanceof AppHTTPException
-			? error
-			: new AppHTTPException({
-					cause: error,
-					message: error.message ?? "Unknown error",
-					code: ErrorCodes.INTERNAL_ERROR,
-					status,
-				});
-
-	return c.json(normalizedError.toJSON(), status as never);
-});
+    return c.json(normalizedError.toJSON(), status as never);
+  });
 
 export default app;

@@ -25,3 +25,42 @@ export const collectionSchema = Type.Object(
 );
 
 export type Collection = Type.Static<typeof collectionSchema>;
+
+export const collectionWithSchemaSchema = Type.Object(
+	{
+		id: Type.String(),
+		slug: Type.String(),
+		name: Type.String(),
+		titleField: Type.Union([Type.String(), Type.Null()]),
+		schema: Type.Record(Type.String(), Type.Unknown()),
+	},
+	{ additionalProperties: false },
+);
+
+export type CollectionWithSchema = Type.Static<
+	typeof collectionWithSchemaSchema
+>;
+
+export const collectionIdParamSchema = Type.Object(
+	{
+		id: Type.String({ pattern: "^col_" }),
+	},
+	{ additionalProperties: false },
+);
+
+export type CollectionIdParam = Type.Static<
+	typeof collectionIdParamSchema
+>;
+
+export const deleteCollectionQuerySchema = Type.Object(
+	{
+		force: Type.Optional(
+			Type.Union([Type.Literal("true"), Type.Literal("false")]),
+		),
+	},
+	{ additionalProperties: false },
+);
+
+export type DeleteCollectionQuery = Type.Static<
+	typeof deleteCollectionQuerySchema
+>;

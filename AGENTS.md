@@ -251,6 +251,60 @@ POST   /auth/keys                                (session auth) generate a JWT A
 - Output checked into git (not generated at build time), same pattern as Prisma/Payload/Supabase typegen.
 - **Open question:** no CI staleness check yet (`openapi-typescript ... && git diff --exit-code`) — add once more than one person/agent can mutate schema without going through local dev.
 
+## Code patterns
+
+These rules are enforced in this codebase. Future work must follow them.
+
+### neverthrow, not try/catch
+
+- **No `try/catch` for control flow.** All fallible operations return `Result` / `ResultAsync` from `neverthrow`.
+- Services use `safeTry(async function* () { ... })` and `yield*` other results.
+- Routes call services, then `unwrapResult(result)` to throw the correct `AppHTTPException` or `DataLayerError`.
+- The only place errors are thrown is inside `unwrapResult` or Hono validators.
+
+### Data layer (DL) rules
+
+DL methods are thin wrappers around Kysely queries. They return `ResultAsync<T, DataLayerError>` via `BaseDataLayer.passThroughError` and `fromPromise`.
+
+- **No `.then(...)` for row mapping.** Transform the row shape inside the Kysely query itself.
+- Alias columns in `.select([...])`:
+  - `.select(["title_field as titleField"])`
+  - `sql<T>`column`.as("alias")` for JSON/typed columns (e.g., `sql<Record<string, unknown>>`schema`.as("schema")`).
+- Use `.returning([...])` on inserts/updates instead of manually stitching the response together after the query.
+- Scalar extraction (e.g., `count(*)`) is typed with `sql<T>` or `eb.fn.countAll<T>().as("count")`; the service reads `row?.count ?? 0`. Do not `.then(row => Number(row.count))`.
+- DL must not contain business rules (existence checks, authorization, force-gates). Those live in services.
+
+### Type inference from schemas
+
+- Define route input/output schemas with the TypeBox builder (`import { Type } from "typebox"`).
+- Infer TS types from those schemas: `export type Foo = Type.Static<typeof fooSchema>`.
+- Do not hand-write interfaces that duplicate the schema.
+- Use the inferred types in `jsonValidator<T>`, `paramValidator<T>`, `queryValidator<T>`, and service signatures.
+
+### Route structure
+
+- Each route module exports:
+  - `_schema.ts` — TypeBox schemas + inferred types.
+  - `_openapi.ts` — static OpenAPI path/component definitions for this route.
+  - `_service.<verb>.ts` — one service per mutating/reading operation, using `safeTry`.
+  - `_route.ts` — Hono handlers that validate input and call `unwrapResult`.
+- Validators live in `src/lib/validator.ts` and are typed with the inferred schema type.
+- Write routers in Hono's chained style:
+  ```ts
+  export const collectionRouter = createRouter()
+    .get("/", async (c) => { ... })
+    .post("/", jsonValidator<CreateInput>(createInputSchema), async (c) => { ... })
+    .get("/:id", paramValidator<Params>(paramsSchema), async (c) => { ... });
+  ```
+- Prefer chaining over separate `router.get(...)` / `router.post(...)` statements.
+
+### OpenAPI colocation
+
+- Static OpenAPI pieces live in `src/routes/<name>/_openapi.ts` next to the route they describe.
+- `src/lib/openapi.ts` is only an **assembler**: it imports static route contributions, queries the DB for dynamic per-collection schemas, and merges them.
+- Dynamic collection schemas go under `components.schemas.{slug}`.
+- System schemas use the `__` prefix to avoid colliding with user-defined collection slugs.
+
 ## Explicitly cut (considered, deliberately not building)
 
 - Generated/indexed columns, `x-indexed` keyword, per-collection SQLite views — cut for simplicity at current scale. `json_extract` filtering is a full scan of the collection's rows; fine at hundreds–low-thousands of rows per collection. Escape hatch if a specific collection's filtered list endpoint gets slow: selectively promote just that field back to a real generated column + index, on that collection only — not a redesign.

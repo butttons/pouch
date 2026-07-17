@@ -110,18 +110,6 @@ const buildCollectionContentPaths = (slug: string) => ({
 	},
 });
 
-const parseSchema = (
-	schema: string,
-): ResultAsync<Record<string, unknown>, never> =>
-	ResultAsync.fromPromise(
-		Promise.resolve().then(
-			() => JSON.parse(schema) as Record<string, unknown>,
-		),
-		() => null,
-	).orElse(() =>
-		ResultAsync.fromSafePromise(Promise.resolve({ type: "object" })),
-	);
-
 export const assembleOpenAPIDocument = (
 	deps: Deps,
 ): ResultAsync<Record<string, unknown>, DataLayerError> =>
@@ -132,8 +120,7 @@ export const assembleOpenAPIDocument = (
 		const dynamicPaths: Record<string, unknown> = {};
 
 		for (const collection of collections) {
-			const parsed = yield* parseSchema(collection.schema);
-			dynamicSchemas[collection.slug] = parsed;
+			dynamicSchemas[collection.slug] = collection.schema;
 
 			Object.assign(
 				dynamicPaths,

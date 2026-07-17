@@ -1,15 +1,18 @@
 import {
 	collectionSchema,
+	collectionWithSchemaSchema,
 	createCollectionInputSchema,
 } from "./_schema";
 
 export const SYSTEM_SCHEMA_PREFIX = "__";
 
 export const collectionSchemaRef = `${SYSTEM_SCHEMA_PREFIX}Collection`;
+export const collectionWithSchemaSchemaRef = `${SYSTEM_SCHEMA_PREFIX}CollectionWithSchema`;
 export const createCollectionInputSchemaRef = `${SYSTEM_SCHEMA_PREFIX}CreateCollectionInput`;
 
 export const collectionOpenAPIComponents = {
 	[collectionSchemaRef]: collectionSchema,
+	[collectionWithSchemaSchemaRef]: collectionWithSchemaSchema,
 	[createCollectionInputSchemaRef]: createCollectionInputSchema,
 };
 
@@ -79,7 +82,7 @@ export const collectionOpenAPIPaths = {
 					content: {
 						"application/json": {
 							schema: {
-								$ref: `#/components/schemas/${collectionSchemaRef}`,
+								$ref: `#/components/schemas/${collectionWithSchemaSchemaRef}`,
 							},
 						},
 					},
