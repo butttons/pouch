@@ -4,17 +4,17 @@ import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { Deps } from "@/deps";
 import type {
-	CollectionIdParam,
+	CollectionSlugParam,
 	DeleteCollectionQuery,
 } from "./_schema";
 
 export const deleteCollection = (
-	input: CollectionIdParam & { isForced: boolean },
+	input: CollectionSlugParam & { isForced: boolean },
 	deps: Deps,
 ): ResultAsync<void, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionById({
-			id: input.id,
+		const collection = yield* deps.DL.collection.getCollectionBySlug({
+			slug: input.slug,
 		});
 
 		if (!collection) {
@@ -29,7 +29,7 @@ export const deleteCollection = (
 
 		if (!input.isForced) {
 			const countRow = yield* deps.DL.collection.countContentByCollectionId({
-				collectionId: input.id,
+				collectionId: collection.id,
 			});
 			const count = countRow?.count ?? 0;
 
@@ -45,7 +45,7 @@ export const deleteCollection = (
 			}
 		}
 
-		yield* deps.DL.collection.deleteCollectionById({ id: input.id });
+		yield* deps.DL.collection.deleteCollectionById({ id: collection.id });
 
 		return ok(undefined);
 	});

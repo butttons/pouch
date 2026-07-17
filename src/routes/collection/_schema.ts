@@ -41,15 +41,24 @@ export type CollectionWithSchema = Type.Static<
 	typeof collectionWithSchemaSchema
 >;
 
-export const collectionIdParamSchema = Type.Object(
+export const collectionSlugParamSchema = Type.Object(
 	{
-		id: Type.String({ pattern: "^col_" }),
+		slug: Type.String({ minLength: 1 }),
 	},
 	{ additionalProperties: false },
 );
 
-export type CollectionIdParam = Type.Static<
-	typeof collectionIdParamSchema
+export type CollectionSlugParam = Type.Static<
+	typeof collectionSlugParamSchema
+>;
+
+export const collectionSchemaResponseSchema = Type.Record(
+	Type.String(),
+	Type.Unknown(),
+);
+
+export type CollectionSchemaResponse = Type.Static<
+	typeof collectionSchemaResponseSchema
 >;
 
 export const deleteCollectionQuerySchema = Type.Object(

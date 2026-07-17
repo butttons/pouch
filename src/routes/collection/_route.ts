@@ -3,16 +3,17 @@ import { jsonValidator, paramValidator, queryValidator } from "@/lib/validator";
 import { createRouter } from "@/utils";
 
 import {
-  collectionIdParamSchema,
+  collectionSlugParamSchema,
   createCollectionInputSchema,
   deleteCollectionQuerySchema,
-  type CollectionIdParam,
+  type CollectionSlugParam,
   type CreateCollectionInput,
   type DeleteCollectionQuery,
 } from "./_schema";
 import { createCollection } from "./_service.post";
 import { deleteCollection } from "./_service.delete";
-import { getCollectionById } from "./_service.get-by-id";
+import { getCollectionBySlug } from "./_service.get-by-slug";
+import { getCollectionSchemaBySlug } from "./_service.get-schema";
 import { listCollections } from "./_service.get";
 
 export const collectionRouter = createRouter()
@@ -32,24 +33,37 @@ export const collectionRouter = createRouter()
     },
   )
   .get(
-    "/:id",
-    paramValidator<CollectionIdParam>(collectionIdParamSchema),
+    "/:slug/schema",
+    paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     async (c) => {
       const input = c.req.valid("param");
-      const result = await getCollectionById(input, c.var.deps);
+      const result = await getCollectionSchemaBySlug(input, c.var.deps);
+      const value = unwrapResult(result);
+      return c.json(value);
+    },
+  )
+  .get(
+    "/:slug",
+    paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
+    async (c) => {
+      const input = c.req.valid("param");
+      const result = await getCollectionBySlug(input, c.var.deps);
       const value = unwrapResult(result);
       return c.json(value);
     },
   )
   .delete(
-    "/:id",
-    paramValidator<CollectionIdParam>(collectionIdParamSchema),
+    "/:slug",
+    paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
     queryValidator<DeleteCollectionQuery>(deleteCollectionQuerySchema),
     async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
       const result = await deleteCollection(
-        { ...params, isForced: query.force === "true" },
+        {
+          slug: params.slug,
+          isForced: query.force === "true",
+        },
         c.var.deps,
       );
       unwrapResult(result);

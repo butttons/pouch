@@ -262,6 +262,12 @@ These rules are enforced in this codebase. Future work must follow them.
 - Routes call services, then `unwrapResult(result)` to throw the correct `AppHTTPException` or `DataLayerError`.
 - The only place errors are thrown is inside `unwrapResult` or Hono validators.
 
+### Error responses
+
+- **Every error response must be JSON**, including 404s, validation failures, and unhandled exceptions. Never return plain text.
+- Use `AppHTTPException` with a concrete `ErrorCodes` value; the global `onError` handler normalizes everything else to JSON.
+- Add a `.notFound()` handler at the app level so unknown routes return a JSON 404 instead of Hono's default plain-text response.
+
 ### Data layer (DL) rules
 
 DL methods are thin wrappers around Kysely queries. They return `ResultAsync<T, DataLayerError>` via `BaseDataLayer.passThroughError` and `fromPromise`.
@@ -304,6 +310,19 @@ DL methods are thin wrappers around Kysely queries. They return `ResultAsync<T, 
 - `src/lib/openapi.ts` is only an **assembler**: it imports static route contributions, queries the DB for dynamic per-collection schemas, and merges them.
 - Dynamic collection schemas go under `components.schemas.{slug}`.
 - System schemas use the `__` prefix to avoid colliding with user-defined collection slugs.
+
+## Testing strategy
+
+There is no test suite yet. Until one is added, verify every endpoint with the following steps before finishing work:
+
+1. **Static type check:** `npx tsc --noEmit` must pass with zero errors.
+2. **Smoke test against the local dev server:** the `feedr-dev` herdr workspace runs at `http://localhost:3200`. Use `curl` to hit the new endpoint(s).
+   - Happy path: confirm the response body and HTTP status.
+   - Error paths: confirm at least `404 NOT_FOUND` and `400 VALIDATION_FAILED` / `409 CONFLICT` where applicable.
+3. **OpenAPI contract check:** `curl -s http://localhost:3200/openapi.json` and verify the new path(s) and any new `__`-prefixed system schema components appear correctly.
+4. **Stateful mutation check:** for `POST`/`PATCH`/`DELETE`, inspect the resulting state with a follow-up `GET` or by querying `/collections` to confirm the mutation persisted (or was rejected) as expected.
+
+When adding tests later, prefer spec-driven tests that assert the live `/openapi.json` contract over hand-written mocks, since consumers rely on the generated spec.
 
 ## Explicitly cut (considered, deliberately not building)
 

@@ -3,15 +3,15 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { Deps } from "@/deps";
-import type { CollectionIdParam, CollectionWithSchema } from "./_schema";
+import type { CollectionSlugParam, CollectionWithSchema } from "./_schema";
 
-export const getCollectionById = (
-	input: CollectionIdParam,
+export const getCollectionBySlug = (
+	input: CollectionSlugParam,
 	deps: Deps,
 ): ResultAsync<CollectionWithSchema, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionById({
-			id: input.id,
+		const collection = yield* deps.DL.collection.getCollectionBySlug({
+			slug: input.slug,
 		});
 
 		if (!collection) {

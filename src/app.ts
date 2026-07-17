@@ -15,6 +15,16 @@ const app = createRouter()
     return c.json(value);
   })
   .route("/collections", collectionRouter)
+  .notFound((c) =>
+    c.json(
+      {
+        code: ErrorCodes.NOT_FOUND,
+        message: "Not found",
+        status: 404,
+      },
+      404,
+    ),
+  )
   .onError((error, c) => {
     const status = error instanceof HTTPException ? error.status : 500;
 
@@ -27,6 +37,15 @@ const app = createRouter()
             code: ErrorCodes.INTERNAL_ERROR,
             status,
           });
+
+    console.error("Request failed", {
+      path: c.req.path,
+      method: c.req.method,
+      rayId: c.req.header("cf-ray"),
+      code: normalizedError.code,
+      status,
+      error: normalizedError,
+    });
 
     return c.json(normalizedError.toJSON(), status as never);
   });

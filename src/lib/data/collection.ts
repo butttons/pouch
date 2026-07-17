@@ -15,7 +15,13 @@ export class CollectionDataLayer extends BaseDataLayer {
 		return fromPromise(
 			this.db
 				.selectFrom("collections")
-				.select(["id"])
+				.select([
+					"id",
+					"slug",
+					"name",
+					"title_field as titleField",
+					sql<Record<string, unknown>>`schema`.as("schema"),
+				])
 				.where("slug", "=", input.slug)
 				.executeTakeFirst(),
 			this.passThroughError({
