@@ -202,6 +202,36 @@ curl "https://feedr.[ACCOUNT].workers.dev/collections/posts/content?title=Hello%
   -H "Authorization: Bearer [TOKEN]"
 ```
 
+## Generating a client
+
+feedr exposes a live OpenAPI 3.1 spec at `/openapi.json`. Use `openapi-typescript` and `openapi-fetch` to generate a fully typed client:
+
+```sh
+# In your consumer project
+npm install openapi-fetch
+npm install -D openapi-typescript
+
+npx openapi-typescript https://feedr.[ACCOUNT].workers.dev/openapi.json \
+  --header "Authorization: Bearer [TOKEN]" \
+  -o ./src/generated/feedr.ts
+```
+
+```ts
+import createClient from "openapi-fetch";
+import type { paths } from "./generated/feedr.js";
+
+const client = createClient<paths>({
+  baseUrl: "https://feedr.[ACCOUNT].workers.dev",
+  headers: { Authorization: `Bearer ${TOKEN}` },
+});
+
+const { data, error } = await client.GET("/collections/posts/content", {
+  params: { query: { title: "Hello world" } },
+});
+```
+
+Because feedr expands `/collections/:slug/content` into concrete paths per collection (`/collections/posts/content`, `/collections/faq/content`, etc.), the generated client uses those concrete paths directly. Query filters are typed from each collection's JSON Schema, including comparison operators like `price[gt]=20000`.
+
 ## Updating
 
 When a new version is released, update your worker while preserving your `wrangler.jsonc` bindings.
