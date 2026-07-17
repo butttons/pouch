@@ -26,21 +26,40 @@ const KEY_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 const MAX_PROPERTIES = 50;
 const MAX_DEPTH = 3;
 
-const getDepth = (obj: unknown, currentDepth = 0): number => {
-	if (currentDepth > MAX_DEPTH) return currentDepth;
-	if (typeof obj !== "object" || obj === null) return currentDepth;
-	if (Array.isArray(obj)) {
-		return obj.reduce(
-			(max, item) => Math.max(max, getDepth(item, currentDepth + 1)),
-			currentDepth,
-		);
+const getDataDepth = (schema: unknown): number => {
+	if (typeof schema !== "object" || schema === null || Array.isArray(schema)) {
+		return 0;
 	}
-	const values = Object.values(obj);
-	if (values.length === 0) return currentDepth;
-	return values.reduce(
-		(max, value) => Math.max(max, getDepth(value, currentDepth + 1)),
-		currentDepth,
-	);
+
+	const schemaObj = schema as Record<string, unknown>;
+	const type = schemaObj.type;
+
+	if (type === "object") {
+		const properties = schemaObj.properties;
+		if (
+			properties &&
+			typeof properties === "object" &&
+			!Array.isArray(properties)
+		) {
+			const childDepths = Object.values(
+				properties as Record<string, unknown>,
+			).map(getDataDepth);
+			const maxChildDepth =
+				childDepths.length > 0 ? Math.max(...childDepths) : 0;
+			return 1 + maxChildDepth;
+		}
+		return 1;
+	}
+
+	if (type === "array") {
+		const items = schemaObj.items;
+		if (items && typeof items === "object" && !Array.isArray(items)) {
+			return getDataDepth(items);
+		}
+		return 0;
+	}
+
+	return 0;
 };
 
 const validateSchemaStructure = (
@@ -54,7 +73,7 @@ const validateSchemaStructure = (
 		});
 	}
 
-	const depth = getDepth(schema);
+	const depth = getDataDepth(schema);
 	if (depth > MAX_DEPTH) {
 		return new AppHTTPException({
 			code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
@@ -181,6 +200,28 @@ export const validateContentData = (
 			})),
 		});
 	});
+};
+
+export const getRelationTargets = (
+	schema: Record<string, unknown>,
+): string[] => {
+	const properties =
+		schema.properties &&
+		typeof schema.properties === "object" &&
+		!Array.isArray(schema.properties)
+			? (schema.properties as Record<string, Record<string, unknown>>)
+			: {};
+
+	const targets = new Set<string>();
+
+	for (const property of Object.values(properties)) {
+		const targetSlug = property["x-relation"];
+		if (typeof targetSlug === "string" && targetSlug.length > 0) {
+			targets.add(targetSlug);
+		}
+	}
+
+	return Array.from(targets);
 };
 
 export const diffCollectionSchemas = (

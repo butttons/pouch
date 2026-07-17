@@ -51,6 +51,29 @@ async function main() {
   console.log(
     `  Cheapest deal: ${bestDeals[0]?.data.destination} @ ₹${bestDeals[0]?.data.price}`,
   );
+
+  // Resolve a relation field in the demo_articles collection.
+  const { data: articles, error: articlesError } = await client.GET(
+    "/collections/demo_articles/content",
+    {
+      params: {
+        query: { resolve: "author" },
+      },
+    },
+  );
+  if (articlesError) throw articlesError;
+
+  const firstArticle = articles[0];
+  if (firstArticle) {
+    console.log("\nResolved demo article:");
+    if (typeof firstArticle.data.author === "string") {
+      console.log(`  Unresolved author ID: ${firstArticle.data.author}`);
+    } else {
+      console.log(
+        `  Resolved author: ${firstArticle.data.author.data.name} (${firstArticle.data.author.id})`,
+      );
+    }
+  }
 }
 
 main().catch((error) => {

@@ -90,6 +90,31 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
+	getContentByIds(input: { ids: string[] }) {
+		return fromPromise(
+			this.db
+				.selectFrom("content")
+				.select([
+					"id",
+					"collection_id as collectionId",
+					sql<Record<string, unknown>>`data`.as("data"),
+					sql<ContentStatus>`status`.as("status"),
+					"schema_version_id as schemaVersionId",
+					"created_at as createdAt",
+					"updated_at as updatedAt",
+				])
+				.where("id", "in", input.ids)
+				.orderBy("created_at", "desc")
+				.execute(),
+			this.passThroughError({
+				message: "Failed to get content by IDs",
+				code: "GET_FAILED",
+				source: "DL.content.getContentByIds",
+				input,
+			}),
+		);
+	}
+
 	createContent(input: {
 		collectionId: string;
 		data: string;

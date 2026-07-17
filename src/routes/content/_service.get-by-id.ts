@@ -4,9 +4,10 @@ import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { Content, ContentRouteParams } from "./_schema";
+import { resolveRelations } from "./_service.resolve";
 
 export const getContentById = (
-	input: ContentRouteParams,
+	input: ContentRouteParams & { resolve?: string | string[] },
 	deps: Deps,
 ): ResultAsync<Content, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
@@ -36,5 +37,21 @@ export const getContentById = (
 			);
 		}
 
-		return ok(content);
+		const resolve =
+			typeof input.resolve === "string" ? input.resolve : input.resolve?.[0];
+
+		if (!resolve) {
+			return ok(content);
+		}
+
+		const resolved = yield* resolveRelations(
+			{
+				rows: [content],
+				resolve,
+				schema: collection.schema,
+			},
+			deps,
+		);
+
+		return ok(resolved[0] ?? content);
 	});

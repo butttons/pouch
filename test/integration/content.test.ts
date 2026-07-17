@@ -194,6 +194,155 @@ describe("content", () => {
     });
   });
 
+  describe("GET /collections/:slug/content?resolve=", () => {
+    it("resolves single and many relation fields on request", async () => {
+      await createCollection({
+        slug: "authors",
+        name: "Authors",
+        schema: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+          },
+          required: ["name"],
+          additionalProperties: false,
+        },
+      });
+
+      await createCollection({
+        slug: "tags",
+        name: "Tags",
+        schema: {
+          type: "object",
+          properties: {
+            label: { type: "string" },
+          },
+          required: ["label"],
+          additionalProperties: false,
+        },
+      });
+
+      await createCollection({
+        slug: "articles",
+        name: "Articles",
+        schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            author: { type: "string", "x-relation": "authors" },
+            tags: {
+              type: "array",
+              items: { type: "string" },
+              "x-relation": "tags",
+            },
+          },
+          required: ["title", "author"],
+          additionalProperties: false,
+        },
+      });
+
+      const author = await createContent("authors", {
+        data: { name: "Ada Lovelace" },
+      });
+
+      const tagA = await createContent("tags", { data: { label: "code" } });
+      const tagB = await createContent("tags", { data: { label: "history" } });
+
+      const article = await createContent("articles", {
+        data: {
+          title: "First Note",
+          author: author.id,
+          tags: [tagA.id, tagB.id],
+        },
+      });
+
+      const token = await readerToken();
+
+      const unresolved = await fetchWorker(
+        `/collections/articles/content/${article.id}`,
+        {},
+        token,
+      );
+      expect(unresolved.status).toBe(200);
+      const unresolvedBody = (await unresolved.json()) as {
+        data: Record<string, unknown>;
+      };
+      expect(unresolvedBody.data.author).toBe(author.id);
+      expect(unresolvedBody.data.tags).toEqual([tagA.id, tagB.id]);
+
+      const resolved = await fetchWorker(
+        `/collections/articles/content/${article.id}?resolve=author,tags`,
+        {},
+        token,
+      );
+      expect(resolved.status).toBe(200);
+      const resolvedBody = (await resolved.json()) as {
+        data: Record<string, unknown>;
+      };
+
+      const resolvedAuthor = resolvedBody.data.author as {
+        id: string;
+        data: Record<string, unknown>;
+      };
+      expect(resolvedAuthor.id).toBe(author.id);
+      expect(resolvedAuthor.data.name).toBe("Ada Lovelace");
+
+      const resolvedTags = resolvedBody.data.tags as Array<{
+        id: string;
+        data: Record<string, unknown>;
+      }>;
+      expect(resolvedTags).toHaveLength(2);
+      expect(resolvedTags.map((tag) => tag.data.label).sort()).toEqual([
+        "code",
+        "history",
+      ]);
+
+      const listed = await fetchWorker(
+        `/collections/articles/content?resolve=author`,
+        {},
+        token,
+      );
+      expect(listed.status).toBe(200);
+      const listedBody = (await listed.json()) as Array<{
+        data: Record<string, unknown>;
+      }>;
+      expect(listedBody).toHaveLength(1);
+      const listedAuthor = listedBody[0]!.data.author as {
+        id: string;
+        data: Record<string, unknown>;
+      };
+      expect(listedAuthor.id).toBe(author.id);
+      expect(listedAuthor.data.name).toBe("Ada Lovelace");
+    });
+
+    it("rejects resolving unknown or non-relation fields", async () => {
+      await createCollection({
+        slug: "items",
+        name: "Items",
+        schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+          },
+          required: ["title"],
+          additionalProperties: false,
+        },
+      });
+
+      const item = await createContent("items", { data: { title: "Item" } });
+      const token = await readerToken();
+
+      const response = await fetchWorker(
+        `/collections/items/content/${item.id}?resolve=title`,
+        {},
+        token,
+      );
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { code: string };
+      expect(body.code).toBe("VALIDATION_FAILED");
+    });
+  });
+
   describe("DELETE /collections/:slug", () => {
     it("refuses when content exists unless force=true", async () => {
       await createCollection({

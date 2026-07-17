@@ -4,7 +4,11 @@ import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { typedId } from "@/lib/typed-id";
-import { diffCollectionSchemas, validateCollectionSchema } from "@/lib/schema";
+import {
+	 diffCollectionSchemas,
+	 getRelationTargets,
+	 validateCollectionSchema,
+} from "@/lib/schema";
 import type {
 	CollectionSlugParam,
 	CollectionWithSchema,
@@ -31,6 +35,24 @@ export const patchCollectionSchema = (
 		}
 
 		yield* validateCollectionSchema(input.schema);
+
+		const relationTargets = getRelationTargets(input.schema);
+
+		for (const targetSlug of relationTargets) {
+			const targetCollection = yield* deps.DL.collection.getCollectionBySlug({
+				slug: targetSlug,
+			});
+
+			if (!targetCollection) {
+				return err(
+					new AppHTTPException({
+						code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
+						message: `Relation target collection not found: ${targetSlug}`,
+						status: 400,
+					}),
+				);
+			}
+		}
 
 		const { diff, destructiveChanges } = yield* diffCollectionSchemas(
 			collection.schema,

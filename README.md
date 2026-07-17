@@ -202,6 +202,38 @@ curl "https://feedr.[ACCOUNT].workers.dev/collections/posts/content?title=Hello%
   -H "Authorization: Bearer [TOKEN]"
 ```
 
+### Relations
+
+A property with `x-relation` becomes a relation to another collection. Store the related content ID (or IDs for arrays) in the field:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "title": { "type": "string" },
+    "author": { "type": "string", "x-relation": "authors" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "x-relation": "tags"
+    }
+  },
+  "required": ["title", "author"],
+  "additionalProperties": false
+}
+```
+
+Relations are plain IDs by default. To embed the related content in a single request, pass the `resolve` query parameter with a comma-separated list of relation field names:
+
+```sh
+curl "https://feedr.[ACCOUNT].workers.dev/collections/posts/content?resolve=author,tags" \
+  -H "Authorization: Bearer [TOKEN]"
+```
+
+The response replaces the relation ID(s) with the full content wrapper of the target collection. The `resolve` parameter is also available on `GET /collections/:slug/content/:id`.
+
+The live OpenAPI spec exposes the `resolve` option for collections that have relation fields, and the generated client types the response as either the plain wrapper or the resolved wrapper.
+
 ## Generating a client
 
 feedr exposes a live OpenAPI 3.1 spec at `/openapi.json`. Use `openapi-typescript` and `openapi-fetch` to generate a fully typed client:

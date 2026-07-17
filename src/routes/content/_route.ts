@@ -65,9 +65,14 @@ export const contentRouter = createRouter()
 		"/:id",
 		requireScopes("content:read"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
+		queryValidator<ContentQuery>(contentQuerySchema),
 		async (c) => {
 			const params = c.req.valid("param");
-			const result = await getContentById(params, c.var.deps);
+			const query = c.req.valid("query");
+			const result = await getContentById(
+				{ ...params, resolve: query.resolve },
+				c.var.deps,
+			);
 			const value = unwrapResult(result);
 			return c.json(value);
 		},

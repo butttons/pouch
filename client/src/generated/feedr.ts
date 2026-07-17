@@ -58,6 +58,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/collections/demo_articles/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List demo_articles content */
+        get: operations["listdemo_articlesContent"];
+        put?: never;
+        /** Create demo_articles content */
+        post: operations["createdemo_articlesContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/demo_articles/content:validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate demo_articles content */
+        post: operations["validatedemo_articlesContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/demo_articles/content/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get demo_articles content by ID */
+        get: operations["getdemo_articlesContentById"];
+        put?: never;
+        post?: never;
+        /** Delete demo_articles content */
+        delete: operations["deletedemo_articlesContent"];
+        options?: never;
+        head?: never;
+        /** Update demo_articles content */
+        patch: operations["updatedemo_articlesContent"];
+        trace?: never;
+    };
+    "/collections/demo_tags/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List demo_tags content */
+        get: operations["listdemo_tagsContent"];
+        put?: never;
+        /** Create demo_tags content */
+        post: operations["createdemo_tagsContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/demo_tags/content:validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate demo_tags content */
+        post: operations["validatedemo_tagsContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/demo_tags/content/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get demo_tags content by ID */
+        get: operations["getdemo_tagsContentById"];
+        put?: never;
+        post?: never;
+        /** Delete demo_tags content */
+        delete: operations["deletedemo_tagsContent"];
+        options?: never;
+        head?: never;
+        /** Update demo_tags content */
+        patch: operations["updatedemo_tagsContent"];
+        trace?: never;
+    };
+    "/collections/demo_authors/content": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List demo_authors content */
+        get: operations["listdemo_authorsContent"];
+        put?: never;
+        /** Create demo_authors content */
+        post: operations["createdemo_authorsContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/demo_authors/content:validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Validate demo_authors content */
+        post: operations["validatedemo_authorsContent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/collections/demo_authors/content/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get demo_authors content by ID */
+        get: operations["getdemo_authorsContentById"];
+        put?: never;
+        post?: never;
+        /** Delete demo_authors content */
+        delete: operations["deletedemo_authorsContent"];
+        options?: never;
+        head?: never;
+        /** Update demo_authors content */
+        patch: operations["updatedemo_authorsContent"];
+        trace?: never;
+    };
     "/collections/best_deals/content": {
         parameters: {
             query?: never;
@@ -256,6 +418,77 @@ export interface components {
                 [key: string]: unknown;
             };
             force?: boolean;
+        };
+        demo_articles: {
+            title: string;
+            author: string;
+            tags?: string[];
+        };
+        __Content_demo_articles: {
+            id: string;
+            collectionId: string;
+            data: components["schemas"]["demo_articles"];
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            schemaVersionId: string;
+            createdAt: number;
+            updatedAt: number;
+        };
+        __ContentInput_demo_articles: {
+            data: components["schemas"]["demo_articles"];
+            /** @enum {string} */
+            status?: "draft" | "published" | "archived";
+        };
+        __Resolved_demo_articles: {
+            title: string;
+            author: components["schemas"]["__Content_demo_authors"];
+            tags?: components["schemas"]["__Content_demo_tags"][];
+        };
+        __ResolvedContent_demo_articles: {
+            id: string;
+            collectionId: string;
+            data: components["schemas"]["__Resolved_demo_articles"];
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            schemaVersionId: string;
+            createdAt: number;
+            updatedAt: number;
+        };
+        demo_tags: {
+            label: string;
+        };
+        __Content_demo_tags: {
+            id: string;
+            collectionId: string;
+            data: components["schemas"]["demo_tags"];
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            schemaVersionId: string;
+            createdAt: number;
+            updatedAt: number;
+        };
+        __ContentInput_demo_tags: {
+            data: components["schemas"]["demo_tags"];
+            /** @enum {string} */
+            status?: "draft" | "published" | "archived";
+        };
+        demo_authors: {
+            name: string;
+        };
+        __Content_demo_authors: {
+            id: string;
+            collectionId: string;
+            data: components["schemas"]["demo_authors"];
+            /** @enum {string} */
+            status: "draft" | "published" | "archived";
+            schemaVersionId: string;
+            createdAt: number;
+            updatedAt: number;
+        };
+        __ContentInput_demo_authors: {
+            data: components["schemas"]["demo_authors"];
+            /** @enum {string} */
+            status?: "draft" | "published" | "archived";
         };
         best_deals: {
             destination: string;
@@ -469,6 +702,456 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    listdemo_articlesContent: {
+        parameters: {
+            query?: {
+                title?: string;
+                "title[gt]"?: string;
+                "title[gte]"?: string;
+                "title[lt]"?: string;
+                "title[lte]"?: string;
+                "title[ne]"?: string;
+                author?: string;
+                "author[gt]"?: string;
+                "author[gte]"?: string;
+                "author[lt]"?: string;
+                "author[lte]"?: string;
+                "author[ne]"?: string;
+                tags?: string;
+                "tags[gt]"?: string;
+                "tags[gte]"?: string;
+                "tags[lt]"?: string;
+                "tags[lte]"?: string;
+                "tags[ne]"?: string;
+                resolve?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of demo_articles content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["__Content_demo_articles"] | components["schemas"]["__ResolvedContent_demo_articles"])[];
+                };
+            };
+        };
+    };
+    createdemo_articlesContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_articles"];
+            };
+        };
+        responses: {
+            /** @description Created demo_articles content */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_articles"];
+                };
+            };
+        };
+    };
+    validatedemo_articlesContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_articles"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                    };
+                };
+            };
+        };
+    };
+    getdemo_articlesContentById: {
+        parameters: {
+            query?: {
+                resolve?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description demo_articles content details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_articles"] | components["schemas"]["__ResolvedContent_demo_articles"];
+                };
+            };
+        };
+    };
+    deletedemo_articlesContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description demo_articles content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updatedemo_articlesContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_articles"];
+            };
+        };
+        responses: {
+            /** @description Updated demo_articles content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_articles"];
+                };
+            };
+        };
+    };
+    listdemo_tagsContent: {
+        parameters: {
+            query?: {
+                label?: string;
+                "label[gt]"?: string;
+                "label[gte]"?: string;
+                "label[lt]"?: string;
+                "label[lte]"?: string;
+                "label[ne]"?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of demo_tags content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_tags"][];
+                };
+            };
+        };
+    };
+    createdemo_tagsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_tags"];
+            };
+        };
+        responses: {
+            /** @description Created demo_tags content */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_tags"];
+                };
+            };
+        };
+    };
+    validatedemo_tagsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_tags"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                    };
+                };
+            };
+        };
+    };
+    getdemo_tagsContentById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description demo_tags content details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_tags"];
+                };
+            };
+        };
+    };
+    deletedemo_tagsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description demo_tags content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updatedemo_tagsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_tags"];
+            };
+        };
+        responses: {
+            /** @description Updated demo_tags content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_tags"];
+                };
+            };
+        };
+    };
+    listdemo_authorsContent: {
+        parameters: {
+            query?: {
+                name?: string;
+                "name[gt]"?: string;
+                "name[gte]"?: string;
+                "name[lt]"?: string;
+                "name[lte]"?: string;
+                "name[ne]"?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description List of demo_authors content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_authors"][];
+                };
+            };
+        };
+    };
+    createdemo_authorsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_authors"];
+            };
+        };
+        responses: {
+            /** @description Created demo_authors content */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_authors"];
+                };
+            };
+        };
+    };
+    validatedemo_authorsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_authors"];
+            };
+        };
+        responses: {
+            /** @description Validation result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                    };
+                };
+            };
+        };
+    };
+    getdemo_authorsContentById: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description demo_authors content details */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_authors"];
+                };
+            };
+        };
+    };
+    deletedemo_authorsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description demo_authors content deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updatedemo_authorsContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["__ContentInput_demo_authors"];
+            };
+        };
+        responses: {
+            /** @description Updated demo_authors content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["__Content_demo_authors"];
+                };
             };
         };
     };

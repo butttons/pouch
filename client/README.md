@@ -35,6 +35,16 @@ const { data, error } = await client.GET("/collections/faq/content", {
 
 Because the feedr assembler expands `/collections/{slug}/content` into concrete paths per collection (`/collections/faq/content`, `/collections/best_deals/content`, etc.), the generated client uses those concrete paths directly. Query filters are typed per collection schema, e.g. `?scope=general` or `?price[gt]=20000`.
 
+Collections with relation fields also expose a `resolve` query parameter. Pass a comma-separated list of relation field names to embed the related content in the response:
+
+```ts
+const { data, error } = await client.GET("/collections/posts/content", {
+  params: { query: { resolve: "author" } },
+});
+```
+
+The response type is a union of the plain wrapper and the resolved wrapper, so TypeScript knows the relation field may be either an ID string or the full target content wrapper.
+
 ## This package
 
 This folder is a small internal demo of the same workflow. It checks the spec snapshot into git and regenerates types locally.

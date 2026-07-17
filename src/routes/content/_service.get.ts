@@ -5,6 +5,7 @@ import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import type { Content, ContentQuery } from "./_schema";
+import { resolveRelations } from "./_service.resolve";
 
 const QUERY_KEY_REGEX = /^([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([a-z]+)\])?$/;
 const ALLOWED_OPS = ["eq", "gt", "gte", "lt", "lte", "ne"] as const;
@@ -28,6 +29,8 @@ const coerceValue = (
 
 	return value;
 };
+
+const QUERY_META_KEYS = new Set(["resolve"]);
 
 export const listContent = (
 	input: CollectionSlugParam & { query: ContentQuery },
@@ -61,6 +64,10 @@ export const listContent = (
 		const filters: ContentFilter[] = [];
 
 		for (const [key, rawValue] of Object.entries(input.query)) {
+			if (QUERY_META_KEYS.has(key)) {
+				continue;
+			}
+
 			const match = QUERY_KEY_REGEX.exec(key);
 
 			if (!match) {
@@ -112,5 +119,22 @@ export const listContent = (
 			filters,
 		});
 
-		return ok(rows);
+		const resolveValue = input.query.resolve;
+		const resolve =
+			typeof resolveValue === "string" ? resolveValue : resolveValue?.[0];
+
+		if (!resolve) {
+			return ok(rows);
+		}
+
+		const resolved = yield* resolveRelations(
+			{
+				rows,
+				resolve,
+				schema: collection.schema,
+			},
+			deps,
+		);
+
+		return ok(resolved);
 	});

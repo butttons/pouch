@@ -14,6 +14,9 @@ const baseInfo = {
 
 const contentWrapperSchemaRef = (slug: string) => `__Content_${slug}`;
 const contentInputSchemaRef = (slug: string) => `__ContentInput_${slug}`;
+const resolvedContentSchemaRef = (slug: string) => `__Resolved_${slug}`;
+const resolvedContentWrapperSchemaRef = (slug: string) =>
+	`__ResolvedContent_${slug}`;
 
 const FILTER_OPERATORS = ["eq", "gt", "gte", "lt", "lte", "ne"] as const;
 
@@ -21,6 +24,7 @@ type JsonSchemaProperty = {
 	type?: string | string[];
 	format?: string;
 	enum?: unknown[];
+	"x-relation"?: string;
 };
 
 const buildParameterSchema = (
@@ -56,6 +60,34 @@ const buildParameterSchema = (
 	return schema;
 };
 
+const getRelationFields = (
+	schema: Record<string, unknown>,
+): Array<{ field: string; targetSlug: string; isMany: boolean }> => {
+	const fields: Array<{ field: string; targetSlug: string; isMany: boolean }> =
+		[];
+
+	if (!schema.properties || typeof schema.properties !== "object") {
+		return fields;
+	}
+
+	const properties = schema.properties as Record<string, JsonSchemaProperty>;
+
+	for (const [field, property] of Object.entries(properties)) {
+		const targetSlug = property["x-relation"];
+		if (typeof targetSlug !== "string" || targetSlug.length === 0) {
+			continue;
+		}
+
+		fields.push({
+			field,
+			targetSlug,
+			isMany: property.type === "array",
+		});
+	}
+
+	return fields;
+};
+
 const buildContentQueryParameters = (
 	schema: Record<string, unknown>,
 ): Array<Record<string, unknown>> => {
@@ -77,6 +109,22 @@ const buildContentQueryParameters = (
 				schema: buildParameterSchema(property),
 			});
 		}
+	}
+
+	const relationFields = getRelationFields(schema);
+
+	if (relationFields.length > 0) {
+		parameters.push({
+			name: "resolve",
+			in: "query",
+			required: false,
+			schema: {
+				type: "string",
+				example: relationFields.map((relation) => relation.field).join(","),
+				description:
+					"Comma-separated relation fields to resolve. Related IDs are replaced with the full content wrapper.",
+			},
+		});
 	}
 
 	return parameters;
@@ -108,6 +156,86 @@ const buildContentWrapperSchema = (slug: string) => ({
 	additionalProperties: false,
 });
 
+const buildResolvedCollectionSchema = (
+	slug: string,
+	schema: Record<string, unknown>,
+): Record<string, unknown> | null => {
+	if (!schema.properties || typeof schema.properties !== "object") {
+		return null;
+	}
+
+	const properties = schema.properties as Record<string, JsonSchemaProperty>;
+	const resolvedProperties: Record<string, unknown> = {};
+	let hasRelations = false;
+
+	for (const [field, property] of Object.entries(properties)) {
+		const targetSlug = property["x-relation"];
+		if (typeof targetSlug !== "string" || targetSlug.length === 0) {
+			resolvedProperties[field] = property;
+			continue;
+		}
+
+		hasRelations = true;
+		const targetRef = `#/components/schemas/${contentWrapperSchemaRef(targetSlug)}`;
+
+		if (property.type === "array") {
+			resolvedProperties[field] = {
+				type: "array",
+				items: { $ref: targetRef },
+			};
+		} else {
+			resolvedProperties[field] = { $ref: targetRef };
+		}
+	}
+
+	if (!hasRelations) {
+		return null;
+	}
+
+	return {
+		type: "object",
+		properties: resolvedProperties,
+		required: Array.isArray(schema.required) ? schema.required : [],
+		additionalProperties: false,
+	};
+};
+
+const buildResolvedContentWrapperSchema = (
+	slug: string,
+	schema: Record<string, unknown>,
+): Record<string, unknown> | null => {
+	const resolvedDataSchema = buildResolvedCollectionSchema(slug, schema);
+	if (!resolvedDataSchema) {
+		return null;
+	}
+
+	return {
+		type: "object",
+		properties: {
+			id: { type: "string" },
+			collectionId: { type: "string" },
+			data: { $ref: `#/components/schemas/${resolvedContentSchemaRef(slug)}` },
+			status: {
+				type: "string",
+				enum: ["draft", "published", "archived"],
+			},
+			schemaVersionId: { type: "string" },
+			createdAt: { type: "number" },
+			updatedAt: { type: "number" },
+		},
+		required: [
+			"id",
+			"collectionId",
+			"data",
+			"status",
+			"schemaVersionId",
+			"createdAt",
+			"updatedAt",
+		],
+		additionalProperties: false,
+	};
+};
+
 const buildContentInputSchema = (slug: string) => ({
 	type: "object",
 	properties: {
@@ -120,6 +248,23 @@ const buildContentInputSchema = (slug: string) => ({
 	required: ["data"],
 	additionalProperties: false,
 });
+
+const buildContentItemSchema = (
+	slug: string,
+	schema: Record<string, unknown>,
+): Record<string, unknown> => {
+	const resolvedWrapper = buildResolvedContentWrapperSchema(slug, schema);
+	if (!resolvedWrapper) {
+		return { $ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}` };
+	}
+
+	return {
+		oneOf: [
+			{ $ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}` },
+			{ $ref: `#/components/schemas/${resolvedContentWrapperSchemaRef(slug)}` },
+		],
+	};
+};
 
 const buildCollectionContentPaths = (
 	slug: string,
@@ -137,9 +282,7 @@ const buildCollectionContentPaths = (
 						"application/json": {
 							schema: {
 								type: "array",
-								items: {
-									$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
-								},
+								items: buildContentItemSchema(slug, schema),
 							},
 						},
 					},
@@ -217,15 +360,16 @@ const buildCollectionContentPaths = (
 					required: true,
 					schema: { type: "string" },
 				},
+				...buildContentQueryParameters(schema).filter(
+					(param) => param.name === "resolve",
+				),
 			],
 			responses: {
 				"200": {
 					description: `${slug} content details`,
 					content: {
 						"application/json": {
-							schema: {
-								$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
-							},
+							schema: buildContentItemSchema(slug, schema),
 						},
 					},
 				},
@@ -300,6 +444,25 @@ export const assembleOpenAPIDocument = (
 				buildContentWrapperSchema(collection.slug);
 			dynamicSchemas[contentInputSchemaRef(collection.slug)] =
 				buildContentInputSchema(collection.slug);
+
+			const resolvedSchema = buildResolvedCollectionSchema(
+				collection.slug,
+				collection.schema,
+			);
+			const resolvedWrapper = buildResolvedContentWrapperSchema(
+				collection.slug,
+				collection.schema,
+			);
+
+			if (resolvedSchema) {
+				dynamicSchemas[resolvedContentSchemaRef(collection.slug)] =
+					resolvedSchema;
+			}
+
+			if (resolvedWrapper) {
+				dynamicSchemas[resolvedContentWrapperSchemaRef(collection.slug)] =
+					resolvedWrapper;
+			}
 
 			Object.assign(
 				dynamicPaths,
