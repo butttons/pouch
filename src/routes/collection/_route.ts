@@ -12,6 +12,12 @@ import {
   type DeleteCollectionQuery,
   type PatchCollectionSchemaInput,
 } from "./_schema";
+import { contentRouter } from "@/routes/content/_route";
+import {
+  createContentInputSchema as validateContentInputSchema,
+  type CreateContentInput,
+} from "@/routes/content/_schema";
+import { validateContent } from "@/routes/content/_service.validate";
 import { createCollection } from "./_service.post";
 import { deleteCollection } from "./_service.delete";
 import { getCollectionBySlug } from "./_service.get-by-slug";
@@ -64,6 +70,26 @@ export const collectionRouter = createRouter()
       return c.json(value);
     },
   )
+  .post(
+    "/:slug/content:validate",
+    paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
+    jsonValidator<CreateContentInput>(validateContentInputSchema),
+    async (c) => {
+      const params = c.req.valid("param");
+      const body = c.req.valid("json");
+      const result = await validateContent(
+        {
+          slug: params.slug,
+          data: body.data,
+          status: body.status,
+        },
+        c.var.deps,
+      );
+      const value = unwrapResult(result);
+      return c.json(value);
+    },
+  )
+  .route("/:slug/content", contentRouter)
   .get(
     "/:slug",
     paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
