@@ -1,3 +1,5 @@
+import { withD1Bookmark } from "@/lib/openapi-helpers";
+
 import {
 	mediaIdParamSchema,
 	mediaListResponseSchema,
@@ -34,7 +36,7 @@ const mediaTags = ["Media"];
 
 export const mediaPaths = {
 	"/media": {
-		get: {
+		get: withD1Bookmark({
 			summary: "List media",
 			description: "Lists uploaded media records.",
 			operationId: "listMedia",
@@ -76,8 +78,8 @@ export const mediaPaths = {
 					},
 				},
 			},
-		},
-		post: {
+		}),
+		post: withD1Bookmark({
 			summary: "Upload media",
 			description: "Uploads a file and creates a media record.",
 			operationId: "createMedia",
@@ -113,10 +115,10 @@ export const mediaPaths = {
 					},
 				},
 			},
-		},
+		}),
 	},
 	"/media/{id}": {
-		get: {
+		get: withD1Bookmark({
 			summary: "Get media",
 			description: "Returns a media record by ID.",
 			operationId: "getMediaById",
@@ -142,8 +144,8 @@ export const mediaPaths = {
 					},
 				},
 			},
-		},
-		delete: {
+		}),
+		delete: withD1Bookmark({
 			summary: "Delete media",
 			description: "Deletes a media record and its stored file.",
 			operationId: "deleteMedia",
@@ -162,10 +164,10 @@ export const mediaPaths = {
 					description: "Media deleted",
 				},
 			},
-		},
+		}),
 	},
 	"/media/{id}/file": {
-		get: {
+		get: withD1Bookmark({
 			summary: "Download media file",
 			description: "Returns the raw file bytes for a media record.",
 			operationId: "getMediaFile",
@@ -192,6 +194,6 @@ export const mediaPaths = {
 					},
 				},
 			},
-		},
+		}),
 	},
 };

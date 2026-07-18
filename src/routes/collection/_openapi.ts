@@ -1,3 +1,5 @@
+import { withD1Bookmark } from "@/lib/openapi-helpers";
+
 import {
 	collectionSchema,
 	collectionSchemaResponseSchema,
@@ -26,7 +28,7 @@ const collectionTags = ["Collections"];
 
 export const collectionPaths = {
 	"/collections": {
-		get: {
+		get: withD1Bookmark({
 			summary: "List collections",
 			operationId: "listCollections",
 			tags: collectionTags,
@@ -46,8 +48,8 @@ export const collectionPaths = {
 					},
 				},
 			},
-		},
-		post: {
+		}),
+		post: withD1Bookmark({
 			summary: "Create collection",
 			operationId: "createCollection",
 			tags: collectionTags,
@@ -74,10 +76,10 @@ export const collectionPaths = {
 					},
 				},
 			},
-		},
+		}),
 	},
 	"/collections/{slug}/schema": {
-		get: {
+		get: withD1Bookmark({
 			summary: "Get collection schema",
 			description: "Returns the current JSON Schema for a collection.",
 			operationId: "getCollectionSchemaBySlug",
@@ -103,8 +105,8 @@ export const collectionPaths = {
 					},
 				},
 			},
-		},
-		patch: {
+		}),
+		patch: withD1Bookmark({
 			summary: "Update collection schema",
 			description:
 				"Patches the collection schema. Existing content must still validate against the new schema unless force is true.",
@@ -141,10 +143,10 @@ export const collectionPaths = {
 					},
 				},
 			},
-		},
+		}),
 	},
 	"/collections/{slug}": {
-		get: {
+		get: withD1Bookmark({
 			summary: "Get collection",
 			description: "Returns a collection including its current schema.",
 			operationId: "getCollectionBySlug",
@@ -170,8 +172,8 @@ export const collectionPaths = {
 					},
 				},
 			},
-		},
-		delete: {
+		}),
+		delete: withD1Bookmark({
 			summary: "Delete collection",
 			description:
 				"Deletes a collection and all its content. Use force=true if the collection has content.",
@@ -197,6 +199,6 @@ export const collectionPaths = {
 					description: "Collection deleted",
 				},
 			},
-		},
+		}),
 	},
 };

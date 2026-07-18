@@ -1,6 +1,11 @@
 import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
+import {
+	d1BookmarkHeader,
+	d1BookmarkParam,
+	withD1Bookmark,
+} from "@/lib/openapi-helpers";
 import { getAllowedOperators } from "@/lib/query-filter";
 import { getMediaFields } from "@/lib/schema";
 
@@ -14,14 +19,14 @@ import {
 	mediaSchemas,
 } from "@/routes/media/_openapi";
 
-import type { Deps } from "@/deps";
 import packageJson from "../../package.json";
+import type { Deps } from "@/deps";
 
 const baseInfo = {
 	title: "pouch",
 	version: packageJson.version,
 	description:
-		"API-first headless CMS. All endpoints except /docs require a Bearer token with the appropriate scope.",
+		"API-first headless CMS. All endpoints except /docs require a Bearer token with the appropriate scope. Read-after-write consistency across D1 replicas is supported by passing the x-d1-bookmark request header and using the returned x-d1-bookmark response header on the next request.",
 };
 
 const tags = [
@@ -42,7 +47,7 @@ const securitySchemes = {
 
 const authPaths = {
 	"/auth/keys": {
-		post: {
+		post: withD1Bookmark({
 			summary: "Create API key",
 			description:
 				"Creates a new JWT API key. Requires the JWT_SECRET configured on the worker.",
@@ -104,7 +109,7 @@ const authPaths = {
 					},
 				},
 			},
-		},
+		}),
 	},
 };
 
@@ -415,7 +420,7 @@ const buildCollectionContentPaths = (
 
 	return {
 		[`/collections/${slug}/content`]: {
-			get: {
+			get: withD1Bookmark({
 				summary: "List",
 				description: `Lists content in the ${slug} collection with optional filtering and relation/media resolution.`,
 				operationId: `list${slug}Content`,
@@ -447,8 +452,8 @@ const buildCollectionContentPaths = (
 						},
 					},
 				},
-			},
-			post: {
+			}),
+			post: withD1Bookmark({
 				summary: "Create",
 				description: `Creates a new content item in the ${slug} collection.`,
 				operationId: `create${slug}Content`,
@@ -476,10 +481,10 @@ const buildCollectionContentPaths = (
 						},
 					},
 				},
-			},
+			}),
 		},
 		[`/collections/${slug}/content:validate`]: {
-			post: {
+			post: withD1Bookmark({
 				summary: "Validate",
 				description: `Validates content data against the ${slug} schema without creating it.`,
 				operationId: `validate${slug}Content`,
@@ -512,10 +517,10 @@ const buildCollectionContentPaths = (
 						},
 					},
 				},
-			},
+			}),
 		},
 		[`/collections/${slug}/content/{id}`]: {
-			get: {
+			get: withD1Bookmark({
 				summary: "Get by ID",
 				description: `Returns a single ${slug} content item.`,
 				operationId: `get${slug}ContentById`,
@@ -542,8 +547,8 @@ const buildCollectionContentPaths = (
 						},
 					},
 				},
-			},
-			patch: {
+			}),
+			patch: withD1Bookmark({
 				summary: "Update",
 				description: `Updates a ${slug} content item.`,
 				operationId: `update${slug}Content`,
@@ -579,8 +584,8 @@ const buildCollectionContentPaths = (
 						},
 					},
 				},
-			},
-			delete: {
+			}),
+			delete: withD1Bookmark({
 				summary: "Delete",
 				description: `Deletes a ${slug} content item.`,
 				operationId: `delete${slug}Content`,
@@ -599,7 +604,7 @@ const buildCollectionContentPaths = (
 						description: `${slug} content deleted`,
 					},
 				},
-			},
+			}),
 		},
 	};
 };
@@ -669,6 +674,12 @@ export const assembleOpenAPIDocument = (
 			},
 			components: {
 				securitySchemes,
+				parameters: {
+					d1Bookmark: d1BookmarkParam,
+				},
+				headers: {
+					d1Bookmark: d1BookmarkHeader,
+				},
 				schemas: {
 					...collectionSchemas,
 					...mediaSchemas,
