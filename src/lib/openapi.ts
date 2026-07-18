@@ -6,6 +6,10 @@ import {
 	collectionOpenAPIComponents,
 	collectionOpenAPIPaths,
 } from "@/routes/collection/_openapi";
+import {
+	mediaOpenAPIComponents,
+	mediaOpenAPIPaths,
+} from "@/routes/media/_openapi";
 
 const baseInfo = {
 	title: "pouch",
@@ -513,11 +517,13 @@ export const assembleOpenAPIDocument = (
 			info: baseInfo,
 			paths: {
 				...collectionOpenAPIPaths,
+				...mediaOpenAPIPaths,
 				...dynamicPaths,
 			},
 			components: {
 				schemas: {
 					...collectionOpenAPIComponents,
+					...mediaOpenAPIComponents,
 					...dynamicSchemas,
 				},
 			},

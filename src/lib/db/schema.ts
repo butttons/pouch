@@ -60,6 +60,8 @@ export const mediaTable = sqliteTable("media", {
 	filename: text("filename").notNull(),
 	mimeType: text("mime_type").notNull(),
 	sizeBytes: integer("size_bytes").notNull(),
+	status: text("status").notNull().default("ready"),
 	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
+	updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
 

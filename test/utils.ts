@@ -5,14 +5,17 @@ import worker from "@/index.js";
 import { typedId } from "@/lib/typed-id";
 import type { Scope } from "@/middleware/auth";
 
-export const makeRequest = (path: string, init: RequestInit = {}) =>
-  new Request(`http://example.com${path}`, {
+export const makeRequest = (path: string, init: RequestInit = {}) => {
+  const isFormData = init.body instanceof FormData;
+
+  return new Request(`http://example.com${path}`, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
+      ...(!isFormData ? { "Content-Type": "application/json" } : {}),
       ...init.headers,
     },
   });
+};
 
 export async function createToken(scopes: Scope[]) {
   const jti = typedId("key");
@@ -34,7 +37,6 @@ export async function fetchWorker(
   const request = makeRequest(path, {
     ...init,
     headers: {
-      "Content-Type": "application/json",
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },

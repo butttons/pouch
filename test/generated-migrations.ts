@@ -13,5 +13,12 @@ export const pouchMigrations = [
       "CREATE UNIQUE INDEX `collections_slug_unique` ON `collections` (`slug`);",
       "CREATE INDEX `idx_content_collection_status` ON `content` (`collection_id`,`status`);"
     ]
+  },
+  {
+    "name": "0001_neat_lehman.sql",
+    "queries": [
+      "ALTER TABLE `media` ADD COLUMN `status` text DEFAULT 'ready' NOT NULL;",
+      "ALTER TABLE `media` ADD COLUMN `updated_at` integer NOT NULL DEFAULT 0;"
+    ]
   }
 ];

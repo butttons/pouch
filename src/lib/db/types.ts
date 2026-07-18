@@ -49,6 +49,8 @@ export interface Media {
   mime_type: string;
   r2_key: string;
   size_bytes: number;
+  status: string;
+  updated_at: number;
 }
 
 export interface SchemaVersions {

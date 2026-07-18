@@ -18,6 +18,12 @@
       "migrations_dir": "src/lib/db/migrations",
     },
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "pouch-media",
+    },
+  ],
   "secrets": {
     "required": ["JWT_SECRET"],
   },

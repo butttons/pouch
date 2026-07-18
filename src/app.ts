@@ -11,6 +11,7 @@ import { jsonValidator } from "@/lib/validator";
 import { depsMiddleware } from "@/middleware/deps";
 import { requireScopes, SCOPES } from "@/middleware/auth";
 import { collectionRouter } from "@/routes/collection/_route";
+import { mediaRouter } from "@/routes/media/_route";
 import { createMcpRouter } from "@/routes/mcp/_route";
 import { createRouter, type HonoVariables } from "./utils";
 
@@ -66,6 +67,7 @@ const app: Hono<HonoVariables> = createRouter()
 		},
 	)
 	.route("/collections", collectionRouter)
+	.route("/media", mediaRouter)
 	.notFound((c) =>
 		c.json(
 			{

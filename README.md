@@ -10,8 +10,9 @@ For agent-specific conventions, see [AGENTS.md](./AGENTS.md).
 
 The worker needs the following bindings to run:
 
-1. `DB` - [Cloudflare D1](https://developers.cloudflare.com/d1/) - SQLite database for collections, content, and schema versions.
-2. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
+1. `DB` - [Cloudflare D1](https://developers.cloudflare.com/d1/) - SQLite database for collections, content, schema versions, and media metadata.
+2. `MEDIA_BUCKET` - [Cloudflare R2](https://developers.cloudflare.com/r2/) - Object storage for uploaded media files.
+3. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
 
 ### Quick deploy
 
@@ -22,6 +23,8 @@ The fastest way to deploy is through Cloudflare's GitHub integration.
 This clones the repo into your GitHub account and deploys the worker. You can configure the project name, D1 binding, and secrets during setup. Keep note of `JWT_SECRET`; you will need it to generate API keys.
 
 Migrations are applied automatically as part of the deploy step.
+
+> **Note:** The cloned repo does not include the `.github/workflows/update.yml` file. To enable the GitHub Actions update workflow, run the **Manual update** steps once.
 
 ### Manual deploy
 
@@ -65,7 +68,24 @@ Copy the database ID from the output and update `wrangler.jsonc`:
 ]
 ```
 
-4. Deploy the worker
+4. Create an R2 bucket
+
+```sh
+npx wrangler r2 bucket create pouch-media
+```
+
+The bucket name must match the `bucket_name` in `wrangler.jsonc`:
+
+```json
+"r2_buckets": [
+  {
+    "binding": "MEDIA_BUCKET",
+    "bucket_name": "pouch-media"
+  }
+]
+```
+
+5. Deploy the worker
 
 ```sh
 pnpm run deploy
@@ -73,7 +93,7 @@ pnpm run deploy
 
 `pnpm run deploy` runs `db:migrate:prod` before deploying, so the D1 migrations are applied automatically.
 
-5. Set the `JWT_SECRET` secret
+6. Set the `JWT_SECRET` secret
 
 ```sh
 npx wrangler secret put JWT_SECRET
@@ -280,6 +300,8 @@ Update your worker when a new version is released. Your `wrangler.jsonc` is neve
 
 ### Manual update
 
+The Deploy button creates a private repo from a snapshot, not a Git fork, so the first merge from upstream requires `--allow-unrelated-histories`.
+
 1. Add the upstream remote (first time only)
 
 ```sh
@@ -291,7 +313,12 @@ git remote add upstream https://github.com/butttons/pouch.git
 ```sh
 cp wrangler.jsonc wrangler.jsonc.bak
 git fetch upstream
-git merge -X theirs upstream/main -m "Update from upstream"
+
+# First update only: histories are unrelated, so allow the merge.
+git merge -X theirs upstream/main --allow-unrelated-histories -m "Update from upstream"
+
+# Subsequent updates can use:
+# git merge -X theirs upstream/main -m "Update from upstream"
 ```
 
 3. Restore your config
@@ -307,4 +334,6 @@ pnpm run deploy
 ```
 
 `pnpm run deploy` runs `db:migrate:prod` before deploying, so D1 migrations are applied automatically.
+
+> **Note:** The `.github/workflows/update.yml` file is added after the first manual update. Once it is present, you can use the GitHub Actions workflow for future updates instead of merging locally.
 

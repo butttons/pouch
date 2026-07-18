@@ -1,6 +1,6 @@
 {
   "name": "@butttons/pouch",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "private": true,
   "type": "module",
   "scripts": {
@@ -45,6 +45,9 @@
     "bindings": {
       "JWT_SECRET": {
         "description": "Generate a strong secret and keep it safe (`openssl rand -hex 32`). You will need it to create API keys."
+      },
+      "MEDIA_BUCKET": {
+        "description": "R2 bucket for storing uploaded media files."
       }
     }
   }
