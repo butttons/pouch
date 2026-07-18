@@ -3,7 +3,7 @@ import { Kysely, ParseJSONResultsPlugin } from "kysely";
 import type { DB } from "./types";
 import { D1Dialect } from "./kysely-d1";
 
-export const createDB = (db: D1DatabaseSession) =>
+export const createDB = (db: D1DatabaseSession | D1Database) =>
   new Kysely<DB>({
     dialect: new D1Dialect({
       database: db,

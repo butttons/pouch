@@ -148,12 +148,13 @@ If `scopes` is omitted, the key gets all scopes. Use `expiresInSeconds` to overr
 
 ## Read replication
 
-pouch uses D1 [global read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/) through the [Sessions API](https://developers.cloudflare.com/d1/worker-api/d1-database/#withsession). Every request creates a fresh D1 session.
+pouch uses D1 [global read replication](https://developers.cloudflare.com/d1/best-practices/read-replication/) through the [Sessions API](https://developers.cloudflare.com/d1/worker-api/d1-database/#withsession) when a bookmark is provided.
 
-- Pass the bookmark from a previous response in the `x-d1-bookmark` header.
-- If the header is missing, the session starts at `first-unconstrained` (any replica).
-- Use `first-primary` as the header value when you need the latest data on the first read.
-- Each response returns the updated bookmark in the `x-d1-bookmark` header.
+- Send `x-d1-bookmark: first-unconstrained` to read from any replica.
+- Send `x-d1-bookmark: first-primary` to read the latest data on the first read.
+- Pass the bookmark from a previous response in the `x-d1-bookmark` header to keep sequential consistency across requests.
+- If the header is missing, the request uses the primary D1 database directly and no session is created.
+- The response includes an updated `x-d1-bookmark` header only when a bookmark was provided on the request.
 
 Example:
 
