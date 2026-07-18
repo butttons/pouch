@@ -54,6 +54,7 @@ export const createMedia = (
 		}
 
 		const created = yield* deps.DL.media.createMedia({
+			id,
 			r2Key,
 			filename: file.name,
 			mimeType: file.type || "application/octet-stream",

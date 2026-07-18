@@ -72,23 +72,26 @@ export class MediaDataLayer extends BaseDataLayer {
 	}
 
 	createMedia(input: {
+		id?: string;
 		r2Key: string;
 		filename: string;
 		mimeType: string;
 		sizeBytes: number;
 	}) {
+		const base = this.forInsert({
+			r2_key: input.r2Key,
+			filename: input.filename,
+			mime_type: input.mimeType,
+			size_bytes: input.sizeBytes,
+			status: "ready",
+		});
+
+		const values = input.id ? { ...base, id: input.id } : base;
+
 		return fromPromise(
 			this.db
 				.insertInto("media")
-				.values(
-					this.forInsert({
-						r2_key: input.r2Key,
-						filename: input.filename,
-						mime_type: input.mimeType,
-						size_bytes: input.sizeBytes,
-						status: "ready",
-					}),
-				)
+				.values(values)
 				.returning([
 					"id",
 					"r2_key as r2Key",
