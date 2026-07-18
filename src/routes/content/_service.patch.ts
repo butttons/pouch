@@ -10,6 +10,8 @@ import type {
 	ContentRouteParams,
 	UpdateContentInput,
 } from "./_schema";
+import { enrichMediaPaths } from "@/lib/schema";
+
 import { requireContentInCollection } from "./_util.require-content";
 import {
 	validateContentOrFail,
@@ -55,5 +57,11 @@ export const updateContent = (
 			status: input.status,
 		});
 
-		return ok(updated);
+		const enrichedData = enrichMediaPaths({
+			data: updated.data,
+			schema: collection.schema,
+			mediaPublicUrl: deps.mediaPublicUrl,
+		});
+
+		return ok({ ...updated, data: enrichedData });
 	});

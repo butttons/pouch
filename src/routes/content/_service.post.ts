@@ -6,6 +6,8 @@ import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
 
+import { enrichMediaPaths } from "@/lib/schema";
+
 import type { Content, CreateContentInput } from "./_schema";
 import {
 	validateContentOrFail,
@@ -53,5 +55,11 @@ export const createContent = (
 			status: input.status ?? "draft",
 		});
 
-		return ok(created);
+		const enrichedData = enrichMediaPaths({
+			data: created.data,
+			schema: collection.schema,
+			mediaPublicUrl: deps.mediaPublicUrl,
+		});
+
+		return ok({ ...created, data: enrichedData });
 	});

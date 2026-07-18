@@ -1,3 +1,4 @@
+import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -122,7 +123,7 @@ describe("example: blog", () => {
 		expect(post.data.title).toBe("The First Algorithm");
 		expect(post.data.featuredImage).toEqual({
 			id: image.id,
-			path: image.r2Key,
+			path: `${env.MEDIA_PUBLIC_URL}/${image.r2Key}`,
 		});
 
 		const token = await readerToken();

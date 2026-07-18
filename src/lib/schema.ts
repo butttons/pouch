@@ -340,6 +340,58 @@ export const getMediaIdsFromValue = (input: { value: unknown }): string[] => {
 	return [];
 };
 
+const joinMediaUrl = (baseUrl: string, path: string): string => {
+	const normalizedBase = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+	const normalizedPath = path.startsWith("/") ? path.slice(1) : path;
+	return `${normalizedBase}/${normalizedPath}`;
+};
+
+/**
+ * Mutates media references in content data so the `path` field becomes a full public URL.
+ * No-op when MEDIA_PUBLIC_URL is empty.
+ */
+export const enrichMediaPaths = (input: {
+	data: Record<string, unknown>;
+	schema: Record<string, unknown>;
+	mediaPublicUrl: string;
+}): Record<string, unknown> => {
+	if (input.mediaPublicUrl.length === 0) {
+		return input.data;
+	}
+
+	const mediaFields = getMediaFields({ schema: input.schema });
+	if (mediaFields.length === 0) {
+		return input.data;
+	}
+
+	const enriched: Record<string, unknown> = { ...input.data };
+
+	for (const { field, isMany } of mediaFields) {
+		const value = enriched[field];
+		if (value === undefined || value === null) {
+			continue;
+		}
+
+		if (isMany) {
+			const mediaArray = { value };
+			if (!isValidMediaArray(mediaArray)) continue;
+			enriched[field] = mediaArray.value.map((item) => ({
+				...item,
+				path: joinMediaUrl(input.mediaPublicUrl, item.path),
+			}));
+		} else {
+			const mediaObject = { value };
+			if (!isValidMediaObject(mediaObject)) continue;
+			enriched[field] = {
+				...mediaObject.value,
+				path: joinMediaUrl(input.mediaPublicUrl, mediaObject.value.path),
+			};
+		}
+	}
+
+	return enriched;
+};
+
 /**
  * Returns media object IDs from content data for x-media fields.
  */

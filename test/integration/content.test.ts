@@ -541,7 +541,10 @@ describe("content", () => {
 				data: { title: "Article", cover: { id: media.id, path: media.r2Key } },
 			});
 
-			expect(content.data.cover).toEqual({ id: media.id, path: media.r2Key });
+			expect(content.data.cover).toEqual({
+				id: media.id,
+				path: `${env.MEDIA_PUBLIC_URL}/${media.r2Key}`,
+			});
 		});
 
 		it("rejects content with a missing media reference", async () => {
@@ -622,7 +625,7 @@ describe("content", () => {
 			};
 			expect(unresolvedBody.data.cover).toEqual({
 				id: media.id,
-				path: media.r2Key,
+				path: `${env.MEDIA_PUBLIC_URL}/${media.r2Key}`,
 			});
 
 			const resolved = await fetchWorker(
@@ -684,8 +687,8 @@ describe("content", () => {
 			});
 
 			expect(content.data.images).toEqual([
-				{ id: mediaA.id, path: mediaA.r2Key },
-				{ id: mediaB.id, path: mediaB.r2Key },
+				{ id: mediaA.id, path: `${env.MEDIA_PUBLIC_URL}/${mediaA.r2Key}` },
+				{ id: mediaB.id, path: `${env.MEDIA_PUBLIC_URL}/${mediaB.r2Key}` },
 			]);
 
 			const token = await readerToken();

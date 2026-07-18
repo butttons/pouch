@@ -2,6 +2,7 @@ import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
 import type { AppHTTPException } from "@/lib/errors";
+import { enrichMediaPaths } from "@/lib/schema";
 
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
 
@@ -26,20 +27,29 @@ export const getContentById = (
 			deps,
 		);
 
+		const enrichedContent = {
+			...content,
+			data: enrichMediaPaths({
+				data: content.data,
+				schema: collection.schema,
+				mediaPublicUrl: deps.mediaPublicUrl,
+			}),
+		};
+
 		const resolve = normalizeResolveParam(input.resolve);
 
 		if (!resolve) {
-			return ok(content);
+			return ok(enrichedContent);
 		}
 
 		const resolved = yield* resolveRelations(
 			{
-				rows: [content],
+				rows: [enrichedContent],
 				resolve,
 				schema: collection.schema,
 			},
 			deps,
 		);
 
-		return ok(resolved[0] ?? content);
+		return ok(resolved[0] ?? enrichedContent);
 	});

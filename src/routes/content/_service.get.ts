@@ -8,6 +8,7 @@ import {
 	getAllowedOperators,
 	isFilterOperator,
 } from "@/lib/query-filter";
+import { enrichMediaPaths } from "@/lib/schema";
 
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
@@ -204,15 +205,24 @@ export const listContent = (
 			cursor,
 		});
 
+		const enrichedRows = rows.map((row) => ({
+			...row,
+			data: enrichMediaPaths({
+				data: row.data,
+				schema: collection.schema,
+				mediaPublicUrl: deps.mediaPublicUrl,
+			}),
+		}));
+
 		const resolve = normalizeResolveParam(input.query.resolve);
 
 		if (!resolve) {
-			return ok({ data: rows, nextCursor });
+			return ok({ data: enrichedRows, nextCursor });
 		}
 
 		const resolved = yield* resolveRelations(
 			{
-				rows,
+				rows: enrichedRows,
 				resolve,
 				schema: collection.schema,
 			},
