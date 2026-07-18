@@ -4,7 +4,10 @@ import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import type { AppHTTPException } from "@/lib/errors";
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
-import { validateContentOrFail } from "./_util.validate-content";
+import {
+	validateContentOrFail,
+	validateMediaFieldsOrFail,
+} from "./_util.validate-content";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import type { CreateContentInput } from "./_schema";
 
@@ -19,6 +22,11 @@ export const validateContent = (
 		);
 
 		yield* validateContentOrFail({ data: input.data, schema: collection.schema });
+		yield* validateMediaFieldsOrFail({
+			data: input.data,
+			schema: collection.schema,
+			DL: deps.DL,
+		});
 
 		return ok({ valid: true });
 	});

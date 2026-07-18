@@ -9,10 +9,25 @@ export const SYSTEM_SCHEMA_PREFIX = "__";
 
 export const mediaSchemaRef = `${SYSTEM_SCHEMA_PREFIX}Media`;
 export const mediaListResponseSchemaRef = `${SYSTEM_SCHEMA_PREFIX}MediaListResponse`;
+export const mediaObjectSchemaRef = `${SYSTEM_SCHEMA_PREFIX}MediaObject`;
+
+export const mediaObjectSchema = {
+	type: "object",
+	properties: {
+		id: { type: "string", pattern: "^med_" },
+		url: { type: "string" },
+		filename: { type: "string" },
+		mimeType: { type: "string" },
+		sizeBytes: { type: "number" },
+	},
+	required: ["id", "url", "filename", "mimeType", "sizeBytes"],
+	additionalProperties: false,
+};
 
 export const mediaOpenAPIComponents = {
 	[mediaSchemaRef]: mediaResponseSchema,
 	[mediaListResponseSchemaRef]: mediaListResponseSchema,
+	[mediaObjectSchemaRef]: mediaObjectSchema,
 };
 
 export const mediaOpenAPIPaths = {

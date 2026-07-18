@@ -79,15 +79,16 @@ async function main() {
 				"--remote",
 			].join(" ");
 
-			execSync(cmd, {
+			const output = execSync(cmd, {
 				stdio: "pipe",
-				timeout: 30_000,
+				timeout: 60_000,
 			});
 
 			console.log("ok");
 			success++;
-		} catch (error) {
-			console.log("FAILED");
+		} catch (error: any) {
+			const stderr = error.stderr?.toString() ?? "unknown error";
+			console.log(`FAILED: ${stderr.trim()}`);
 			failed++;
 		}
 	}

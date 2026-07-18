@@ -7,6 +7,7 @@ import {
 	collectionOpenAPIPaths,
 } from "@/routes/collection/_openapi";
 import {
+	mediaObjectSchemaRef,
 	mediaOpenAPIComponents,
 	mediaOpenAPIPaths,
 } from "@/routes/media/_openapi";
@@ -29,6 +30,7 @@ type JsonSchemaProperty = {
 	format?: string;
 	enum?: unknown[];
 	"x-relation"?: string;
+	"x-media"?: boolean;
 };
 
 const buildParameterSchema = (
@@ -92,6 +94,31 @@ const getRelationFields = (
 	return fields;
 };
 
+const getMediaFields = (
+	schema: Record<string, unknown>,
+): Array<{ field: string; isMany: boolean }> => {
+	const fields: Array<{ field: string; isMany: boolean }> = [];
+
+	if (!schema.properties || typeof schema.properties !== "object") {
+		return fields;
+	}
+
+	const properties = schema.properties as Record<string, JsonSchemaProperty>;
+
+	for (const [field, property] of Object.entries(properties)) {
+		if (property["x-media"] !== true) {
+			continue;
+		}
+
+		fields.push({
+			field,
+			isMany: property.type === "array",
+		});
+	}
+
+	return fields;
+};
+
 const buildContentQueryParameters = (
 	schema: Record<string, unknown>,
 ): Array<Record<string, unknown>> => {
@@ -139,17 +166,19 @@ const buildContentQueryParameters = (
 	}
 
 	const relationFields = getRelationFields(schema);
+	const mediaFields = getMediaFields({ schema });
+	const resolvableFields = [...relationFields, ...mediaFields];
 
-	if (relationFields.length > 0) {
+	if (resolvableFields.length > 0) {
 		parameters.push({
 			name: "resolve",
 			in: "query",
 			required: false,
 			schema: {
 				type: "string",
-				example: relationFields.map((relation) => relation.field).join(","),
+				example: resolvableFields.map((field) => field.field).join(","),
 				description:
-					"Comma-separated relation fields to resolve. Related IDs are replaced with the full content wrapper.",
+					"Comma-separated relation or media fields to resolve. Related IDs are replaced with the full content wrapper; media objects are replaced with the full media record.",
 			},
 		});
 	}
@@ -193,29 +222,46 @@ const buildResolvedCollectionSchema = (
 
 	const properties = schema.properties as Record<string, JsonSchemaProperty>;
 	const resolvedProperties: Record<string, unknown> = {};
-	let hasRelations = false;
+	let hasResolvables = false;
+	const mediaRef = `#/components/schemas/${mediaObjectSchemaRef}`;
 
 	for (const [field, property] of Object.entries(properties)) {
 		const targetSlug = property["x-relation"];
-		if (typeof targetSlug !== "string" || targetSlug.length === 0) {
-			resolvedProperties[field] = property;
+		const isMedia = property["x-media"] === true;
+
+		if (typeof targetSlug === "string" && targetSlug.length > 0) {
+			hasResolvables = true;
+			const targetRef = `#/components/schemas/${contentWrapperSchemaRef(targetSlug)}`;
+
+			if (property.type === "array") {
+				resolvedProperties[field] = {
+					type: "array",
+					items: { $ref: targetRef },
+				};
+			} else {
+				resolvedProperties[field] = { $ref: targetRef };
+			}
 			continue;
 		}
 
-		hasRelations = true;
-		const targetRef = `#/components/schemas/${contentWrapperSchemaRef(targetSlug)}`;
+		if (isMedia) {
+			hasResolvables = true;
 
-		if (property.type === "array") {
-			resolvedProperties[field] = {
-				type: "array",
-				items: { $ref: targetRef },
-			};
-		} else {
-			resolvedProperties[field] = { $ref: targetRef };
+			if (property.type === "array") {
+				resolvedProperties[field] = {
+					type: "array",
+					items: { $ref: mediaRef },
+				};
+			} else {
+				resolvedProperties[field] = { $ref: mediaRef };
+			}
+			continue;
 		}
+
+		resolvedProperties[field] = property;
 	}
 
-	if (!hasRelations) {
+	if (!hasResolvables) {
 		return null;
 	}
 

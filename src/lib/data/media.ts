@@ -71,6 +71,31 @@ export class MediaDataLayer extends BaseDataLayer {
 		);
 	}
 
+	getMediaByIds(input: { ids: string[] }) {
+		return fromPromise(
+			this.db
+				.selectFrom("media")
+				.select([
+					"id",
+					"r2_key as r2Key",
+					"filename",
+					"mime_type as mimeType",
+					"size_bytes as sizeBytes",
+					"status",
+					"created_at as createdAt",
+					"updated_at as updatedAt",
+				])
+				.where("id", "in", input.ids)
+				.execute(),
+			this.passThroughError({
+				message: "Failed to get media by IDs",
+				code: "GET_FAILED",
+				source: "DL.media.getMediaByIds",
+				input,
+			}),
+		);
+	}
+
 	createMedia(input: {
 		id?: string;
 		r2Key: string;

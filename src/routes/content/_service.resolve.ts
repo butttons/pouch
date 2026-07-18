@@ -4,6 +4,7 @@ import type { Content } from "@/routes/content/_schema";
 import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
+import { getMediaFields, isValidMediaObject } from "@/lib/schema";
 
 type RelationField = {
   field: string;
@@ -46,6 +47,76 @@ const parseResolveFields = (resolve: string): string[] =>
     .map((field) => field.trim())
     .filter((field) => field.length > 0);
 
+/**
+ * Resolves media fields by fetching media records and returning full objects.
+ */
+const resolveMediaFields = (input: {
+  rows: Content[];
+  schema: Record<string, unknown>;
+  requestedFields: readonly string[];
+  deps: Deps;
+}): ResultAsync<Content[], AppHTTPException | DataLayerError> =>
+  safeTry(async function* () {
+    const mediaFields = getMediaFields({ schema: input.schema });
+    const mediaFieldSet = new Set(mediaFields.map((f) => f.field));
+    const requestedMediaFields = input.requestedFields.filter((f) =>
+      mediaFieldSet.has(f),
+    );
+
+    if (requestedMediaFields.length === 0) {
+      return ok(input.rows);
+    }
+
+    // Collect all media IDs from all rows for requested fields
+    const allMediaIds = new Set<string>();
+    for (const row of input.rows) {
+      for (const field of requestedMediaFields) {
+        const value = row.data[field];
+        const mediaObject = { value };
+        if (isValidMediaObject(mediaObject)) {
+          allMediaIds.add(mediaObject.value.id);
+        }
+      }
+    }
+
+    if (allMediaIds.size === 0) {
+      return ok(input.rows);
+    }
+
+    // Fetch all media records in one query
+    const mediaRecords = yield* input.deps.DL.media.getMediaByIds({
+      ids: Array.from(allMediaIds),
+    });
+
+    const mediaById = new Map(mediaRecords.map((r) => [r.id, r]));
+
+    // Replace media objects with full records
+    const resolvedRows = input.rows.map((row) => {
+      const resolvedData: Record<string, unknown> = { ...row.data };
+
+      for (const field of requestedMediaFields) {
+        const value = resolvedData[field];
+        const mediaObject = { value };
+        if (!isValidMediaObject(mediaObject)) continue;
+
+        const record = mediaById.get(mediaObject.value.id);
+        if (!record) continue;
+
+        resolvedData[field] = {
+          id: record.id,
+          url: record.r2Key,
+          filename: record.filename,
+          mimeType: record.mimeType,
+          sizeBytes: record.sizeBytes,
+        };
+      }
+
+      return { ...row, data: resolvedData };
+    });
+
+    return ok(resolvedRows);
+  });
+
 const collectTargetIds = (
   rows: Content[],
   relationByField: ReadonlyMap<string, RelationField>,
@@ -87,7 +158,7 @@ const collectTargetIds = (
 };
 
 /**
- * Resolves relation fields by fetching referenced content from target collections.
+ * Resolves relation and media fields by fetching referenced content and media records.
  */
 export const resolveRelations = (
   input: {
@@ -109,22 +180,44 @@ export const resolveRelations = (
       relationFields.map((relation) => [relation.field, relation]),
     );
 
+    const mediaFields = getMediaFields({ schema: input.schema });
+    const mediaFieldSet = new Set(mediaFields.map((f) => f.field));
+
+    // Validate that all requested fields are either relations or media
     for (const field of requestedFields) {
-      if (!relationByField.has(field)) {
+      if (!relationByField.has(field) && !mediaFieldSet.has(field)) {
         return err(
           new AppHTTPException({
             code: ErrorCodes.VALIDATION_FAILED,
-            message: `Cannot resolve unknown or non-relation field: ${field}`,
+            message: `Cannot resolve unknown or non-relation/non-media field: ${field}`,
             status: 400,
           }),
         );
       }
     }
 
+    // Resolve media fields first
+    let currentRows = input.rows;
+    const requestedMediaFields = requestedFields.filter((f) => mediaFieldSet.has(f));
+    if (requestedMediaFields.length > 0) {
+      currentRows = yield* resolveMediaFields({
+        rows: currentRows,
+        schema: input.schema,
+        requestedFields: requestedMediaFields,
+        deps,
+      });
+    }
+
+    // Resolve relation fields
+    const requestedRelationFields = requestedFields.filter((f) => relationByField.has(f));
+    if (requestedRelationFields.length === 0) {
+      return ok(currentRows as ResolvedContent[]);
+    }
+
     const targetIdsByField = collectTargetIds(
-      input.rows,
+      currentRows,
       relationByField,
-      requestedFields,
+      requestedRelationFields,
     );
 
     const relationSlugs = new Set<string>();
@@ -166,7 +259,7 @@ export const resolveRelations = (
     }
 
     if (allTargetIds.size === 0) {
-      return ok(input.rows as ResolvedContent[]);
+      return ok(currentRows as ResolvedContent[]);
     }
 
     const relatedRows = yield* deps.DL.content.getContentByIds({
@@ -175,7 +268,7 @@ export const resolveRelations = (
 
     const relatedById = new Map(relatedRows.map((row) => [row.id, row]));
 
-    const resolvedRows = input.rows.map((row) => {
+    const resolvedRows = currentRows.map((row) => {
       const resolvedData: Record<string, unknown> = { ...row.data };
 
       for (const [field, targetCollectionId] of targetCollectionIds.entries()) {

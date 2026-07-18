@@ -27,12 +27,13 @@ Time-sortable. No separate ordering column.
 
 ## Field type → JSON Schema mapping
 
-Collection schemas are standard JSON Schema (draft 2020-12). CMS-specific behavior is expressed through four `x-` keywords only:
+Collection schemas are standard JSON Schema (draft 2020-12). CMS-specific behavior is expressed through five `x-` keywords only:
 
 - `x-label` — display name for the field. Property keys are immutable; labels are mutable.
 - `x-widget` — authoring hint only. `"richtext"` is the only supported value today.
 - `x-relation` — target collection slug. `type: "string"` = single relation; `type: "array"` = many.
 - `x-index` — scalar fields only (`string`, `integer`, `number`, `boolean`). Creates a generated column + index for filtering.
+- `x-media` — marks an object field as a media reference. The stored value must be `{ id: "med_...", path: string }`. Request `?resolve=<field>` to expand it into the full media record.
 
 ```jsonc
 // text
@@ -61,6 +62,9 @@ Collection schemas are standard JSON Schema (draft 2020-12). CMS-specific behavi
 
 // indexed field
 { "type": "number", "x-index": true }
+
+// media
+{ "type": "object", "x-media": true }
 
 // json
 {}

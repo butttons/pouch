@@ -219,4 +219,21 @@ export class ContentDataLayer extends BaseDataLayer {
 			}),
 		);
 	}
+
+	countContentByMediaId(input: { mediaId: string }) {
+		const quotedId = JSON.stringify(input.mediaId);
+		return fromPromise(
+			this.db
+				.selectFrom("content")
+				.select(sql<number>`count(*)`.as("count"))
+				.where(sql<boolean>`json_extract(data, '$') LIKE ${"%" + quotedId + "%"}`)
+				.executeTakeFirst(),
+			this.passThroughError({
+				message: "Failed to count content by media ID",
+				code: "GET_FAILED",
+				source: "DL.content.countContentByMediaId",
+				input,
+			}),
+		);
+	}
 }

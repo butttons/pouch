@@ -109,3 +109,35 @@ export async function createContent(
     updatedAt: number;
   };
 }
+
+export async function createMedia(file: File) {
+  const token = await createToken(["content:write"]);
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetchWorker(
+    "/media",
+    {
+      method: "POST",
+      body: formData,
+    },
+    token,
+  );
+
+  if (response.status !== 201) {
+    throw new Error(
+      `createMedia failed: ${response.status} ${await response.text()}`,
+    );
+  }
+
+  return (await response.json()) as {
+    id: string;
+    r2Key: string;
+    filename: string;
+    mimeType: string;
+    sizeBytes: number;
+    status: string;
+    createdAt: number;
+    updatedAt: number;
+  };
+}

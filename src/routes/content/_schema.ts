@@ -1,5 +1,15 @@
 import { Type } from "typebox";
 
+export const mediaObjectSchema = Type.Object(
+	{
+		id: Type.String({ pattern: "^med_" }),
+		path: Type.String(),
+	},
+	{ additionalProperties: false, title: "MediaObject" },
+);
+
+export type MediaObject = Type.Static<typeof mediaObjectSchema>;
+
 export const contentStatusSchema = Type.Union([
 	Type.Literal("draft"),
 	Type.Literal("published"),

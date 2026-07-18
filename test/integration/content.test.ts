@@ -5,6 +5,7 @@ import {
   adminToken,
   createCollection,
   createContent,
+  createMedia,
   fetchWorker,
   readerToken,
   writerToken,
@@ -388,6 +389,182 @@ describe("content", () => {
         .bind("notes")
         .first<{ count: number }>();
       expect(row!.count).toBe(0);
+    });
+  });
+
+  describe("x-media fields", () => {
+    const mediaCollectionSchema = {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        cover: { type: "object", "x-media": true },
+      },
+      required: ["title"],
+      additionalProperties: false,
+    };
+
+    it("creates content with a valid media reference", async () => {
+      await createCollection({
+        slug: "articles",
+        name: "Articles",
+        schema: mediaCollectionSchema,
+      });
+
+      const file = new File(["cover"], "cover.png", { type: "image/png" });
+      const media = await createMedia(file);
+
+      const content = await createContent("articles", {
+        data: { title: "Article", cover: { id: media.id, path: media.r2Key } },
+      });
+
+      expect(content.data.cover).toEqual({ id: media.id, path: media.r2Key });
+    });
+
+    it("rejects content with a missing media reference", async () => {
+      await createCollection({
+        slug: "articles",
+        name: "Articles",
+        schema: mediaCollectionSchema,
+      });
+
+      const token = await writerToken();
+      const response = await fetchWorker(
+        "/collections/articles/content",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: {
+              title: "Article",
+              cover: { id: "med_00000000000000000000000000", path: "/missing" },
+            },
+          }),
+        },
+        token,
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { code: string; message: string };
+      expect(body.code).toBe("VALIDATION_FAILED");
+      expect(body.message).toContain("Media not found");
+    });
+
+    it("rejects content with an invalid media object shape", async () => {
+      await createCollection({
+        slug: "articles",
+        name: "Articles",
+        schema: mediaCollectionSchema,
+      });
+
+      const token = await writerToken();
+      const response = await fetchWorker(
+        "/collections/articles/content",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: { title: "Article", cover: { id: "med_abc123" } },
+          }),
+        },
+        token,
+      );
+
+      expect(response.status).toBe(400);
+      const body = (await response.json()) as { code: string };
+      expect(body.code).toBe("VALIDATION_FAILED");
+    });
+
+    it("resolves media fields when requested", async () => {
+      await createCollection({
+        slug: "articles",
+        name: "Articles",
+        schema: mediaCollectionSchema,
+      });
+
+      const file = new File(["cover"], "cover.png", { type: "image/png" });
+      const media = await createMedia(file);
+
+      const content = await createContent("articles", {
+        data: { title: "Article", cover: { id: media.id, path: media.r2Key } },
+      });
+
+      const token = await readerToken();
+      const unresolved = await fetchWorker(
+        `/collections/articles/content/${content.id}`,
+        {},
+        token,
+      );
+      expect(unresolved.status).toBe(200);
+      const unresolvedBody = (await unresolved.json()) as {
+        data: Record<string, unknown>;
+      };
+      expect(unresolvedBody.data.cover).toEqual({ id: media.id, path: media.r2Key });
+
+      const resolved = await fetchWorker(
+        `/collections/articles/content/${content.id}?resolve=cover`,
+        {},
+        token,
+      );
+      expect(resolved.status).toBe(200);
+      const resolvedBody = (await resolved.json()) as {
+        data: Record<string, unknown>;
+      };
+
+      const resolvedCover = resolvedBody.data.cover as {
+        id: string;
+        url: string;
+        filename: string;
+        mimeType: string;
+        sizeBytes: number;
+      };
+      expect(resolvedCover.id).toBe(media.id);
+      expect(resolvedCover.url).toBe(media.r2Key);
+      expect(resolvedCover.filename).toBe("cover.png");
+      expect(resolvedCover.mimeType).toBe("image/png");
+      expect(resolvedCover.sizeBytes).toBe(5);
+    });
+
+    it("validates media existence on /content:validate", async () => {
+      await createCollection({
+        slug: "articles",
+        name: "Articles",
+        schema: mediaCollectionSchema,
+      });
+
+      const token = await writerToken();
+      const invalidResponse = await fetchWorker(
+        "/collections/articles/content:validate",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: {
+              title: "Article",
+              cover: { id: "med_00000000000000000000000000", path: "/missing" },
+            },
+          }),
+        },
+        token,
+      );
+
+      expect(invalidResponse.status).toBe(400);
+      const invalidBody = (await invalidResponse.json()) as { code: string };
+      expect(invalidBody.code).toBe("VALIDATION_FAILED");
+
+      const file = new File(["cover"], "cover.png", { type: "image/png" });
+      const media = await createMedia(file);
+
+      const validResponse = await fetchWorker(
+        "/collections/articles/content:validate",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: { title: "Article", cover: { id: media.id, path: media.r2Key } },
+          }),
+        },
+        token,
+      );
+
+      expect(validResponse.status).toBe(200);
+      const validBody = (await validResponse.json()) as { valid: boolean };
+      expect(validBody.valid).toBe(true);
     });
   });
 });
