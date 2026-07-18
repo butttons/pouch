@@ -4,9 +4,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-09-27",
   "compatibility_flags": ["nodejs_als"],
-  "observability": {
-    "enabled": true,
-  },
+
   "dev": {
     "port": 3200,
   },
@@ -26,5 +24,20 @@
   ],
   "secrets": {
     "required": ["JWT_SECRET"],
+  },
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1,
+    },
   },
 }
