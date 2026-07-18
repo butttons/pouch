@@ -25,6 +25,7 @@ const SIX_MONTHS = 60 * 60 * 24 * 180;
 const createKeyInputSchema = Type.Object(
 	{
 		secret: Type.String({ minLength: 1 }),
+		name: Type.Optional(Type.String({ minLength: 1 })),
 		scopes: Type.Optional(
 			Type.Array(Type.Union(SCOPES.map((scope) => Type.Literal(scope)))),
 		),
@@ -56,10 +57,21 @@ const app: Hono<HonoVariables> = createRouter()
 			const scopes = input.scopes ?? [...SCOPES];
 			const iat = Math.floor(Date.now() / 1000);
 			const exp = iat + (input.expiresInSeconds ?? SIX_MONTHS);
+			const name = input.name;
 
-			const token = await sign({ jti, scopes, iat, exp }, c.env.JWT_SECRET);
+			const token = await sign(
+				{ jti, name, scopes, iat, exp },
+				c.env.JWT_SECRET,
+			);
 
-			return c.json({ token, jti, scopes, exp }, 201);
+			await c.var.deps.DL.auditLog.insert({
+				action: "key.create",
+				actor: c.var.deps.actor,
+				targetId: jti,
+				diff: { name, scopes },
+			});
+
+			return c.json({ token, jti, name, scopes, exp }, 201);
 		},
 	)
 	.get("/openapi.json", requireScopes("content:read"), async (c) => {

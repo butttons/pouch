@@ -55,13 +55,21 @@ export const createMedia = (
 			);
 		}
 
-		const created = yield* deps.DL.media.createMedia({
-			id,
-			r2Key,
-			filename: file.name,
-			mimeType: file.type || "application/octet-stream",
-			sizeBytes: file.size,
-		});
+		const created = yield* deps.DL.media.createMedia(
+			{
+				id,
+				r2Key,
+				filename: file.name,
+				mimeType: file.type || "application/octet-stream",
+				sizeBytes: file.size,
+			},
+			{
+				action: "media.create",
+				actor: deps.actor,
+				targetId: id,
+				diff: null,
+			},
+		);
 
 		return ok(created);
 	});

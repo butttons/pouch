@@ -10,6 +10,7 @@ const APP_ENTITY = [
 	"content_index",
 	"media",
 	"key",
+	"audit_log",
 	"misc",
 ] as const;
 
@@ -22,6 +23,7 @@ const APP_ENTITY_PREFIX_MAP = {
 	content_index: "cix",
 	media: "med",
 	key: "key",
+	audit_log: "aud",
 	[ENTITY_FALLBACK]: ENTITY_FALLBACK_PREFIX,
 } as const satisfies Record<AppEntity, string>;
 

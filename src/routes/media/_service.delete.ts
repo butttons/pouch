@@ -30,7 +30,15 @@ export const deleteMedia = (
 
 		await deps.bucket.delete(media.r2Key);
 
-		yield* deps.DL.media.deleteMediaById({ id: media.id });
+		yield* deps.DL.media.deleteMediaById(
+			{ id: media.id },
+			{
+				action: "media.delete",
+				actor: deps.actor,
+				targetId: media.id,
+				diff: null,
+			},
+		);
 
 		return ok(undefined);
 	});

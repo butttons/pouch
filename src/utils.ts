@@ -7,7 +7,7 @@ export type HonoVariables = {
 	Bindings: Env;
 	Variables: {
 		deps: Deps;
-		jwtPayload: Record<string, unknown>;
+		jwtPayload?: Record<string, unknown>;
 		accessToken?: string;
 	};
 };

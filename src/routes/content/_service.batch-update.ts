@@ -83,13 +83,21 @@ export const updateContentBatch = (
 			DL: deps.DL,
 		});
 
-		const updated = yield* deps.DL.content.updateContentBatch({
-			items: mergedItems.map((item) => ({
-				id: item.id,
-				data: JSON.stringify(item.data),
-				status: item.status,
-			})),
-		});
+		const updated = yield* deps.DL.content.updateContentBatch(
+			{
+				items: mergedItems.map((item) => ({
+					id: item.id,
+					data: JSON.stringify(item.data),
+					status: item.status,
+				})),
+			},
+			{
+				action: "content.batch.update",
+				actor: deps.actor,
+				targetId: collection.id,
+				diff: { ids: input.items.map((item) => item.id) },
+			},
+		);
 
 		const data = updated.map((row) =>
 			enrichMediaPaths({

@@ -24,7 +24,15 @@ export const deleteContent = (
 			deps,
 		);
 
-		yield* deps.DL.content.deleteContentById({ id: input.id });
+		yield* deps.DL.content.deleteContentById(
+			{ id: input.id },
+			{
+				action: "content.delete",
+				actor: deps.actor,
+				targetId: input.id,
+				diff: null,
+			},
+		);
 
 		return ok(undefined);
 	});

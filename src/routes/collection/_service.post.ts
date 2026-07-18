@@ -36,13 +36,23 @@ export const createCollection = (
 		}
 
 		const schemaString = JSON.stringify(input.schema);
+		const collectionId = typedId("collection");
 
-		const created = yield* deps.DL.collection.createCollection({
-			slug: input.slug,
-			name: input.name,
-			schema: schemaString,
-			titleField: input.titleField ?? null,
-		});
+		const created = yield* deps.DL.collection.createCollection(
+			{
+				id: collectionId,
+				slug: input.slug,
+				name: input.name,
+				schema: schemaString,
+				titleField: input.titleField ?? null,
+			},
+			{
+				action: "collection.create",
+				actor: deps.actor,
+				targetId: collectionId,
+				diff: null,
+			},
+		);
 
 		const versionId = typedId("schema_version");
 

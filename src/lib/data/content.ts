@@ -1,6 +1,7 @@
 import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
+import { createAuditLogInsert, type AuditLogEvent } from "@/lib/audit-log";
 import { buildJsonExtractExpression } from "@/lib/content-index";
 import type { Batcher } from "@/lib/db/batcher";
 import type { Database, DatabaseSchema } from "@/lib/db/client";
@@ -126,33 +127,54 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	createContent(input: {
-		collectionId: string;
-		data: string;
-		schemaVersionId: string;
-		status: string;
-	}) {
+	createContent(
+		input: {
+			id: string;
+			collectionId: string;
+			data: string;
+			schemaVersionId: string;
+			status: string;
+		},
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
-			this.db
-				.insertInto("content")
-				.values(
-					this.forInsert({
-						collection_id: input.collectionId,
-						data: input.data,
-						schema_version_id: input.schemaVersionId,
-						status: input.status,
-					}),
-				)
-				.returning([
-					"id",
-					"collection_id as collectionId",
-					sql<Record<string, unknown>>`data`.as("data"),
-					sql<ContentStatus>`status`.as("status"),
-					"schema_version_id as schemaVersionId",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
-				.executeTakeFirstOrThrow(),
+			(async () => {
+				const mutation = this.db
+					.insertInto("content")
+					.values(
+						this.forInsert({
+							id: input.id,
+							collection_id: input.collectionId,
+							data: input.data,
+							schema_version_id: input.schemaVersionId,
+							status: input.status,
+						}),
+					)
+					.returning([
+						"id",
+						"collection_id as collectionId",
+						sql<Record<string, unknown>>`data`.as("data"),
+						sql<ContentStatus>`status`.as("status"),
+						"schema_version_id as schemaVersionId",
+						"created_at as createdAt",
+						"updated_at as updatedAt",
+					]);
+
+				const results = await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+
+				const rows = results[0]!;
+				const row = rows[0];
+
+				if (row === undefined) {
+					throw new Error("Failed to create content");
+				}
+
+				return row;
+			})(),
 			this.passThroughError({
 				message: "Failed to create content",
 				code: "CREATE_FAILED",
@@ -162,21 +184,26 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	createContentBatch(input: {
-		items: Array<{
-			collectionId: string;
-			data: string;
-			schemaVersionId: string;
-			status: string;
-		}>;
-	}) {
+	createContentBatch(
+		input: {
+			items: Array<{
+				id: string;
+				collectionId: string;
+				data: string;
+				schemaVersionId: string;
+				status: string;
+			}>;
+		},
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
 			(async () => {
-				const statements = input.items.map((item) =>
+				const contentStatements = input.items.map((item) =>
 					this.db
 						.insertInto("content")
 						.values(
 							this.forInsert({
+								id: item.id,
 								collection_id: item.collectionId,
 								data: item.data,
 								schema_version_id: item.schemaVersionId,
@@ -194,8 +221,16 @@ export class ContentDataLayer extends BaseDataLayer {
 						]),
 				);
 
-				const results = await this.batch(statements);
-				return results.flat();
+				const results = await this.batch(
+					audit
+						? [
+								...contentStatements,
+								createAuditLogInsert(this.db, audit),
+							]
+						: contentStatements,
+				);
+
+				return audit ? results.slice(0, -1).flat() : results.flat();
 			})(),
 			this.passThroughError({
 				message: "Failed to create content batch",
@@ -206,27 +241,46 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	updateContent(input: { id: string; data: string; status?: string }) {
+	updateContent(
+		input: { id: string; data: string; status?: string },
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
-			this.db
-				.updateTable("content")
-				.set(
-					this.forUpdate({
-						data: input.data,
-						...(input.status !== undefined ? { status: input.status } : {}),
-					}),
-				)
-				.where("id", "=", input.id)
-				.returning([
-					"id",
-					"collection_id as collectionId",
-					sql<Record<string, unknown>>`data`.as("data"),
-					sql<ContentStatus>`status`.as("status"),
-					"schema_version_id as schemaVersionId",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
-				.executeTakeFirstOrThrow(),
+			(async () => {
+				const mutation = this.db
+					.updateTable("content")
+					.set(
+						this.forUpdate({
+							data: input.data,
+							...(input.status !== undefined ? { status: input.status } : {}),
+						}),
+					)
+					.where("id", "=", input.id)
+					.returning([
+						"id",
+						"collection_id as collectionId",
+						sql<Record<string, unknown>>`data`.as("data"),
+						sql<ContentStatus>`status`.as("status"),
+						"schema_version_id as schemaVersionId",
+						"created_at as createdAt",
+						"updated_at as updatedAt",
+					]);
+
+				const results = await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+
+				const rows = results[0]!;
+				const row = rows[0];
+
+				if (row === undefined) {
+					throw new Error("Failed to update content");
+				}
+
+				return row;
+			})(),
 			this.passThroughError({
 				message: "Failed to update content",
 				code: "UPDATE_FAILED",
@@ -236,18 +290,23 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	updateContentBatch(input: {
-		items: Array<{ id: string; data: string; status?: string }>;
-	}) {
+	updateContentBatch(
+		input: {
+			items: Array<{ id: string; data: string; status?: string }>;
+		},
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
 			(async () => {
-				const statements = input.items.map((item) =>
+				const contentStatements = input.items.map((item) =>
 					this.db
 						.updateTable("content")
 						.set(
 							this.forUpdate({
 								data: item.data,
-								...(item.status !== undefined ? { status: item.status } : {}),
+								...(item.status !== undefined
+									? { status: item.status }
+									: {}),
 							}),
 						)
 						.where("id", "=", item.id)
@@ -262,8 +321,16 @@ export class ContentDataLayer extends BaseDataLayer {
 						]),
 				);
 
-				const results = await this.batch(statements);
-				return results.flat();
+				const results = await this.batch(
+					audit
+						? [
+								...contentStatements,
+								createAuditLogInsert(this.db, audit),
+							]
+						: contentStatements,
+				);
+
+				return audit ? results.slice(0, -1).flat() : results.flat();
 			})(),
 			this.passThroughError({
 				message: "Failed to update content batch",
@@ -274,9 +341,17 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteContentById(input: { id: string }) {
+	deleteContentById(input: { id: string }, audit?: AuditLogEvent) {
 		return fromPromise(
-			this.db.deleteFrom("content").where("id", "=", input.id).execute(),
+			(async () => {
+				const mutation = this.db.deleteFrom("content").where("id", "=", input.id);
+
+				await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+			})(),
 			this.passThroughError({
 				message: "Failed to delete content",
 				code: "DELETE_FAILED",
@@ -286,9 +361,19 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteContentBatch(input: { ids: string[] }) {
+	deleteContentBatch(input: { ids: string[] }, audit?: AuditLogEvent) {
 		return fromPromise(
-			this.db.deleteFrom("content").where("id", "in", input.ids).execute(),
+			(async () => {
+				const mutation = this.db
+					.deleteFrom("content")
+					.where("id", "in", input.ids);
+
+				await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+			})(),
 			this.passThroughError({
 				message: "Failed to delete content batch",
 				code: "DELETE_FAILED",

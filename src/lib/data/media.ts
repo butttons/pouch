@@ -1,11 +1,16 @@
 import { fromPromise } from "neverthrow";
 
-import type { Database } from "@/lib/db/client";
+import { createAuditLogInsert, type AuditLogEvent } from "@/lib/audit-log";
+import type { Batcher } from "@/lib/db/batcher";
+import type { Database, DatabaseSchema } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
 
 export class MediaDataLayer extends BaseDataLayer {
-	constructor(private db: Database) {
+	constructor(
+		private db: Database,
+		private batch: Batcher<DatabaseSchema>,
+	) {
 		super();
 		this.entity = "media";
 	}
@@ -74,38 +79,57 @@ export class MediaDataLayer extends BaseDataLayer {
 		);
 	}
 
-	createMedia(input: {
-		id?: string;
-		r2Key: string;
-		filename: string;
-		mimeType: string;
-		sizeBytes: number;
-	}) {
-		const base = this.forInsert({
-			r2_key: input.r2Key,
-			filename: input.filename,
-			mime_type: input.mimeType,
-			size_bytes: input.sizeBytes,
-			status: "ready",
-		});
-
-		const values = input.id ? { ...base, id: input.id } : base;
-
+	createMedia(
+		input: {
+			id?: string;
+			r2Key: string;
+			filename: string;
+			mimeType: string;
+			sizeBytes: number;
+		},
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
-			this.db
-				.insertInto("media")
-				.values(values)
-				.returning([
-					"id",
-					"r2_key as r2Key",
-					"filename",
-					"mime_type as mimeType",
-					"size_bytes as sizeBytes",
-					"status",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
-				.executeTakeFirstOrThrow(),
+			(async () => {
+				const base = this.forInsert({
+					r2_key: input.r2Key,
+					filename: input.filename,
+					mime_type: input.mimeType,
+					size_bytes: input.sizeBytes,
+					status: "ready",
+				});
+
+				const values = input.id ? { ...base, id: input.id } : base;
+
+				const mutation = this.db
+					.insertInto("media")
+					.values(values)
+					.returning([
+						"id",
+						"r2_key as r2Key",
+						"filename",
+						"mime_type as mimeType",
+						"size_bytes as sizeBytes",
+						"status",
+						"created_at as createdAt",
+						"updated_at as updatedAt",
+					]);
+
+				const results = await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+
+				const rows = results[0]!;
+				const row = rows[0];
+
+				if (row === undefined) {
+					throw new Error("Failed to create media");
+				}
+
+				return row;
+			})(),
 			this.passThroughError({
 				message: "Failed to create media",
 				code: "CREATE_FAILED",
@@ -115,9 +139,17 @@ export class MediaDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteMediaById(input: { id: string }) {
+	deleteMediaById(input: { id: string }, audit?: AuditLogEvent) {
 		return fromPromise(
-			this.db.deleteFrom("media").where("id", "=", input.id).execute(),
+			(async () => {
+				const mutation = this.db.deleteFrom("media").where("id", "=", input.id);
+
+				await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+			})(),
 			this.passThroughError({
 				message: "Failed to delete media",
 				code: "DELETE_FAILED",

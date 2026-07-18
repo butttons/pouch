@@ -53,7 +53,15 @@ export const deleteContentBatch = (
 			);
 		}
 
-		yield* deps.DL.content.deleteContentBatch({ ids: input.ids });
+		yield* deps.DL.content.deleteContentBatch(
+			{ ids: input.ids },
+			{
+				action: "content.batch.delete",
+				actor: deps.actor,
+				targetId: collection.id,
+				diff: { ids: input.ids },
+			},
+		);
 
 		return ok(undefined);
 	});

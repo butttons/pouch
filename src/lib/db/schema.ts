@@ -74,3 +74,19 @@ export const mediaTable = sqliteTable("media", {
 	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 	updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
+
+export const auditLogTable = sqliteTable(
+	"audit_log",
+	{
+		id: text("id").primaryKey(),
+		actor: text("actor").notNull(),
+		action: text("action").notNull(),
+		targetId: text("target_id").notNull(),
+		diff: text("diff"),
+		createdAt: text("created_at").notNull(),
+	},
+	(t) => ({
+		targetIndex: index("idx_audit_target").on(t.targetId),
+		actorIndex: index("idx_audit_actor").on(t.actor, t.createdAt),
+	}),
+);

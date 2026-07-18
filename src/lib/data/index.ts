@@ -1,5 +1,6 @@
 export { BaseDataLayer } from "./_base";
 export { DataLayerError } from "./_error";
+export * from "./audit-log";
 export * from "./collection";
 export * from "./content";
 export * from "./content-index";
@@ -8,6 +9,7 @@ export * from "./media";
 import type { Batcher } from "@/lib/db/batcher";
 import type { Database, DatabaseSchema } from "@/lib/db/client";
 
+import { AuditLogDataLayer } from "./audit-log";
 import { CollectionDataLayer } from "./collection";
 import { ContentDataLayer } from "./content";
 import { ContentIndexDataLayer } from "./content-index";
@@ -21,10 +23,11 @@ export const createDL = ({
 	batch: Batcher<DatabaseSchema>;
 }) => {
 	return {
-		collection: new CollectionDataLayer(db),
+		auditLog: new AuditLogDataLayer(db),
+		collection: new CollectionDataLayer(db, batch),
 		content: new ContentDataLayer(db, batch),
 		contentIndex: new ContentIndexDataLayer(db, batch),
-		media: new MediaDataLayer(db),
+		media: new MediaDataLayer(db, batch),
 	};
 };
 

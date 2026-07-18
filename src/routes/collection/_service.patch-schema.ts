@@ -80,11 +80,19 @@ export const patchCollectionSchema = (
 			});
 		}
 
-		const updated = yield* deps.DL.collection.updateCollectionSchema({
-			id: collection.id,
-			schema: schemaString,
-			currentSchemaVersionId: versionId,
-		});
+		const updated = yield* deps.DL.collection.updateCollectionSchema(
+			{
+				id: collection.id,
+				schema: schemaString,
+				currentSchemaVersionId: versionId,
+			},
+			{
+				action: "collection.schema.update",
+				actor: deps.actor,
+				targetId: collection.id,
+				diff: { added, removed, destructiveChanges },
+			},
+		);
 
 		return ok(updated);
 	});

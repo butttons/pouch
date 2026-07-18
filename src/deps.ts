@@ -5,9 +5,11 @@ import { createBatcher } from "@/lib/db/batcher";
 export const createDeps = ({
 	env,
 	bookmark,
+	actor,
 }: {
 	env: Env;
 	bookmark?: string;
+	actor: string;
 }) => {
 	const session = bookmark
 		? {
@@ -27,6 +29,7 @@ export const createDeps = ({
 
 	return {
 		DL: createDL({ db, batch }),
+		actor,
 		bucket: env.MEDIA_BUCKET,
 		mediaPublicUrl: env.MEDIA_PUBLIC_URL,
 		session,

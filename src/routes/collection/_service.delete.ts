@@ -46,7 +46,15 @@ export const deleteCollection = (
 			});
 		}
 
-		yield* deps.DL.collection.deleteCollectionById({ id: collection.id });
+		yield* deps.DL.collection.deleteCollectionById(
+			{ id: collection.id },
+			{
+				action: "collection.delete",
+				actor: deps.actor,
+				targetId: collection.id,
+				diff: { activeIndexes: activeIndexes.map((i) => i.field) },
+			},
+		);
 
 		return ok(undefined);
 	});

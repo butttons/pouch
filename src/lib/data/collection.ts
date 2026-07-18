@@ -1,12 +1,17 @@
 import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
-import type { Database } from "@/lib/db/client";
+import { createAuditLogInsert, type AuditLogEvent } from "@/lib/audit-log";
+import type { Batcher } from "@/lib/db/batcher";
+import type { Database, DatabaseSchema } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
 
 export class CollectionDataLayer extends BaseDataLayer {
-	constructor(private db: Database) {
+	constructor(
+		private db: Database,
+		private batch: Batcher<DatabaseSchema>,
+	) {
 		super();
 		this.entity = "collection";
 	}
@@ -48,25 +53,46 @@ export class CollectionDataLayer extends BaseDataLayer {
 		);
 	}
 
-	createCollection(input: {
-		slug: string;
-		name: string;
-		schema: string;
-		titleField: string | null;
-	}) {
+	createCollection(
+		input: {
+			id: string;
+			slug: string;
+			name: string;
+			schema: string;
+			titleField: string | null;
+		},
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
-			this.db
-				.insertInto("collections")
-				.values(
-					this.forInsert({
-						slug: input.slug,
-						name: input.name,
-						schema: input.schema,
-						title_field: input.titleField,
-					}),
-				)
-				.returning(["id", "slug", "name", "title_field as titleField"])
-				.executeTakeFirstOrThrow(),
+			(async () => {
+				const mutation = this.db
+					.insertInto("collections")
+					.values(
+						this.forInsert({
+							id: input.id,
+							slug: input.slug,
+							name: input.name,
+							schema: input.schema,
+							title_field: input.titleField,
+						}),
+					)
+					.returning(["id", "slug", "name", "title_field as titleField"]);
+
+				const results = await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+
+				const rows = results[0]!;
+				const row = rows[0];
+
+				if (row === undefined) {
+					throw new Error("Failed to create collection");
+				}
+
+				return row;
+			})(),
 			this.passThroughError({
 				message: "Failed to create collection",
 				code: "CREATE_FAILED",
@@ -154,30 +180,49 @@ export class CollectionDataLayer extends BaseDataLayer {
 		);
 	}
 
-	updateCollectionSchema(input: {
-		id: string;
-		schema: string;
-		currentSchemaVersionId: string;
-	}) {
+	updateCollectionSchema(
+		input: {
+			id: string;
+			schema: string;
+			currentSchemaVersionId: string;
+		},
+		audit?: AuditLogEvent,
+	) {
 		return fromPromise(
-			this.db
-				.updateTable("collections")
-				.set(
-					this.forUpdate({
-						schema: input.schema,
-						current_schema_version_id: input.currentSchemaVersionId,
-					}),
-				)
-				.where("id", "=", input.id)
-				.returning([
-					"id",
-					"slug",
-					"name",
-					"title_field as titleField",
-					"current_schema_version_id as currentSchemaVersionId",
-					sql<Record<string, unknown>>`schema`.as("schema"),
-				])
-				.executeTakeFirstOrThrow(),
+			(async () => {
+				const mutation = this.db
+					.updateTable("collections")
+					.set(
+						this.forUpdate({
+							schema: input.schema,
+							current_schema_version_id: input.currentSchemaVersionId,
+						}),
+					)
+					.where("id", "=", input.id)
+					.returning([
+						"id",
+						"slug",
+						"name",
+						"title_field as titleField",
+						"current_schema_version_id as currentSchemaVersionId",
+						sql<Record<string, unknown>>`schema`.as("schema"),
+					]);
+
+				const results = await this.batch(
+					audit
+						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
+						: ([mutation] as const),
+				);
+
+				const rows = results[0]!;
+				const row = rows[0];
+
+				if (row === undefined) {
+					throw new Error("Failed to update collection schema");
+				}
+
+				return row;
+			})(),
 			this.passThroughError({
 				message: "Failed to update collection schema",
 				code: "UPDATE_FAILED",
@@ -203,9 +248,19 @@ export class CollectionDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteCollectionById(input: { id: string }) {
+	deleteCollectionById(input: { id: string }, audit?: AuditLogEvent) {
 		return fromPromise(
-			this.db.deleteFrom("collections").where("id", "=", input.id).execute(),
+			(async () => {
+				const mutation = this.db
+					.deleteFrom("collections")
+					.where("id", "=", input.id);
+
+				await this.batch(
+					audit
+						? [mutation, createAuditLogInsert(this.db, audit)]
+						: [mutation],
+				);
+			})(),
 			this.passThroughError({
 				message: "Failed to delete collection",
 				code: "DELETE_FAILED",

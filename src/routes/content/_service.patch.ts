@@ -51,11 +51,19 @@ export const updateContent = (
 			DL: deps.DL,
 		});
 
-		const updated = yield* deps.DL.content.updateContent({
-			id: input.id,
-			data: JSON.stringify(mergedData),
-			status: input.status,
-		});
+		const updated = yield* deps.DL.content.updateContent(
+			{
+				id: input.id,
+				data: JSON.stringify(mergedData),
+				status: input.status,
+			},
+			{
+				action: "content.update",
+				actor: deps.actor,
+				targetId: input.id,
+				diff: { before: existing.data, after: mergedData },
+			},
+		);
 
 		const enrichedData = enrichMediaPaths({
 			data: updated.data,

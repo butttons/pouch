@@ -7,6 +7,7 @@ import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
 
 import { enrichMediaPaths } from "@/lib/schema";
+import { typedId } from "@/lib/typed-id";
 
 import type { Content, CreateContentInput } from "./_schema";
 import {
@@ -48,12 +49,23 @@ export const createContent = (
 			DL: deps.DL,
 		});
 
-		const created = yield* deps.DL.content.createContent({
-			collectionId: collection.id,
-			data: JSON.stringify(input.data),
-			schemaVersionId: collection.currentSchemaVersionId,
-			status: input.status ?? "draft",
-		});
+		const contentId = typedId("content");
+
+		const created = yield* deps.DL.content.createContent(
+			{
+				id: contentId,
+				collectionId: collection.id,
+				data: JSON.stringify(input.data),
+				schemaVersionId: collection.currentSchemaVersionId,
+				status: input.status ?? "draft",
+			},
+			{
+				action: "content.create",
+				actor: deps.actor,
+				targetId: contentId,
+				diff: null,
+			},
+		);
 
 		const enrichedData = enrichMediaPaths({
 			data: created.data,

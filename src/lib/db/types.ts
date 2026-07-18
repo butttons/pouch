@@ -61,7 +61,17 @@ export interface SchemaVersions {
 	schema: string;
 }
 
+export interface AuditLog {
+	action: string;
+	actor: string;
+	created_at: Generated<string>;
+	diff: string | null;
+	id: string;
+	target_id: string;
+}
+
 export interface DB {
+	audit_log: AuditLog;
 	collections: Collections;
 	content: Content;
 	content_indexes: ContentIndexes;

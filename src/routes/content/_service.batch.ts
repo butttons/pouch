@@ -3,6 +3,7 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { enrichMediaPaths } from "@/lib/schema";
+import { typedId } from "@/lib/typed-id";
 
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
@@ -52,14 +53,28 @@ export const createContentBatch = (
 			DL: deps.DL,
 		});
 
-		const created = yield* deps.DL.content.createContentBatch({
-			items: input.items.map((item) => ({
-				collectionId: collection.id,
-				data: JSON.stringify(item.data),
-				schemaVersionId,
-				status: item.status ?? "draft",
-			})),
-		});
+		const itemsWithIds = input.items.map((item) => ({
+			...item,
+			id: typedId("content"),
+		}));
+
+		const created = yield* deps.DL.content.createContentBatch(
+			{
+				items: itemsWithIds.map((item) => ({
+					id: item.id,
+					collectionId: collection.id,
+					data: JSON.stringify(item.data),
+					schemaVersionId,
+					status: item.status ?? "draft",
+				})),
+			},
+			{
+				action: "content.batch.create",
+				actor: deps.actor,
+				targetId: collection.id,
+				diff: { ids: itemsWithIds.map((item) => item.id) },
+			},
+		);
 
 		const data = created.map((row) =>
 			enrichMediaPaths({
