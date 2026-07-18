@@ -48,7 +48,7 @@ const coerceFilterValue = (
 	) ?? "";
 	const stringValue = String(valueString);
 
-	if (input.op === "in") {
+	if (input.op === "in" || input.op === "nin") {
 		return stringValue
 			.split(",")
 			.filter((item) => item.length > 0)
@@ -170,7 +170,7 @@ export const listContent = (
 				type: property.type,
 			});
 
-			if (op === "in" && Array.isArray(value) && value.length === 0) {
+			if ((op === "in" || op === "nin") && Array.isArray(value) && value.length === 0) {
 				return err(
 					new AppHTTPException({
 						code: ErrorCodes.VALIDATION_FAILED,

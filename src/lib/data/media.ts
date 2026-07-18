@@ -10,22 +10,26 @@ export class MediaDataLayer extends BaseDataLayer {
 		this.entity = "media";
 	}
 
+	get mediaQuery() {
+		return this.db
+			.selectFrom("media")
+			.select([
+				"id",
+				"r2_key as r2Key",
+				"filename",
+				"mime_type as mimeType",
+				"size_bytes as sizeBytes",
+				"status",
+				"created_at as createdAt",
+				"updated_at as updatedAt",
+			]);
+	}
+
 	listMedia(input: { limit: number; cursor?: string }) {
 		const pageSize = input.limit;
 
 		return fromPromise(
-			this.db
-				.selectFrom("media")
-				.select([
-					"id",
-					"r2_key as r2Key",
-					"filename",
-					"mime_type as mimeType",
-					"size_bytes as sizeBytes",
-					"status",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
+			this.mediaQuery
 				.$if(input.cursor !== undefined, (q) =>
 					q.where("id", "<", input.cursor!),
 				)
@@ -48,18 +52,7 @@ export class MediaDataLayer extends BaseDataLayer {
 
 	getMediaById(input: { id: string }) {
 		return fromPromise(
-			this.db
-				.selectFrom("media")
-				.select([
-					"id",
-					"r2_key as r2Key",
-					"filename",
-					"mime_type as mimeType",
-					"size_bytes as sizeBytes",
-					"status",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
+			this.mediaQuery
 				.where("id", "=", input.id)
 				.executeTakeFirst(),
 			this.passThroughError({
@@ -73,18 +66,7 @@ export class MediaDataLayer extends BaseDataLayer {
 
 	getMediaByIds(input: { ids: string[] }) {
 		return fromPromise(
-			this.db
-				.selectFrom("media")
-				.select([
-					"id",
-					"r2_key as r2Key",
-					"filename",
-					"mime_type as mimeType",
-					"size_bytes as sizeBytes",
-					"status",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
+			this.mediaQuery
 				.where("id", "in", input.ids)
 				.execute(),
 			this.passThroughError({

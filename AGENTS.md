@@ -79,10 +79,10 @@ Collection schemas are standard JSON Schema (draft 2020-12). CMS-specific behavi
 
 Content list endpoints accept `?field=value` (equality) and `?field[op]=value`. Valid operators depend on the field's JSON Schema type:
 
-- `number`, `integer`: `eq`, `ne`, `gt`, `gte`, `lt`, `lte`
-- `boolean`: `eq`, `ne`
-- `string` with `format: "date"`: `eq`, `ne`, `in`, `gt`, `gte`, `lt`, `lte`
-- `string` (all other): `eq`, `ne`, `in`
+- `number`, `integer`: `eq`, `ne`, `gt`, `gte`, `in`, `lt`, `lte`, `nin`
+- `boolean`: `eq`, `ne`, `in`, `nin`
+- `string` with `format: "date"`: `eq`, `ne`, `in`, `gt`, `gte`, `lt`, `lte`, `nin`
+- `string` (all other): `eq`, `ne`, `in`, `nin`
 - `array`, `object`: not filterable
 
 Both the request validator in `src/routes/content/_service.get.ts` and the OpenAPI generator in `src/lib/openapi.ts` must derive allowed operators from the same mapping in `src/lib/query-filter.ts`.

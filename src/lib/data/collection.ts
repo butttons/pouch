@@ -11,18 +11,22 @@ export class CollectionDataLayer extends BaseDataLayer {
 		this.entity = "collection";
 	}
 
+	get collectionQuery() {
+		return this.db
+			.selectFrom("collections")
+			.select([
+				"id",
+				"slug",
+				"name",
+				"title_field as titleField",
+				"current_schema_version_id as currentSchemaVersionId",
+				sql<Record<string, unknown>>`schema`.as("schema"),
+			]);
+	}
+
 	getCollectionBySlug(input: { slug: string }) {
 		return fromPromise(
-			this.db
-				.selectFrom("collections")
-				.select([
-					"id",
-					"slug",
-					"name",
-					"title_field as titleField",
-					"current_schema_version_id as currentSchemaVersionId",
-					sql<Record<string, unknown>>`schema`.as("schema"),
-				])
+			this.collectionQuery
 				.where("slug", "=", input.slug)
 				.executeTakeFirst(),
 			this.passThroughError({
@@ -36,16 +40,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 
 	getCollectionsBySlugs(input: { slugs: string[] }) {
 		return fromPromise(
-			this.db
-				.selectFrom("collections")
-				.select([
-					"id",
-					"slug",
-					"name",
-					"title_field as titleField",
-					"current_schema_version_id as currentSchemaVersionId",
-					sql<Record<string, unknown>>`schema`.as("schema"),
-				])
+			this.collectionQuery
 				.where("slug", "in", input.slugs)
 				.execute(),
 			this.passThroughError({
@@ -130,16 +125,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 
 	getCollectionById(input: { id: string }) {
 		return fromPromise(
-			this.db
-				.selectFrom("collections")
-				.select([
-					"id",
-					"slug",
-					"name",
-					"title_field as titleField",
-					"current_schema_version_id as currentSchemaVersionId",
-					sql<Record<string, unknown>>`schema`.as("schema"),
-				])
+			this.collectionQuery
 				.where("id", "=", input.id)
 				.executeTakeFirst(),
 			this.passThroughError({

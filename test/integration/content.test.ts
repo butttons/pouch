@@ -257,7 +257,9 @@ describe("content", () => {
       expect(names).toContain("count[lte]");
       expect(names).toContain("count[ne]");
       expect(names).toContain("title[in]");
-      expect(names).not.toContain("count[in]");
+      expect(names).toContain("count[in]");
+      expect(names).toContain("title[nin]");
+      expect(names).toContain("count[nin]");
     });
 
     it("filters string fields with ?field[in]=v1,v2", async () => {
@@ -289,24 +291,33 @@ describe("content", () => {
       expect(titles).toContain("C");
     });
 
-    it("rejects the in operator on number fields", async () => {
+    it("filters number fields with ?field[in]=v1,v2", async () => {
       await createCollection({
         slug: "scores",
         name: "Scores",
         schema: makeCollectionSchema(),
       });
 
+      await createContent("scores", { data: { title: "A", count: 1 } });
+      await createContent("scores", { data: { title: "B", count: 5 } });
+      await createContent("scores", { data: { title: "C", count: 10 } });
+
       const token = await readerToken();
 
       const response = await fetchWorker(
-        "/collections/scores/content?count[in]=1,2",
+        "/collections/scores/content?count[in]=1,10",
         {},
         token,
       );
-      expect(response.status).toBe(400);
+      expect(response.status).toBe(200);
 
-      const body = (await response.json()) as { code: string };
-      expect(body.code).toBe("VALIDATION_FAILED");
+      const body = (await response.json()) as {
+        data: Array<{ data: Record<string, unknown> }>;
+      };
+      expect(body.data).toHaveLength(2);
+      const titles = body.data.map((item) => item.data.title);
+      expect(titles).toContain("A");
+      expect(titles).toContain("C");
     });
   });
 

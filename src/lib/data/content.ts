@@ -9,12 +9,12 @@ export type ContentStatus = "draft" | "published" | "archived";
 
 export type ContentFilter = {
 	field: string;
-	op: "eq" | "gt" | "gte" | "in" | "lt" | "lte" | "ne";
+	op: "eq" | "gt" | "gte" | "in" | "lt" | "lte" | "ne" | "nin";
 	value: string | number | boolean | (string | number | boolean)[];
 	indexedColumn?: string;
 };
 
-const OP_MAP: Record<Exclude<ContentFilter["op"], "in">, string> = {
+const OP_MAP: Record<Exclude<ContentFilter["op"], "in" | "nin">, string> = {
 	eq: "=",
 	gt: ">",
 	gte: ">=",
@@ -24,15 +24,16 @@ const OP_MAP: Record<Exclude<ContentFilter["op"], "in">, string> = {
 };
 
 const getFilterExpression = (filter: ContentFilter) => {
-	if (filter.op === "in") {
+	if (filter.op === "in" || filter.op === "nin") {
 		const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+		const not = filter.op === "nin" ? "NOT" : "";
 
 		if (filter.indexedColumn) {
-			return sql<boolean>`${sql.ref(filter.indexedColumn)} IN (${sql.join(values)})`;
+			return sql<boolean>`${sql.ref(filter.indexedColumn)} ${sql.raw(not)} IN (${sql.join(values)})`;
 		}
 
 		const path = "$." + filter.field;
-		return sql<boolean>`json_extract(data, ${path}) IN (${sql.join(values)})`;
+		return sql<boolean>`json_extract(data, ${path}) ${sql.raw(not)} IN (${sql.join(values)})`;
 	}
 
 	const op = OP_MAP[filter.op];
@@ -51,6 +52,20 @@ export class ContentDataLayer extends BaseDataLayer {
 		this.entity = "content";
 	}
 
+	get contentQuery() {
+		return this.db
+			.selectFrom("content")
+			.select([
+				"id",
+				"collection_id as collectionId",
+				sql<Record<string, unknown>>`data`.as("data"),
+				sql<ContentStatus>`status`.as("status"),
+				"schema_version_id as schemaVersionId",
+				"created_at as createdAt",
+				"updated_at as updatedAt",
+			]);
+	}
+
 	listContent(input: {
 		collectionId: string;
 		filters: ContentFilter[];
@@ -60,17 +75,7 @@ export class ContentDataLayer extends BaseDataLayer {
 		const pageSize = input.limit;
 
 		return fromPromise(
-			this.db
-				.selectFrom("content")
-				.select([
-					"id",
-					"collection_id as collectionId",
-					sql<Record<string, unknown>>`data`.as("data"),
-					sql<ContentStatus>`status`.as("status"),
-					"schema_version_id as schemaVersionId",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
+			this.contentQuery
 				.where("collection_id", "=", input.collectionId)
 				.$if(input.cursor !== undefined, (q) =>
 					q.where("id", "<", input.cursor!),
@@ -103,17 +108,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 	getContentById(input: { id: string }) {
 		return fromPromise(
-			this.db
-				.selectFrom("content")
-				.select([
-					"id",
-					"collection_id as collectionId",
-					sql<Record<string, unknown>>`data`.as("data"),
-					sql<ContentStatus>`status`.as("status"),
-					"schema_version_id as schemaVersionId",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
+			this.contentQuery
 				.where("id", "=", input.id)
 				.executeTakeFirst(),
 			this.passThroughError({
@@ -127,17 +122,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 	getContentByIds(input: { ids: string[] }) {
 		return fromPromise(
-			this.db
-				.selectFrom("content")
-				.select([
-					"id",
-					"collection_id as collectionId",
-					sql<Record<string, unknown>>`data`.as("data"),
-					sql<ContentStatus>`status`.as("status"),
-					"schema_version_id as schemaVersionId",
-					"created_at as createdAt",
-					"updated_at as updatedAt",
-				])
+			this.contentQuery
 				.where("id", "in", input.ids)
 				.execute(),
 			this.passThroughError({
@@ -236,7 +221,7 @@ export class ContentDataLayer extends BaseDataLayer {
 		return fromPromise(
 			this.db
 				.selectFrom("content")
-				.select(sql<number>`count(*)`.as("count"))
+				.select((eb) => eb.fn.countAll<number>().as("count"))
 				.where(sql<boolean>`json_extract(data, '$') LIKE ${"%" + quotedId + "%"}`)
 				.executeTakeFirst(),
 			this.passThroughError({

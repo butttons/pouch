@@ -6,6 +6,7 @@ export const FILTER_OPERATORS = [
 	"lt",
 	"lte",
 	"ne",
+	"nin",
 ] as const;
 
 export type FilterOperator = (typeof FILTER_OPERATORS)[number];
@@ -29,19 +30,19 @@ export const getAllowedOperators = (
 	const format = property.format;
 
 	if (type === "number" || type === "integer") {
-		return ["eq", "gt", "gte", "lt", "lte", "ne"];
+		return ["eq", "gt", "gte", "in", "lt", "lte", "ne", "nin"];
 	}
 
 	if (type === "boolean") {
-		return ["eq", "ne"];
+		return ["eq", "in", "ne", "nin"];
 	}
 
 	if (type === "string" && format === "date") {
-		return ["eq", "gt", "gte", "in", "lt", "lte", "ne"];
+		return ["eq", "gt", "gte", "in", "lt", "lte", "ne", "nin"];
 	}
 
 	if (type === "string") {
-		return ["eq", "in", "ne"];
+		return ["eq", "in", "ne", "nin"];
 	}
 
 	return [];
