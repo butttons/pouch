@@ -1,6 +1,6 @@
 import type { ResultAsync } from "neverthrow";
 
-import { type AppEntity, typedId } from "../typed-id";
+import { type AppEntity, typedId } from "@/lib/typed-id";
 
 import { DataLayerError } from "./_error";
 

@@ -1,5 +1,5 @@
-import { createDB } from "./lib/db/client";
-import { createDL } from "./lib/data";
+import { createDB } from "@/lib/db/client";
+import { createDL } from "@/lib/data";
 
 export const createDeps = ({
 	env,

@@ -1,6 +1,6 @@
 import { createMiddleware } from "hono/factory";
 
-import { createDeps } from "../deps";
+import { createDeps } from "@/deps";
 
 export const depsMiddleware = createMiddleware(async (c, next) => {
 	const bookmark = c.req.header("x-d1-bookmark") ?? "first-unconstrained";

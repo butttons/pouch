@@ -2,7 +2,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { HTTPException } from "hono/http-exception";
 import type { Result } from "neverthrow";
 
-import { DataLayerError } from "./data";
+import { DataLayerError } from "@/lib/data";
 
 export const ErrorCodes = {
   INTERNAL_ERROR: "INTERNAL_ERROR",

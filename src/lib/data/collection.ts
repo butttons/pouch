@@ -1,7 +1,7 @@
 import { fromPromise } from "neverthrow";
 import { sql } from "kysely";
 
-import type { Database } from "../db/client";
+import type { Database } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
 

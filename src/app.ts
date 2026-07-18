@@ -4,14 +4,14 @@ import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { Type } from "typebox";
 
-import { AppHTTPException, ErrorCodes, unwrapResult } from "./lib/errors";
-import { assembleOpenAPIDocument } from "./lib/openapi";
-import { typedId } from "./lib/typed-id";
-import { jsonValidator } from "./lib/validator";
-import { depsMiddleware } from "./middleware/deps";
-import { requireScopes, SCOPES } from "./middleware/auth";
-import { collectionRouter } from "./routes/collection/_route";
-import { createMcpRouter } from "./routes/mcp/_route";
+import { AppHTTPException, ErrorCodes, unwrapResult } from "@/lib/errors";
+import { assembleOpenAPIDocument } from "@/lib/openapi";
+import { typedId } from "@/lib/typed-id";
+import { jsonValidator } from "@/lib/validator";
+import { depsMiddleware } from "@/middleware/deps";
+import { requireScopes, SCOPES } from "@/middleware/auth";
+import { collectionRouter } from "@/routes/collection/_route";
+import { createMcpRouter } from "@/routes/mcp/_route";
 import { createRouter, type HonoVariables } from "./utils";
 
 const SIX_MONTHS = 60 * 60 * 24 * 180;

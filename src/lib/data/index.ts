@@ -7,7 +7,7 @@ export { BaseDataLayer } from "./_base";
 import { CollectionDataLayer } from "./collection";
 import { ContentDataLayer } from "./content";
 import { ContentIndexDataLayer } from "./content-index";
-import type { Database } from "../db/client";
+import type { Database } from "@/lib/db/client";
 
 export const createDL = ({ db }: { db: Database }) => {
 	return {
