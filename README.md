@@ -212,6 +212,16 @@ The MCP server reads `/openapi.json` on the first request and registers one tool
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
 
+## Interactive API docs
+
+pouch serves interactive API documentation at `/docs` using Scalar. The page is protected by HTTP Basic Auth with username `pouch` and password `JWT_SECRET`:
+
+```sh
+open https://pouch:[JWT_SECRET]@pouch-cms.[account].workers.dev/docs
+```
+
+The page is generated from the same OpenAPI spec as `/openapi.json`, so it reflects the current collections, scopes, error responses, and examples. For local development use `http://localhost:3200/docs`.
+
 ## Generating a typed client
 
 pouch serves a live OpenAPI 3.1 spec at `/openapi.json`. Because the assembler expands `/collections/{slug}/content` into concrete paths per collection, the generated client uses those concrete paths directly and types query filters from each collection's JSON Schema.

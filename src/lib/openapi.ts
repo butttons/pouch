@@ -4,7 +4,12 @@ import type { DataLayerError } from "@/lib/data";
 import {
 	d1BookmarkHeader,
 	d1BookmarkParam,
+	errorResponse,
+	errorSchema,
+	errorSchemaRef,
 	withD1Bookmark,
+	withErrorResponses,
+	withOperation,
 } from "@/lib/openapi-helpers";
 import { getAllowedOperators } from "@/lib/query-filter";
 import { getMediaFields } from "@/lib/schema";
@@ -26,7 +31,7 @@ const baseInfo = {
 	title: "pouch",
 	version: packageJson.version,
 	description:
-		"API-first headless CMS. All endpoints except /docs require a Bearer token with the appropriate scope. Read-after-write consistency across D1 replicas is supported by passing the x-d1-bookmark request header and using the returned x-d1-bookmark response header on the next request.",
+		"API-first headless CMS backed by Cloudflare D1. All endpoints except /auth/keys require a Bearer token with the appropriate scope. Read-after-write consistency across D1 replicas is supported via the x-d1-bookmark header. Collection schemas are standard JSON Schema with five CMS extensions: x-label (display name), x-widget (authoring hint, e.g. richtext), x-relation (target collection slug), x-index (filterable generated column), and x-media (media reference).",
 };
 
 const tags = [
@@ -41,75 +46,93 @@ const securitySchemes = {
 		scheme: "bearer",
 		bearerFormat: "JWT",
 		description:
-			"Admin or content API key. Generate keys via POST /auth/keys using JWT_SECRET.",
+			"JWT API key. Create a key via POST /auth/keys using the worker JWT_SECRET, then send it as `Authorization: Bearer <token>`. Tokens carry scopes that determine which endpoints are accessible. See each operation's x-required-scopes extension for the required scope.",
 	},
 };
 
 const authPaths = {
 	"/auth/keys": {
-		post: withD1Bookmark({
-			summary: "Create API key",
-			description:
-				"Creates a new JWT API key. Requires the JWT_SECRET configured on the worker.",
-			operationId: "createApiKey",
-			tags: ["Auth"],
-			requestBody: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: {
-							type: "object",
-							properties: {
-								secret: {
-									type: "string",
-									description:
-										"The JWT_SECRET value from the worker environment.",
-								},
-								scopes: {
-									type: "array",
-									items: {
-										type: "string",
-										enum: ["content:read", "content:write", "schema:admin"],
-									},
-									description:
-										"Scopes for the new key. Defaults to all scopes.",
-								},
-								expiresInSeconds: {
-									type: "number",
-									minimum: 60,
-									description: "Key lifetime in seconds. Defaults to 180 days.",
-								},
-							},
-							required: ["secret"],
-							additionalProperties: false,
-						},
-					},
-				},
-			},
-			responses: {
-				"201": {
-					description: "Created API key",
+		post: withErrorResponses(
+			withD1Bookmark({
+				summary: "Create API key",
+				description:
+					"Creates a new JWT API key. Requires the JWT_SECRET configured on the worker.",
+				operationId: "createApiKey",
+				tags: ["Auth"],
+				requestBody: {
+					required: true,
 					content: {
 						"application/json": {
 							schema: {
 								type: "object",
 								properties: {
-									token: { type: "string" },
-									jti: { type: "string" },
+									secret: {
+										type: "string",
+										description:
+											"The JWT_SECRET value from the worker environment.",
+										example: "a1b2c3d4e5f6...",
+									},
 									scopes: {
 										type: "array",
-										items: { type: "string" },
+										items: {
+											type: "string",
+											enum: ["content:read", "content:write", "schema:admin"],
+										},
+										description:
+											"Scopes for the new key. Defaults to all scopes.",
+										example: ["content:read", "content:write"],
 									},
-									exp: { type: "number" },
+									expiresInSeconds: {
+										type: "number",
+										minimum: 60,
+										description:
+											"Key lifetime in seconds. Defaults to 180 days.",
+										example: 86400,
+									},
 								},
-								required: ["token", "jti", "scopes", "exp"],
+								required: ["secret"],
 								additionalProperties: false,
 							},
 						},
 					},
 				},
-			},
-		}),
+				responses: {
+					"201": {
+						description: "Created API key",
+						content: {
+							"application/json": {
+								schema: {
+									type: "object",
+									properties: {
+										token: {
+											type: "string",
+											description:
+												"JWT token to use as `Authorization: Bearer <token>`.",
+										},
+										jti: {
+											type: "string",
+											description: "Unique key identifier.",
+										},
+										scopes: {
+											type: "array",
+											items: { type: "string" },
+											description: "Scopes granted to the key.",
+										},
+										exp: {
+											type: "number",
+											description: "Unix timestamp when the key expires.",
+										},
+									},
+									required: ["token", "jti", "scopes", "exp"],
+									additionalProperties: false,
+								},
+							},
+						},
+					},
+					"401": errorResponse(401, "Invalid secret"),
+				},
+			}),
+		),
 	},
 };
 
@@ -262,16 +285,40 @@ const buildContentQueryParameters = (
 const buildContentWrapperSchema = (slug: string) => ({
 	type: "object",
 	properties: {
-		id: { type: "string" },
-		collectionId: { type: "string" },
+		id: {
+			type: "string",
+			description: "UUIDv7 content identifier prefixed with `con_`.",
+			example: "con_018f1234567890abcdef1234567890ab",
+		},
+		collectionId: {
+			type: "string",
+			description: "UUIDv7 collection identifier prefixed with `col_`.",
+			example: "col_018f1234567890abcdef1234567890ab",
+		},
 		data: { $ref: `#/components/schemas/${slug}` },
 		status: {
 			type: "string",
 			enum: ["draft", "published", "archived"],
+			description:
+				"Lifecycle state of the content. Use `published` for live content.",
+			example: "published",
 		},
-		schemaVersionId: { type: "string" },
-		createdAt: { type: "number" },
-		updatedAt: { type: "number" },
+		schemaVersionId: {
+			type: "string",
+			description: "UUIDv7 schema version identifier prefixed with `sch_`.",
+			example: "sch_018f1234567890abcdef1234567890ab",
+		},
+		createdAt: {
+			type: "number",
+			description: "Unix timestamp in milliseconds when the item was created.",
+			example: 1704067200000,
+		},
+		updatedAt: {
+			type: "number",
+			description:
+				"Unix timestamp in milliseconds when the item was last updated.",
+			example: 1704067200000,
+		},
 	},
 	required: [
 		"id",
@@ -420,191 +467,218 @@ const buildCollectionContentPaths = (
 
 	return {
 		[`/collections/${slug}/content`]: {
-			get: withD1Bookmark({
-				summary: "List",
-				description: `Lists content in the ${slug} collection with optional filtering and relation/media resolution.`,
-				operationId: `list${slug}Content`,
-				tags: [collectionTag],
-				security: baseSecurity,
-				parameters: buildContentQueryParameters(schema),
-				responses: {
-					"200": {
-						description: `List of ${slug} content`,
-						content: {
-							"application/json": {
-								schema: {
-									type: "object",
-									properties: {
-										data: {
-											type: "array",
-											items: buildContentItemSchema(slug, schema),
+			get: withOperation(
+				{
+					summary: "List",
+					description: `Lists content in the ${slug} collection with optional filtering and relation/media resolution.`,
+					operationId: `list${slug}Content`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					parameters: buildContentQueryParameters(schema),
+					responses: {
+						"200": {
+							description: `List of ${slug} content`,
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											data: {
+												type: "array",
+												items: buildContentItemSchema(slug, schema),
+											},
+											nextCursor: {
+												type: ["string", "null"],
+												description:
+													"ID cursor for the next page, or null if there are no more items.",
+											},
 										},
-										nextCursor: {
-											type: ["string", "null"],
-											description:
-												"ID cursor for the next page, or null if there are no more items.",
-										},
+										required: ["data", "nextCursor"],
+										additionalProperties: false,
 									},
-									required: ["data", "nextCursor"],
-									additionalProperties: false,
 								},
 							},
 						},
 					},
 				},
-			}),
-			post: withD1Bookmark({
-				summary: "Create",
-				description: `Creates a new content item in the ${slug} collection.`,
-				operationId: `create${slug}Content`,
-				tags: [collectionTag],
-				security: baseSecurity,
-				requestBody: {
-					required: true,
-					content: {
-						"application/json": {
-							schema: {
-								$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
-							},
-						},
-					},
-				},
-				responses: {
-					"201": {
-						description: `Created ${slug} content`,
+				["content:read"],
+			),
+			post: withOperation(
+				{
+					summary: "Create",
+					description: `Creates a new content item in the ${slug} collection.`,
+					operationId: `create${slug}Content`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					requestBody: {
+						required: true,
 						content: {
 							"application/json": {
 								schema: {
-									$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+									$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
 								},
 							},
 						},
 					},
+					responses: {
+						"201": {
+							description: `Created ${slug} content`,
+							content: {
+								"application/json": {
+									schema: {
+										$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+									},
+								},
+							},
+						},
+						"409": errorResponse(
+							409,
+							"Collection has no current schema version",
+						),
+					},
 				},
-			}),
+				["content:write"],
+			),
 		},
 		[`/collections/${slug}/content:validate`]: {
-			post: withD1Bookmark({
-				summary: "Validate",
-				description: `Validates content data against the ${slug} schema without creating it.`,
-				operationId: `validate${slug}Content`,
-				tags: [collectionTag],
-				security: baseSecurity,
-				requestBody: {
-					required: true,
-					content: {
-						"application/json": {
-							schema: {
-								$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
-							},
-						},
-					},
-				},
-				responses: {
-					"200": {
-						description: `Validation result`,
+			post: withOperation(
+				{
+					summary: "Validate",
+					description: `Validates content data against the ${slug} schema without creating it.`,
+					operationId: `validate${slug}Content`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					requestBody: {
+						required: true,
 						content: {
 							"application/json": {
 								schema: {
-									type: "object",
-									properties: {
-										valid: { type: "boolean" },
-									},
-									required: ["valid"],
-									additionalProperties: false,
+									$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
 								},
 							},
 						},
 					},
+					responses: {
+						"200": {
+							description: `Validation result`,
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											valid: { type: "boolean" },
+										},
+										required: ["valid"],
+										additionalProperties: false,
+									},
+								},
+							},
+						},
+						"400": errorResponse(400, "Content validation failed"),
+					},
 				},
-			}),
+				["content:write"],
+			),
 		},
 		[`/collections/${slug}/content/{id}`]: {
-			get: withD1Bookmark({
-				summary: "Get by ID",
-				description: `Returns a single ${slug} content item.`,
-				operationId: `get${slug}ContentById`,
-				tags: [collectionTag],
-				security: baseSecurity,
-				parameters: [
-					{
-						name: "id",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-					...buildContentQueryParameters(schema).filter(
-						(param) => param.name === "resolve",
-					),
-				],
-				responses: {
-					"200": {
-						description: `${slug} content details`,
-						content: {
-							"application/json": {
-								schema: buildContentItemSchema(slug, schema),
+			get: withOperation(
+				{
+					summary: "Get by ID",
+					description: `Returns a single ${slug} content item.`,
+					operationId: `get${slug}ContentById`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					parameters: [
+						{
+							name: "id",
+							in: "path",
+							required: true,
+							schema: { type: "string" },
+						},
+						...buildContentQueryParameters(schema).filter(
+							(param) => param.name === "resolve",
+						),
+					],
+					responses: {
+						"200": {
+							description: `${slug} content details`,
+							content: {
+								"application/json": {
+									schema: buildContentItemSchema(slug, schema),
+								},
 							},
 						},
+						"404": errorResponse(404, "Content not found"),
 					},
 				},
-			}),
-			patch: withD1Bookmark({
-				summary: "Update",
-				description: `Updates a ${slug} content item.`,
-				operationId: `update${slug}Content`,
-				tags: [collectionTag],
-				security: baseSecurity,
-				parameters: [
-					{
-						name: "id",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-				],
-				requestBody: {
-					required: true,
-					content: {
-						"application/json": {
-							schema: {
-								$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
-							},
+				["content:read"],
+			),
+			patch: withOperation(
+				{
+					summary: "Update",
+					description: `Updates a ${slug} content item.`,
+					operationId: `update${slug}Content`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					parameters: [
+						{
+							name: "id",
+							in: "path",
+							required: true,
+							schema: { type: "string" },
 						},
-					},
-				},
-				responses: {
-					"200": {
-						description: `Updated ${slug} content`,
+					],
+					requestBody: {
+						required: true,
 						content: {
 							"application/json": {
 								schema: {
-									$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+									$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
 								},
 							},
 						},
 					},
-				},
-			}),
-			delete: withD1Bookmark({
-				summary: "Delete",
-				description: `Deletes a ${slug} content item.`,
-				operationId: `delete${slug}Content`,
-				tags: [collectionTag],
-				security: baseSecurity,
-				parameters: [
-					{
-						name: "id",
-						in: "path",
-						required: true,
-						schema: { type: "string" },
-					},
-				],
-				responses: {
-					"204": {
-						description: `${slug} content deleted`,
+					responses: {
+						"200": {
+							description: `Updated ${slug} content`,
+							content: {
+								"application/json": {
+									schema: {
+										$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+									},
+								},
+							},
+						},
+						"404": errorResponse(404, "Content not found"),
+						"409": errorResponse(409),
 					},
 				},
-			}),
+				["content:write"],
+			),
+			delete: withOperation(
+				{
+					summary: "Delete",
+					description: `Deletes a ${slug} content item.`,
+					operationId: `delete${slug}Content`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					parameters: [
+						{
+							name: "id",
+							in: "path",
+							required: true,
+							schema: { type: "string" },
+						},
+					],
+					responses: {
+						"204": {
+							description: `${slug} content deleted`,
+						},
+						"404": errorResponse(404, "Content not found"),
+					},
+				},
+				["content:write"],
+			),
 		},
 	};
 };
@@ -681,6 +755,7 @@ export const assembleOpenAPIDocument = (
 					d1Bookmark: d1BookmarkHeader,
 				},
 				schemas: {
+					[errorSchemaRef]: errorSchema,
 					...collectionSchemas,
 					...mediaSchemas,
 					...dynamicSchemas,

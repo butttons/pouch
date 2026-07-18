@@ -1,4 +1,5 @@
 import { Scalar } from "@scalar/hono-api-reference";
+import { basicAuth } from "hono/basic-auth";
 import { Hono } from "hono";
 import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
@@ -70,6 +71,10 @@ const app: Hono<HonoVariables> = createRouter()
 	})
 	.get(
 		"/docs",
+		basicAuth({
+			verifyUser: (username, password, c) =>
+				username === "pouch" && password === c.env.JWT_SECRET,
+		}),
 		Scalar<HonoVariables>(async (c) => {
 			const url = new URL(c.req.url);
 			const baseUrl = `${url.protocol}//${url.host}`;
@@ -96,6 +101,20 @@ const app: Hono<HonoVariables> = createRouter()
 		),
 	)
 	.onError(async (error, c) => {
+		// Preserve HTTPException responses (e.g. Basic Auth 401 with WWW-Authenticate)
+		// so browsers can prompt for credentials instead of rendering our JSON error.
+		if (error instanceof HTTPException && error.res) {
+			console.error("Request failed", {
+				path: c.req.path,
+				method: c.req.method,
+				rayId: c.req.header("cf-ray"),
+				status: error.status,
+				message: error.message,
+			});
+
+			return error.res;
+		}
+
 		const status = error instanceof HTTPException ? error.status : 500;
 
 		const normalizedError =

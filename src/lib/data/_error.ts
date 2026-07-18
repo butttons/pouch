@@ -3,7 +3,6 @@ type DataLayerErrorContext = {
 	input: unknown;
 	code?: string;
 	cause?: unknown;
-	formatPlain?: boolean;
 };
 
 type DataLayerErrorOptions = DataLayerErrorContext;
@@ -12,18 +11,19 @@ export class DataLayerError extends Error {
 	readonly _tag = "DataLayerError";
 	readonly context: DataLayerErrorContext;
 	public code: string | undefined;
+
 	constructor(message: string, options: DataLayerErrorOptions) {
-		const { source, input, cause, formatPlain } = options;
-		const finalMessage = options.cause ? `${message} - ${cause}` : message;
-		const errorMessage = `[${options.source}] ${finalMessage}`;
+		const { source, cause } = options;
+		const finalMessage = cause ? `${message} - ${cause}` : message;
 
-		const doFormatPlain = formatPlain ?? false;
-
-		const mainErrorMessage = doFormatPlain ? message : errorMessage;
-
-		super(mainErrorMessage, { cause });
+		super(`[${source}] ${finalMessage}`, { cause });
 		this.code = options.code;
-		this.context = { source, input, cause, code: options.code };
+		this.context = {
+			source,
+			input: options.input,
+			cause,
+			code: options.code,
+		};
 	}
 
 	toJSON() {
@@ -46,12 +46,14 @@ export class DataLayerError extends Error {
 
 			return value;
 		};
+
 		const context = {
 			...this.context,
 			...(this.context.cause !== undefined
 				? { cause: serialize(this.context.cause) }
 				: {}),
 		};
+
 		return {
 			name: "DataLayerError",
 			code: this.code,
@@ -61,7 +63,3 @@ export class DataLayerError extends Error {
 		};
 	}
 }
-
-export const isDataLayerError = (error: unknown): error is DataLayerError => {
-	return error instanceof DataLayerError;
-};
