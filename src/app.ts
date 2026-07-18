@@ -1,6 +1,6 @@
 import { Scalar } from "@scalar/hono-api-reference";
-import { basicAuth } from "hono/basic-auth";
 import { Hono } from "hono";
+import { basicAuth } from "hono/basic-auth";
 import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
 import { sign } from "hono/jwt";
@@ -73,7 +73,7 @@ const app: Hono<HonoVariables> = createRouter()
 		"/docs",
 		basicAuth({
 			verifyUser: (username, password, c) =>
-				username === "pouch" && password === c.env.JWT_SECRET,
+				username === "pouch" && password === c.env.DOCS_SECRET,
 		}),
 		Scalar<HonoVariables>(async (c) => {
 			const url = new URL(c.req.url);

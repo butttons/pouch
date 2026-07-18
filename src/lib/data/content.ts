@@ -1,7 +1,8 @@
 import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
-import type { Database } from "@/lib/db/client";
+import type { Batcher } from "@/lib/db/batcher";
+import type { Database, DatabaseSchema } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
 
@@ -47,7 +48,10 @@ const getFilterExpression = (filter: ContentFilter) => {
 };
 
 export class ContentDataLayer extends BaseDataLayer {
-	constructor(private db: Database) {
+	constructor(
+		private db: Database,
+		private batch: Batcher<DatabaseSchema>,
+	) {
 		super();
 		this.entity = "content";
 	}
@@ -166,6 +170,50 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
+	createContentBatch(input: {
+		items: Array<{
+			collectionId: string;
+			data: string;
+			schemaVersionId: string;
+			status: string;
+		}>;
+	}) {
+		return fromPromise(
+			(async () => {
+				const statements = input.items.map((item) =>
+					this.db
+						.insertInto("content")
+						.values(
+							this.forInsert({
+								collection_id: item.collectionId,
+								data: item.data,
+								schema_version_id: item.schemaVersionId,
+								status: item.status,
+							}),
+						)
+						.returning([
+							"id",
+							"collection_id as collectionId",
+							sql<Record<string, unknown>>`data`.as("data"),
+							sql<ContentStatus>`status`.as("status"),
+							"schema_version_id as schemaVersionId",
+							"created_at as createdAt",
+							"updated_at as updatedAt",
+						]),
+				);
+
+				const results = await this.batch(statements);
+				return results.flat();
+			})(),
+			this.passThroughError({
+				message: "Failed to create content batch",
+				code: "CREATE_FAILED",
+				source: "DL.content.createContentBatch",
+				input,
+			}),
+		);
+	}
+
 	updateContent(input: { id: string; data: string; status?: string }) {
 		return fromPromise(
 			this.db
@@ -196,6 +244,44 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
+	updateContentBatch(input: {
+		items: Array<{ id: string; data: string; status?: string }>;
+	}) {
+		return fromPromise(
+			(async () => {
+				const statements = input.items.map((item) =>
+					this.db
+						.updateTable("content")
+						.set(
+							this.forUpdate({
+								data: item.data,
+								...(item.status !== undefined ? { status: item.status } : {}),
+							}),
+						)
+						.where("id", "=", item.id)
+						.returning([
+							"id",
+							"collection_id as collectionId",
+							sql<Record<string, unknown>>`data`.as("data"),
+							sql<ContentStatus>`status`.as("status"),
+							"schema_version_id as schemaVersionId",
+							"created_at as createdAt",
+							"updated_at as updatedAt",
+						]),
+				);
+
+				const results = await this.batch(statements);
+				return results.flat();
+			})(),
+			this.passThroughError({
+				message: "Failed to update content batch",
+				code: "UPDATE_FAILED",
+				source: "DL.content.updateContentBatch",
+				input,
+			}),
+		);
+	}
+
 	deleteContentById(input: { id: string }) {
 		return fromPromise(
 			this.db.deleteFrom("content").where("id", "=", input.id).execute(),
@@ -203,6 +289,18 @@ export class ContentDataLayer extends BaseDataLayer {
 				message: "Failed to delete content",
 				code: "DELETE_FAILED",
 				source: "DL.content.deleteContentById",
+				input,
+			}),
+		);
+	}
+
+	deleteContentBatch(input: { ids: string[] }) {
+		return fromPromise(
+			this.db.deleteFrom("content").where("id", "in", input.ids).execute(),
+			this.passThroughError({
+				message: "Failed to delete content batch",
+				code: "DELETE_FAILED",
+				source: "DL.content.deleteContentBatch",
 				input,
 			}),
 		);

@@ -140,6 +140,11 @@ const baseSecurity = [{ bearerAuth: [] }];
 
 const contentWrapperSchemaRef = (slug: string) => `__Content_${slug}`;
 const contentInputSchemaRef = (slug: string) => `__ContentInput_${slug}`;
+const contentBatchInputSchemaRef = (slug: string) =>
+	`__ContentBatchInput_${slug}`;
+const contentBatchUpdateInputSchemaRef = (slug: string) =>
+	`__ContentBatchUpdateInput_${slug}`;
+const contentBatchDeleteInputSchemaRef = "ContentBatchDeleteInput";
 const resolvedContentSchemaRef = (slug: string) => `__Resolved_${slug}`;
 const resolvedContentWrapperSchemaRef = (slug: string) =>
 	`__ResolvedContent_${slug}`;
@@ -442,6 +447,57 @@ const buildContentInputSchema = (slug: string) => ({
 	additionalProperties: false,
 });
 
+const buildBatchContentInputSchema = (slug: string) => ({
+	type: "object",
+	properties: {
+		items: {
+			type: "array",
+			items: { $ref: `#/components/schemas/${contentInputSchemaRef(slug)}` },
+			minItems: 1,
+		},
+	},
+	required: ["items"],
+	additionalProperties: false,
+});
+
+const buildBatchUpdateContentInputSchema = (slug: string) => ({
+	type: "object",
+	properties: {
+		items: {
+			type: "array",
+			items: {
+				type: "object",
+				properties: {
+					id: { type: "string", pattern: "^con_" },
+					data: { $ref: `#/components/schemas/${slug}` },
+					status: {
+						type: "string",
+						enum: ["draft", "published", "archived"],
+					},
+				},
+				required: ["id"],
+				additionalProperties: false,
+			},
+			minItems: 1,
+		},
+	},
+	required: ["items"],
+	additionalProperties: false,
+});
+
+const contentBatchDeleteInputSchema = {
+	type: "object",
+	properties: {
+		ids: {
+			type: "array",
+			items: { type: "string", pattern: "^con_" },
+			minItems: 1,
+		},
+	},
+	required: ["ids"],
+	additionalProperties: false,
+};
+
 const buildContentItemSchema = (
 	slug: string,
 	schema: Record<string, unknown>,
@@ -535,6 +591,124 @@ const buildCollectionContentPaths = (
 							409,
 							"Collection has no current schema version",
 						),
+					},
+				},
+				["content:write"],
+			),
+		},
+		[`/collections/${slug}/content/batch`]: {
+			post: withOperation(
+				{
+					summary: "Create batch",
+					description: `Creates multiple content items in the ${slug} collection in a single request.`,
+					operationId: `create${slug}ContentBatch`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					requestBody: {
+						required: true,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: `#/components/schemas/${contentBatchInputSchemaRef(slug)}`,
+								},
+							},
+						},
+					},
+					responses: {
+						"201": {
+							description: `Created ${slug} content`,
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											data: {
+												type: "array",
+												items: {
+													$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+												},
+											},
+										},
+										required: ["data"],
+										additionalProperties: false,
+									},
+								},
+							},
+						},
+						"409": errorResponse(
+							409,
+							"Collection has no current schema version",
+						),
+					},
+				},
+				["content:write"],
+			),
+			patch: withOperation(
+				{
+					summary: "Update batch",
+					description: `Updates multiple content items in the ${slug} collection in a single request.`,
+					operationId: `update${slug}ContentBatch`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					requestBody: {
+						required: true,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: `#/components/schemas/${contentBatchUpdateInputSchemaRef(slug)}`,
+								},
+							},
+						},
+					},
+					responses: {
+						"200": {
+							description: `Updated ${slug} content`,
+							content: {
+								"application/json": {
+									schema: {
+										type: "object",
+										properties: {
+											data: {
+												type: "array",
+												items: {
+													$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+												},
+											},
+										},
+										required: ["data"],
+										additionalProperties: false,
+									},
+								},
+							},
+						},
+						"404": errorResponse(404, "Content not found"),
+						"409": errorResponse(409),
+					},
+				},
+				["content:write"],
+			),
+			delete: withOperation(
+				{
+					summary: "Delete batch",
+					description: `Deletes multiple content items in the ${slug} collection in a single request.`,
+					operationId: `delete${slug}ContentBatch`,
+					tags: [collectionTag],
+					security: baseSecurity,
+					requestBody: {
+						required: true,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: `#/components/schemas/${contentBatchDeleteInputSchemaRef}`,
+								},
+							},
+						},
+					},
+					responses: {
+						"204": {
+							description: `${slug} content deleted`,
+						},
+						"404": errorResponse(404, "Content not found"),
 					},
 				},
 				["content:write"],
@@ -702,6 +876,8 @@ export const assembleOpenAPIDocument = (
 				buildContentWrapperSchema(collection.slug);
 			dynamicSchemas[contentInputSchemaRef(collection.slug)] =
 				buildContentInputSchema(collection.slug);
+			dynamicSchemas[contentBatchInputSchemaRef(collection.slug)] =
+				buildBatchContentInputSchema(collection.slug);
 
 			const resolvedSchema = buildResolvedCollectionSchema(
 				collection.slug,
@@ -756,6 +932,7 @@ export const assembleOpenAPIDocument = (
 				},
 				schemas: {
 					[errorSchemaRef]: errorSchema,
+					[contentBatchDeleteInputSchemaRef]: contentBatchDeleteInputSchema,
 					...collectionSchemas,
 					...mediaSchemas,
 					...dynamicSchemas,

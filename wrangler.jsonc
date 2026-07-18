@@ -26,7 +26,7 @@
 		"MEDIA_PUBLIC_URL": "http://localhost:3200"
 	},
 	"secrets": {
-		"required": ["JWT_SECRET"]
+		"required": ["JWT_SECRET", "DOCS_SECRET"]
 	},
 	"observability": {
 		"enabled": false,

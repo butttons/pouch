@@ -116,6 +116,94 @@ export async function createContent(
 	};
 }
 
+export async function createContentBatch(
+	slug: string,
+	items: Array<{ data: Record<string, unknown>; status?: string }>,
+) {
+	const token = await createToken(["content:write"]);
+	const response = await fetchWorker(
+		`/collections/${slug}/content/batch`,
+		{
+			method: "POST",
+			body: JSON.stringify({ items }),
+		},
+		token,
+	);
+
+	if (response.status !== 201) {
+		throw new Error(
+			`createContentBatch failed: ${response.status} ${await response.text()}`,
+		);
+	}
+
+	return (await response.json()) as {
+		data: Array<{
+			id: string;
+			collectionId: string;
+			data: Record<string, unknown>;
+			status: string;
+			schemaVersionId: string;
+			createdAt: number;
+			updatedAt: number;
+		}>;
+	};
+}
+
+export async function updateContentBatch(
+	slug: string,
+	items: Array<{
+		id: string;
+		data?: Record<string, unknown>;
+		status?: string;
+	}>,
+) {
+	const token = await createToken(["content:write"]);
+	const response = await fetchWorker(
+		`/collections/${slug}/content/batch`,
+		{
+			method: "PATCH",
+			body: JSON.stringify({ items }),
+		},
+		token,
+	);
+
+	if (response.status !== 200) {
+		throw new Error(
+			`updateContentBatch failed: ${response.status} ${await response.text()}`,
+		);
+	}
+
+	return (await response.json()) as {
+		data: Array<{
+			id: string;
+			collectionId: string;
+			data: Record<string, unknown>;
+			status: string;
+			schemaVersionId: string;
+			createdAt: number;
+			updatedAt: number;
+		}>;
+	};
+}
+
+export async function deleteContentBatch(slug: string, ids: string[]) {
+	const token = await createToken(["content:write"]);
+	const response = await fetchWorker(
+		`/collections/${slug}/content/batch`,
+		{
+			method: "DELETE",
+			body: JSON.stringify({ ids }),
+		},
+		token,
+	);
+
+	if (response.status !== 204) {
+		throw new Error(
+			`deleteContentBatch failed: ${response.status} ${await response.text()}`,
+		);
+	}
+}
+
 export async function createMedia(file: File) {
 	const token = await createToken(["content:write"]);
 	const formData = new FormData();

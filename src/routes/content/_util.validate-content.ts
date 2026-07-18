@@ -12,6 +12,7 @@ import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import {
 	collectMediaIds,
 	getMediaFields,
+	getMediaIdsFromValue,
 	isValidMediaArray,
 	isValidMediaObject,
 	validateContentData,
@@ -99,4 +100,74 @@ export const validateMediaFieldsOrFail = (input: {
 
 		return okAsync(undefined);
 	});
+};
+
+export const validateMediaFieldsForBatch = (input: {
+	items: Record<string, unknown>[];
+	schema: Record<string, unknown>;
+	DL: DataLayer;
+}): ResultAsync<void, AppHTTPException | DataLayerError> => {
+	const mediaFields = getMediaFields({ schema: input.schema });
+
+	if (mediaFields.length === 0) {
+		return okAsync(undefined);
+	}
+
+	const invalidFields: string[] = [];
+	const mediaIds = new Set<string>();
+
+	for (const item of input.items) {
+		for (const { field, isMany } of mediaFields) {
+			const value = item[field];
+			if (value === undefined) {
+				continue;
+			}
+
+			const isValid = isMany
+				? isValidMediaArray({ value })
+				: isValidMediaObject({ value });
+
+			if (!isValid) {
+				invalidFields.push(field);
+				continue;
+			}
+
+			for (const id of getMediaIdsFromValue({ value })) {
+				mediaIds.add(id);
+			}
+		}
+	}
+
+	if (invalidFields.length > 0) {
+		return errAsync(
+			new AppHTTPException({
+				code: ErrorCodes.VALIDATION_FAILED,
+				message: `Media fields must be objects with { id: "med_...", path: string }: ${invalidFields.join(", ")}`,
+				status: 400,
+			}),
+		);
+	}
+
+	if (mediaIds.size === 0) {
+		return okAsync(undefined);
+	}
+
+	return input.DL.media
+		.getMediaByIds({ ids: Array.from(mediaIds) })
+		.andThen((rows) => {
+			const foundIds = new Set(rows.map((r) => r.id));
+			const missing = Array.from(mediaIds).filter((id) => !foundIds.has(id));
+
+			if (missing.length > 0) {
+				return errAsync(
+					new AppHTTPException({
+						code: ErrorCodes.VALIDATION_FAILED,
+						message: `Media not found: ${missing.join(", ")}`,
+						status: 400,
+					}),
+				);
+			}
+
+			return okAsync(undefined);
+		});
 };

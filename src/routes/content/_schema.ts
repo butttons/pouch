@@ -26,6 +26,20 @@ export const createContentInputSchema = Type.Object(
 
 export type CreateContentInput = Type.Static<typeof createContentInputSchema>;
 
+export const createContentBatchInputSchema = Type.Object(
+	{
+		items: Type.Array(createContentInputSchema, {
+			minItems: 1,
+			maxItems: 100,
+		}),
+	},
+	{ additionalProperties: false },
+);
+
+export type CreateContentBatchInput = Type.Static<
+	typeof createContentBatchInputSchema
+>;
+
 export const updateContentInputSchema = Type.Object(
 	{
 		data: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
@@ -35,6 +49,41 @@ export const updateContentInputSchema = Type.Object(
 );
 
 export type UpdateContentInput = Type.Static<typeof updateContentInputSchema>;
+
+export const updateContentBatchInputSchema = Type.Object(
+	{
+		items: Type.Array(
+			Type.Object(
+				{
+					id: Type.String({ pattern: "^con_" }),
+					data: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+					status: Type.Optional(contentStatusSchema),
+				},
+				{ additionalProperties: false },
+			),
+			{ minItems: 1, maxItems: 100 },
+		),
+	},
+	{ additionalProperties: false },
+);
+
+export type UpdateContentBatchInput = Type.Static<
+	typeof updateContentBatchInputSchema
+>;
+
+export const deleteContentBatchInputSchema = Type.Object(
+	{
+		ids: Type.Array(Type.String({ pattern: "^con_" }), {
+			minItems: 1,
+			maxItems: 100,
+		}),
+	},
+	{ additionalProperties: false },
+);
+
+export type DeleteContentBatchInput = Type.Static<
+	typeof deleteContentBatchInputSchema
+>;
 
 export const contentResponseSchema = Type.Object(
 	{
@@ -92,3 +141,14 @@ export const contentListResponseSchema = Type.Object(
 );
 
 export type ContentListResponse = Type.Static<typeof contentListResponseSchema>;
+
+export const contentBatchResponseSchema = Type.Object(
+	{
+		data: Type.Array(contentResponseSchema),
+	},
+	{ additionalProperties: false },
+);
+
+export type ContentBatchResponse = Type.Static<
+	typeof contentBatchResponseSchema
+>;

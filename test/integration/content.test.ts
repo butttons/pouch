@@ -4,9 +4,12 @@ import {
 	adminToken,
 	createCollection,
 	createContent,
+	createContentBatch,
 	createMedia,
+	deleteContentBatch,
 	fetchWorker,
 	readerToken,
+	updateContentBatch,
 	writerToken,
 } from "../utils.js";
 import { env } from "cloudflare:test";
@@ -54,6 +57,300 @@ describe("content", () => {
 				"SELECT COUNT(*) as count FROM content",
 			).first<{ count: number }>();
 			expect(row!.count).toBe(0);
+		});
+	});
+
+	describe("POST /collections/:slug/content/batch", () => {
+		it("creates multiple content items in one request", async () => {
+			await createCollection({
+				slug: "batch-posts",
+				name: "Batch Posts",
+				schema: makeCollectionSchema(),
+			});
+
+			const result = await createContentBatch("batch-posts", [
+				{ data: { title: "First", count: 1 } },
+				{ data: { title: "Second", count: 2 }, status: "published" },
+				{ data: { title: "Third", count: 3 }, status: "archived" },
+			]);
+
+			expect(result.data).toHaveLength(3);
+			expect(result.data.map((item) => item.data.title)).toEqual([
+				"First",
+				"Second",
+				"Third",
+			]);
+			expect(result.data.map((item) => item.status)).toEqual([
+				"draft",
+				"published",
+				"archived",
+			]);
+
+			const row = await env.DB.prepare(
+				"SELECT COUNT(*) as count FROM content",
+			).first<{ count: number }>();
+			expect(row!.count).toBe(3);
+		});
+
+		it("rejects the whole batch when one item is invalid", async () => {
+			await createCollection({
+				slug: "batch-posts-invalid",
+				name: "Batch Posts Invalid",
+				schema: makeCollectionSchema(),
+			});
+
+			const token = await writerToken();
+			const response = await fetchWorker(
+				"/collections/batch-posts-invalid/content/batch",
+				{
+					method: "POST",
+					body: JSON.stringify({
+						items: [
+							{ data: { title: "Valid", count: 1 } },
+							{ data: { title: 123, count: 2 } },
+						],
+					}),
+				},
+				token,
+			);
+
+			expect(response.status).toBe(400);
+
+			const body = (await response.json()) as { code: string };
+			expect(body.code).toBe("VALIDATION_FAILED");
+
+			const row = await env.DB.prepare(
+				"SELECT COUNT(*) as count FROM content",
+			).first<{ count: number }>();
+			expect(row!.count).toBe(0);
+		});
+
+		it("rejects the batch with invalid media references", async () => {
+			await createCollection({
+				slug: "batch-articles-invalid",
+				name: "Batch Articles Invalid",
+				schema: {
+					type: "object",
+					properties: {
+						title: { type: "string" },
+						cover: { type: "object", "x-media": true },
+					},
+					required: ["title"],
+					additionalProperties: false,
+				},
+			});
+
+			const token = await writerToken();
+			const response = await fetchWorker(
+				"/collections/batch-articles-invalid/content/batch",
+				{
+					method: "POST",
+					body: JSON.stringify({
+						items: [
+							{
+								data: {
+									title: "Article",
+									cover: {
+										id: "med_00000000000000000000000000",
+										path: "/missing",
+									},
+								},
+							},
+						],
+					}),
+				},
+				token,
+			);
+
+			expect(response.status).toBe(400);
+
+			const body = (await response.json()) as { code: string; message: string };
+			expect(body.code).toBe("VALIDATION_FAILED");
+			expect(body.message).toContain("Media not found");
+
+			const row = await env.DB.prepare(
+				"SELECT COUNT(*) as count FROM content",
+			).first<{ count: number }>();
+			expect(row!.count).toBe(0);
+		});
+
+		it("creates content with valid media references in a batch", async () => {
+			await createCollection({
+				slug: "batch-articles-valid",
+				name: "Batch Articles Valid",
+				schema: {
+					type: "object",
+					properties: {
+						title: { type: "string" },
+						cover: { type: "object", "x-media": true },
+					},
+					required: ["title"],
+					additionalProperties: false,
+				},
+			});
+
+			const file = new File(["cover"], "cover.png", { type: "image/png" });
+			const media = await createMedia(file);
+
+			const result = await createContentBatch("batch-articles-valid", [
+				{
+					data: {
+						title: "Article",
+						cover: { id: media.id, path: media.r2Key },
+					},
+				},
+			]);
+
+			expect(result.data).toHaveLength(1);
+			expect(result.data[0]!.data.cover).toEqual({
+				id: media.id,
+				path: `${env.MEDIA_PUBLIC_URL}/${media.r2Key}`,
+			});
+		});
+	});
+
+	describe("PATCH /collections/:slug/content/batch", () => {
+		it("updates multiple content items in one request", async () => {
+			await createCollection({
+				slug: "batch-update",
+				name: "Batch Update",
+				schema: makeCollectionSchema(),
+			});
+
+			const first = await createContent("batch-update", {
+				data: { title: "First", count: 1 },
+			});
+			const second = await createContent("batch-update", {
+				data: { title: "Second", count: 2 },
+			});
+
+			const result = await updateContentBatch("batch-update", [
+				{ id: first.id, data: { count: 10 }, status: "published" },
+				{ id: second.id, data: { count: 20 } },
+			]);
+
+			expect(result.data).toHaveLength(2);
+			const updatedById = new Map(result.data.map((item) => [item.id, item]));
+
+			expect(updatedById.get(first.id)?.data).toEqual({
+				title: "First",
+				count: 10,
+			});
+			expect(updatedById.get(first.id)?.status).toBe("published");
+			expect(updatedById.get(second.id)?.data).toEqual({
+				title: "Second",
+				count: 20,
+			});
+			expect(updatedById.get(second.id)?.status).toBe("draft");
+		});
+
+		it("rejects the batch when one item is invalid", async () => {
+			await createCollection({
+				slug: "batch-update-invalid",
+				name: "Batch Update Invalid",
+				schema: makeCollectionSchema(),
+			});
+
+			const first = await createContent("batch-update-invalid", {
+				data: { title: "First", count: 1 },
+			});
+
+			const token = await writerToken();
+			const response = await fetchWorker(
+				"/collections/batch-update-invalid/content/batch",
+				{
+					method: "PATCH",
+					body: JSON.stringify({
+						items: [
+							{ id: first.id, data: { count: 10 } },
+							{ id: first.id, data: { title: 123 } },
+						],
+					}),
+				},
+				token,
+			);
+
+			expect(response.status).toBe(400);
+
+			const body = (await response.json()) as { code: string };
+			expect(body.code).toBe("VALIDATION_FAILED");
+
+			const row = await env.DB.prepare("SELECT data FROM content WHERE id = ?")
+				.bind(first.id)
+				.first<{ data: string }>();
+			expect(JSON.parse(row!.data).count).toBe(1);
+		});
+
+		it("returns 404 when an id does not exist in the collection", async () => {
+			await createCollection({
+				slug: "batch-update-missing",
+				name: "Batch Update Missing",
+				schema: makeCollectionSchema(),
+			});
+
+			const token = await writerToken();
+			const response = await fetchWorker(
+				"/collections/batch-update-missing/content/batch",
+				{
+					method: "PATCH",
+					body: JSON.stringify({
+						items: [
+							{ id: "con_00000000000000000000000000", data: { count: 5 } },
+						],
+					}),
+				},
+				token,
+			);
+
+			expect(response.status).toBe(404);
+		});
+	});
+
+	describe("DELETE /collections/:slug/content/batch", () => {
+		it("deletes multiple content items in one request", async () => {
+			await createCollection({
+				slug: "batch-delete",
+				name: "Batch Delete",
+				schema: makeCollectionSchema(),
+			});
+
+			const first = await createContent("batch-delete", {
+				data: { title: "First", count: 1 },
+			});
+			const second = await createContent("batch-delete", {
+				data: { title: "Second", count: 2 },
+			});
+
+			await deleteContentBatch("batch-delete", [first.id, second.id]);
+
+			const row = await env.DB.prepare(
+				"SELECT COUNT(*) as count FROM content WHERE collection_id = ?",
+			)
+				.bind(first.collectionId)
+				.first<{ count: number }>();
+			expect(row!.count).toBe(0);
+		});
+
+		it("returns 404 when an id does not exist in the collection", async () => {
+			await createCollection({
+				slug: "batch-delete-missing",
+				name: "Batch Delete Missing",
+				schema: makeCollectionSchema(),
+			});
+
+			const token = await writerToken();
+			const response = await fetchWorker(
+				"/collections/batch-delete-missing/content/batch",
+				{
+					method: "DELETE",
+					body: JSON.stringify({
+						ids: ["con_00000000000000000000000000"],
+					}),
+				},
+				token,
+			);
+
+			expect(response.status).toBe(404);
 		});
 	});
 
