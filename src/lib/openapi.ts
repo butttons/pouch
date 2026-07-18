@@ -7,6 +7,7 @@ import {
 	collectionOpenAPIPaths,
 } from "@/routes/collection/_openapi";
 import { getMediaFields } from "@/lib/schema";
+import { getAllowedOperators } from "@/lib/query-filter";
 import {
 	mediaObjectSchemaRef,
 	mediaOpenAPIComponents,
@@ -109,8 +110,6 @@ const contentInputSchemaRef = (slug: string) => `__ContentInput_${slug}`;
 const resolvedContentSchemaRef = (slug: string) => `__Resolved_${slug}`;
 const resolvedContentWrapperSchemaRef = (slug: string) =>
 	`__ResolvedContent_${slug}`;
-
-const FILTER_OPERATORS = ["eq", "gt", "gte", "lt", "lte", "ne"] as const;
 
 type JsonSchemaProperty = {
 	type?: string | string[];
@@ -216,7 +215,9 @@ const buildContentQueryParameters = (
 	const properties = schema.properties as Record<string, JsonSchemaProperty>;
 
 	for (const [field, property] of Object.entries(properties)) {
-		for (const op of FILTER_OPERATORS) {
+		const operators = getAllowedOperators(property);
+
+		for (const op of operators) {
 			const name = op === "eq" ? field : `${field}[${op}]`;
 			parameters.push({
 				name,

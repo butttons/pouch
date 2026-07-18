@@ -9,12 +9,12 @@ export type ContentStatus = "draft" | "published" | "archived";
 
 export type ContentFilter = {
 	field: string;
-	op: "eq" | "gt" | "gte" | "lt" | "lte" | "ne";
-	value: string | number | boolean;
+	op: "eq" | "gt" | "gte" | "in" | "lt" | "lte" | "ne";
+	value: string | number | boolean | (string | number | boolean)[];
 	indexedColumn?: string;
 };
 
-const OP_MAP: Record<ContentFilter["op"], string> = {
+const OP_MAP: Record<Exclude<ContentFilter["op"], "in">, string> = {
 	eq: "=",
 	gt: ">",
 	gte: ">=",
@@ -24,6 +24,17 @@ const OP_MAP: Record<ContentFilter["op"], string> = {
 };
 
 const getFilterExpression = (filter: ContentFilter) => {
+	if (filter.op === "in") {
+		const values = Array.isArray(filter.value) ? filter.value : [filter.value];
+
+		if (filter.indexedColumn) {
+			return sql<boolean>`${sql.ref(filter.indexedColumn)} IN (${sql.join(values)})`;
+		}
+
+		const path = "$." + filter.field;
+		return sql<boolean>`json_extract(data, ${path}) IN (${sql.join(values)})`;
+	}
+
 	const op = OP_MAP[filter.op];
 
 	if (filter.indexedColumn) {

@@ -10,16 +10,16 @@ import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import type { ContentListResponse, ContentQuery } from "./_schema";
 import { resolveRelations } from "./_service.resolve";
 
+import {
+	getAllowedOperators,
+	isFilterOperator,
+	type FilterOperator,
+} from "@/lib/query-filter";
+
 const QUERY_KEY_REGEX = /^([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([a-z]+)\])?$/;
-const ALLOWED_OPS = ["eq", "gt", "gte", "lt", "lte", "ne"] as const;
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;
-
-type AllowedOp = (typeof ALLOWED_OPS)[number];
-
-const isAllowedOp = (value: string): value is AllowedOp =>
-	ALLOWED_OPS.includes(value as AllowedOp);
 
 const coerceValue = (
 	value: string,
@@ -34,6 +34,28 @@ const coerceValue = (
 	}
 
 	return value;
+};
+
+const coerceFilterValue = (
+	input: {
+		rawValue: unknown;
+		op: FilterOperator;
+		type: unknown;
+	},
+): string | number | boolean | (string | number | boolean)[] => {
+	const valueString = (
+		Array.isArray(input.rawValue) ? input.rawValue[0] : input.rawValue
+	) ?? "";
+	const stringValue = String(valueString);
+
+	if (input.op === "in") {
+		return stringValue
+			.split(",")
+			.filter((item) => item.length > 0)
+			.map((item) => coerceValue(item, input.type));
+	}
+
+	return coerceValue(stringValue, input.type);
 };
 
 const QUERY_META_KEYS = new Set(["resolve", "limit", "cursor"]);
@@ -98,7 +120,7 @@ export const listContent = (
 			const opRaw = match[2];
 			const op = opRaw ?? "eq";
 
-			if (!isAllowedOp(op)) {
+			if (!isFilterOperator(op)) {
 				return err(
 					new AppHTTPException({
 						code: ErrorCodes.VALIDATION_FAILED,
@@ -120,10 +142,43 @@ export const listContent = (
 				);
 			}
 
-			const valueString = (
-				Array.isArray(rawValue) ? rawValue[0] : rawValue
-			) ?? "";
-			const value = coerceValue(String(valueString), property.type);
+			const allowedOperators = getAllowedOperators(property);
+
+			if (allowedOperators.length === 0) {
+				return err(
+					new AppHTTPException({
+						code: ErrorCodes.VALIDATION_FAILED,
+						message: `Field type does not support filtering: ${field}`,
+						status: 400,
+					}),
+				);
+			}
+
+			if (!allowedOperators.includes(op)) {
+				return err(
+					new AppHTTPException({
+						code: ErrorCodes.VALIDATION_FAILED,
+						message: `Operator ${op} is not allowed for field ${field}`,
+						status: 400,
+					}),
+				);
+			}
+
+			const value = coerceFilterValue({
+				rawValue,
+				op,
+				type: property.type,
+			});
+
+			if (op === "in" && Array.isArray(value) && value.length === 0) {
+				return err(
+					new AppHTTPException({
+						code: ErrorCodes.VALIDATION_FAILED,
+						message: `Operator ${op} requires at least one value for field ${field}`,
+						status: 400,
+					}),
+				);
+			}
 
 			const indexedColumn =
 				property["x-index"] === true

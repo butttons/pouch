@@ -197,6 +197,117 @@ describe("content", () => {
       expect(titles).toContain("B");
       expect(titles).toContain("C");
     });
+
+    it("rejects ordering operators on string fields", async () => {
+      await createCollection({
+        slug: "scores",
+        name: "Scores",
+        schema: makeCollectionSchema(),
+      });
+
+      const token = await readerToken();
+
+      const response = await fetchWorker(
+        "/collections/scores/content?title[gt]=A",
+        {},
+        token,
+      );
+      expect(response.status).toBe(400);
+
+      const body = (await response.json()) as { code: string };
+      expect(body.code).toBe("VALIDATION_FAILED");
+    });
+
+    it("exposes only valid operators per field type in openapi.json", async () => {
+      await createCollection({
+        slug: "scores",
+        name: "Scores",
+        schema: makeCollectionSchema(),
+      });
+
+      const token = await readerToken();
+      const response = await fetchWorker("/openapi.json", {}, token);
+      expect(response.status).toBe(200);
+
+      const spec = (await response.json()) as {
+        paths: Record<
+          string,
+          {
+            get?: {
+              parameters?: Array<{ name: string }>;
+            };
+          }
+        >;
+      };
+      const parameters = spec.paths["/collections/scores/content"]?.get
+        ?.parameters;
+      expect(parameters).toBeDefined();
+
+      const names = parameters!.map((param) => param.name);
+      expect(names).toContain("title");
+      expect(names).toContain("title[ne]");
+      expect(names).not.toContain("title[gt]");
+      expect(names).not.toContain("title[gte]");
+      expect(names).not.toContain("title[lt]");
+      expect(names).not.toContain("title[lte]");
+      expect(names).toContain("count");
+      expect(names).toContain("count[gt]");
+      expect(names).toContain("count[gte]");
+      expect(names).toContain("count[lt]");
+      expect(names).toContain("count[lte]");
+      expect(names).toContain("count[ne]");
+      expect(names).toContain("title[in]");
+      expect(names).not.toContain("count[in]");
+    });
+
+    it("filters string fields with ?field[in]=v1,v2", async () => {
+      await createCollection({
+        slug: "scores",
+        name: "Scores",
+        schema: makeCollectionSchema(),
+      });
+
+      await createContent("scores", { data: { title: "A", count: 1 } });
+      await createContent("scores", { data: { title: "B", count: 5 } });
+      await createContent("scores", { data: { title: "C", count: 10 } });
+
+      const token = await readerToken();
+
+      const response = await fetchWorker(
+        "/collections/scores/content?title[in]=A,C",
+        {},
+        token,
+      );
+      expect(response.status).toBe(200);
+
+      const body = (await response.json()) as {
+        data: Array<{ data: Record<string, unknown> }>;
+      };
+      expect(body.data).toHaveLength(2);
+      const titles = body.data.map((item) => item.data.title);
+      expect(titles).toContain("A");
+      expect(titles).toContain("C");
+    });
+
+    it("rejects the in operator on number fields", async () => {
+      await createCollection({
+        slug: "scores",
+        name: "Scores",
+        schema: makeCollectionSchema(),
+      });
+
+      const token = await readerToken();
+
+      const response = await fetchWorker(
+        "/collections/scores/content?count[in]=1,2",
+        {},
+        token,
+      );
+      expect(response.status).toBe(400);
+
+      const body = (await response.json()) as { code: string };
+      expect(body.code).toBe("VALIDATION_FAILED");
+    });
   });
 
   describe("GET /collections/:slug/content?resolve=", () => {
