@@ -1,61 +1,36 @@
-import { err, ok, ResultAsync, safeTry } from "neverthrow";
+import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
-import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { validateContentData } from "@/lib/schema";
+import type { AppHTTPException } from "@/lib/errors";
+import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
+import { requireContentInCollection } from "./_util.require-content";
+import { validateContentOrFail } from "./_util.validate-content";
 import type { Content, ContentRouteParams, UpdateContentInput } from "./_schema";
 
+/**
+ * Merges new data into existing content and validates it against the collection schema.
+ */
 export const updateContent = (
 	input: ContentRouteParams & UpdateContentInput,
 	deps: Deps,
 ): ResultAsync<Content, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionBySlug({
-			slug: input.slug,
-		});
+		const collection = yield* requireCollectionBySlug(
+			{ slug: input.slug },
+			deps,
+		);
 
-		if (!collection) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.NOT_FOUND,
-					message: "Collection not found",
-					status: 404,
-				}),
-			);
-		}
-
-		const existing = yield* deps.DL.content.getContentById({ id: input.id });
-
-		if (!existing || existing.collectionId !== collection.id) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.NOT_FOUND,
-					message: "Content not found",
-					status: 404,
-				}),
-			);
-		}
+		const existing = yield* requireContentInCollection(
+			{ id: input.id, collectionId: collection.id },
+			deps,
+		);
 
 		const mergedData = input.data
 			? { ...existing.data, ...input.data }
 			: existing.data;
 
-		const validation = validateContentData({
-			data: mergedData,
-			schema: collection.schema,
-		});
-
-		if (validation.isErr()) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.VALIDATION_FAILED,
-					message: "Content validation failed",
-					status: 400,
-					cause: validation.error,
-				}),
-			);
-		}
+		yield* validateContentOrFail({ data: mergedData, schema: collection.schema });
 
 		const updated = yield* deps.DL.content.updateContent({
 			id: input.id,

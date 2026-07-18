@@ -3,28 +3,23 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { validateContentData } from "@/lib/schema";
+import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
+import { validateContentOrFail } from "./_util.validate-content";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import type { Content, CreateContentInput } from "./_schema";
 
+/**
+ * Creates new content and validates it against the collection's current schema.
+ */
 export const createContent = (
 	input: CollectionSlugParam & CreateContentInput,
 	deps: Deps,
 ): ResultAsync<Content, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionBySlug({
-			slug: input.slug,
-		});
-
-		if (!collection) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.NOT_FOUND,
-					message: "Collection not found",
-					status: 404,
-				}),
-			);
-		}
+		const collection = yield* requireCollectionBySlug(
+			{ slug: input.slug },
+			deps,
+		);
 
 		if (!collection.currentSchemaVersionId) {
 			return err(
@@ -36,21 +31,7 @@ export const createContent = (
 			);
 		}
 
-		const validation = validateContentData({
-			data: input.data,
-			schema: collection.schema,
-		});
-
-		if (validation.isErr()) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.VALIDATION_FAILED,
-					message: "Content validation failed",
-					status: 400,
-					cause: validation.error,
-				}),
-			);
-		}
+		yield* validateContentOrFail({ data: input.data, schema: collection.schema });
 
 		const created = yield* deps.DL.content.createContent({
 			collectionId: collection.id,

@@ -5,55 +5,30 @@ import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { typedId } from "@/lib/typed-id";
 import { diffIndexedFields } from "@/lib/content-index";
-import {
-	 diffCollectionSchemas,
-	 getRelationTargets,
-	 validateCollectionSchema,
-} from "@/lib/schema";
+import { diffCollectionSchemas, validateCollectionSchema } from "@/lib/schema";
+import { requireCollectionBySlug } from "./_util.require-collection";
+import { validateRelationTargets } from "./_util.validate-relations";
 import type {
 	CollectionSlugParam,
 	CollectionWithSchema,
 	PatchCollectionSchemaInput,
 } from "./_schema";
 
+/**
+ * Validates and applies a schema patch, rebuilding indexes when fields change.
+ */
 export const patchCollectionSchema = (
 	input: CollectionSlugParam & PatchCollectionSchemaInput,
 	deps: Deps,
 ): ResultAsync<CollectionWithSchema, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionBySlug({
-			slug: input.slug,
-		});
-
-		if (!collection) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.NOT_FOUND,
-					message: "Collection not found",
-					status: 404,
-				}),
-			);
-		}
+		const collection = yield* requireCollectionBySlug(
+			{ slug: input.slug },
+			deps,
+		);
 
 		yield* validateCollectionSchema(input.schema);
-
-		const relationTargets = getRelationTargets(input.schema);
-
-		for (const targetSlug of relationTargets) {
-			const targetCollection = yield* deps.DL.collection.getCollectionBySlug({
-				slug: targetSlug,
-			});
-
-			if (!targetCollection) {
-				return err(
-					new AppHTTPException({
-						code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
-						message: `Relation target collection not found: ${targetSlug}`,
-						status: 400,
-					}),
-				);
-			}
-		}
+		yield* validateRelationTargets({ schema: input.schema }, deps);
 
 		const { diff, destructiveChanges } = yield* diffCollectionSchemas(
 			collection.schema,

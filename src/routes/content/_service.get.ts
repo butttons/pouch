@@ -4,6 +4,8 @@ import type { ContentFilter, DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { computeIndexColumnName } from "@/lib/content-index";
+import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
+import { normalizeResolveParam } from "./_util.normalize-resolve";
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
 import type { ContentListResponse, ContentQuery } from "./_schema";
 import { resolveRelations } from "./_service.resolve";
@@ -50,24 +52,18 @@ const parseLimit = (raw: unknown): number => {
 	return Math.min(parsed, MAX_LIMIT);
 };
 
+/**
+ * Lists content with query filters, pagination, and optional relation resolution.
+ */
 export const listContent = (
 	input: CollectionSlugParam & { query: ContentQuery },
 	deps: Deps,
 ): ResultAsync<ContentListResponse, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionBySlug({
-			slug: input.slug,
-		});
-
-		if (!collection) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.NOT_FOUND,
-					message: "Collection not found",
-					status: 404,
-				}),
-			);
-		}
+		const collection = yield* requireCollectionBySlug(
+			{ slug: input.slug },
+			deps,
+		);
 
 		const properties =
 			collection.schema.properties &&
@@ -151,9 +147,7 @@ export const listContent = (
 			cursor,
 		});
 
-		const resolveValue = input.query.resolve;
-		const resolve =
-			typeof resolveValue === "string" ? resolveValue : resolveValue?.[0];
+		const resolve = normalizeResolveParam(input.query.resolve);
 
 		if (!resolve) {
 			return ok({ data: rows, nextCursor });

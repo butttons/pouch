@@ -44,9 +44,15 @@ const fnv1a48 = (input: string): string => {
 	return lower48.toString(16).padStart(COLLECTION_HASH_LENGTH, "0");
 };
 
+/**
+ * Computes a 48-bit FNV-1a hash of a collection ID for stable identifier suffixes.
+ */
 export const computeCollectionHash = (collectionId: string): string =>
 	fnv1a48(collectionId);
 
+/**
+ * Builds the SQLite generated column name for an indexed field.
+ */
 export const computeIndexColumnName = (input: {
 	collectionId: string;
 	field: string;
@@ -55,6 +61,9 @@ export const computeIndexColumnName = (input: {
 	return `${COLUMN_PREFIX}_${hash}_${input.field}`;
 };
 
+/**
+ * Builds the SQLite index name for an indexed field.
+ */
 export const computeIndexName = (input: {
 	collectionId: string;
 	field: string;
@@ -63,6 +72,9 @@ export const computeIndexName = (input: {
 	return `${COLUMN_PREFIX}_${hash}_${input.field}_${INDEX_SUFFIX}`;
 };
 
+/**
+ * Maps a JSON schema property type to its SQLite column type.
+ */
 export const getIndexColumnType = (property: JsonSchemaProperty): string => {
 	if (property.type === "integer") {
 		return "INTEGER";
@@ -79,6 +91,9 @@ export const getIndexColumnType = (property: JsonSchemaProperty): string => {
 	return "TEXT";
 };
 
+/**
+ * Returns the keys of all properties marked with x-index.
+ */
 export const getIndexedFields = (
 	schema: Record<string, unknown>,
 ): string[] => {
@@ -94,6 +109,9 @@ type IndexedFieldInfo = {
 	type: string;
 };
 
+/**
+ * Returns indexed fields with their SQLite column types.
+ */
 export const getIndexedFieldsWithTypes = (
 	schema: Record<string, unknown>,
 ): IndexedFieldInfo[] => {
@@ -113,6 +131,9 @@ export type IndexDiff = {
 	changed: IndexedFieldInfo[];
 };
 
+/**
+ * Compares old and new schemas to find added, removed, and changed indexed fields.
+ */
 export const diffIndexedFields = (
 	oldSchema: Record<string, unknown>,
 	newSchema: Record<string, unknown>,
@@ -147,6 +168,9 @@ export const diffIndexedFields = (
 	return { added, removed, changed };
 };
 
+/**
+ * Validates that x-index fields are scalar and within the key length limit.
+ */
 export const validateIndexedFields = (
 	schema: Record<string, unknown>,
 ): { field: string; message: string }[] => {

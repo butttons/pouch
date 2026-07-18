@@ -5,33 +5,20 @@ import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { getIndexColumnType, getIndexedFieldsWithTypes } from "@/lib/content-index";
 import type { CollectionWithSchema, CreateCollectionInput } from "./_schema";
-import { getRelationTargets, validateCollectionSchema } from "@/lib/schema";
+import { validateCollectionSchema } from "@/lib/schema";
+import { validateRelationTargets } from "./_util.validate-relations";
 import { typedId } from "@/lib/typed-id";
 
+/**
+ * Creates a collection and its first schema version, including indexes.
+ */
 export const createCollection = (
 	input: CreateCollectionInput,
 	deps: Deps,
 ): ResultAsync<CollectionWithSchema, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
 		yield* validateCollectionSchema(input.schema);
-
-		const relationTargets = getRelationTargets(input.schema);
-
-		for (const targetSlug of relationTargets) {
-			const targetCollection = yield* deps.DL.collection.getCollectionBySlug({
-				slug: targetSlug,
-			});
-
-			if (!targetCollection) {
-				return err(
-					new AppHTTPException({
-						code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
-						message: `Relation target collection not found: ${targetSlug}`,
-						status: 400,
-					}),
-				);
-			}
-		}
+		yield* validateRelationTargets({ schema: input.schema }, deps);
 
 		const existing = yield* deps.DL.collection.getCollectionBySlug({
 			slug: input.slug,

@@ -21,13 +21,7 @@ The fastest way to deploy is through Cloudflare's GitHub integration.
 
 This clones the repo into your GitHub account and deploys the worker. You can configure the project name, D1 binding, and secrets during setup. Keep note of `JWT_SECRET`; you will need it to generate API keys.
 
-After the worker deploys, apply the D1 migrations:
-
-```sh
-npx wrangler d1 migrations apply pouch --remote
-```
-
-The deploy button creates the D1 binding but does not run the migration files automatically.
+Migrations are applied automatically as part of the deploy step.
 
 ### Manual deploy
 
@@ -305,15 +299,11 @@ git merge -X theirs upstream/main -m "Update from upstream"
 mv wrangler.jsonc.bak wrangler.jsonc
 ```
 
-4. Apply any new database migrations
-
-```sh
-npx wrangler d1 migrations apply pouch --remote
-```
-
-5. Deploy
+4. Deploy
 
 ```sh
 pnpm run deploy
 ```
+
+`pnpm run deploy` runs `db:migrate:prod` before deploying, so D1 migrations are applied automatically.
 

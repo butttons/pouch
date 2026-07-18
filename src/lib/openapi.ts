@@ -464,6 +464,9 @@ const buildCollectionContentPaths = (
 	},
 });
 
+/**
+ * Builds the full OpenAPI document including dynamic content schemas and paths.
+ */
 export const assembleOpenAPIDocument = (
 	deps: Deps,
 ): ResultAsync<Record<string, unknown>, DataLayerError> =>

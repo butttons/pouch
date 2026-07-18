@@ -135,6 +135,9 @@ const validateIndexConstraints = (
 	});
 };
 
+/**
+ * Validates a collection schema's structure, indexes, and compilability.
+ */
 export const validateCollectionSchema = (
 	schema: Record<string, unknown>,
 ): Result<void, AppHTTPException> => {
@@ -197,6 +200,9 @@ type TypeBoxValidationError = {
 	value: unknown;
 };
 
+/**
+ * Validates content data against a collection schema.
+ */
 export const validateContentData = (
 	input: {
 		data: Record<string, unknown>;
@@ -228,6 +234,9 @@ export const validateContentData = (
 	});
 };
 
+/**
+ * Returns the unique target collection slugs referenced by x-relation fields.
+ */
 export const getRelationTargets = (
 	schema: Record<string, unknown>,
 ): string[] => {
@@ -250,6 +259,9 @@ export const getRelationTargets = (
 	return Array.from(targets);
 };
 
+/**
+ * Diffs two schemas and returns the changeset plus any destructive property changes.
+ */
 export const diffCollectionSchemas = (
 	oldSchema: Record<string, unknown>,
 	newSchema: Record<string, unknown>,

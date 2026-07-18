@@ -3,6 +3,7 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import type { Deps } from "@/deps";
+import { requireCollectionBySlug } from "./_util.require-collection";
 import type {
 	CollectionSlugParam,
 	DeleteCollectionQuery,
@@ -13,19 +14,10 @@ export const deleteCollection = (
 	deps: Deps,
 ): ResultAsync<void, AppHTTPException | DataLayerError> =>
 	safeTry(async function* () {
-		const collection = yield* deps.DL.collection.getCollectionBySlug({
-			slug: input.slug,
-		});
-
-		if (!collection) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.NOT_FOUND,
-					message: "Collection not found",
-					status: 404,
-				}),
-			);
-		}
+		const collection = yield* requireCollectionBySlug(
+			{ slug: input.slug },
+			deps,
+		);
 
 		if (!input.isForced) {
 			const countRow = yield* deps.DL.collection.countContentByCollectionId({
