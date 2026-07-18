@@ -145,7 +145,9 @@ const resolveMediaFields = (input: {
 							(record): record is NonNullable<typeof record> =>
 								record !== undefined,
 						)
-						.map((record) => resolveMediaRecord(record, input.deps.mediaPublicUrl));
+						.map((record) =>
+							resolveMediaRecord(record, input.deps.mediaPublicUrl),
+						);
 				} else {
 					const mediaObject = { value };
 					if (!isValidMediaObject(mediaObject)) continue;
@@ -153,7 +155,10 @@ const resolveMediaFields = (input: {
 					const record = mediaById.get(mediaObject.value.id);
 					if (!record) continue;
 
-					resolvedData[field] = resolveMediaRecord(record, input.deps.mediaPublicUrl);
+					resolvedData[field] = resolveMediaRecord(
+						record,
+						input.deps.mediaPublicUrl,
+					);
 				}
 			}
 

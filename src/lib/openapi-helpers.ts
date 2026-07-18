@@ -4,8 +4,7 @@ export const d1BookmarkSchema = Type.Union([
 	Type.Literal("first-unconstrained"),
 	Type.Literal("first-primary"),
 	Type.String({
-		pattern:
-			"^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$",
+		pattern: "^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$",
 	}),
 ]);
 

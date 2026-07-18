@@ -1,9 +1,6 @@
 import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
-import {
-	getIndexColumnType,
-	getIndexedFieldsWithTypes,
-} from "@/lib/content-index";
+import { getIndexedFields } from "@/lib/content-index";
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { validateCollectionSchema } from "@/lib/schema";
@@ -56,14 +53,13 @@ export const createCollection = (
 			changeDiff: null,
 		});
 
-		const indexedFields = getIndexedFieldsWithTypes(input.schema);
+		const indexedFields = getIndexedFields(input.schema);
 
-		for (const { field, type } of indexedFields) {
+		for (const field of indexedFields) {
 			yield* deps.DL.contentIndex.createIndex({
 				collectionId: created.id,
 				field,
 				schemaVersionId: versionId,
-				columnType: type,
 			});
 		}
 

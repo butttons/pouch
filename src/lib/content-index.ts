@@ -1,16 +1,9 @@
 const COLLECTION_HASH_LENGTH = 12;
-const COLUMN_PREFIX = "idx";
-const INDEX_SUFFIX = "idx";
+const INDEX_PREFIX = "idx";
 const MAX_IDENTIFIER_LENGTH = 63;
 
 export const INDEXED_FIELD_MAX_KEY_LENGTH =
-	MAX_IDENTIFIER_LENGTH -
-	COLUMN_PREFIX.length -
-	1 -
-	COLLECTION_HASH_LENGTH -
-	1 -
-	INDEX_SUFFIX.length -
-	1;
+	MAX_IDENTIFIER_LENGTH - INDEX_PREFIX.length - 1 - COLLECTION_HASH_LENGTH - 1;
 
 type JsonSchemaProperty = {
 	type?: string | string[];
@@ -51,17 +44,6 @@ export const computeCollectionHash = (collectionId: string): string =>
 	fnv1a48(collectionId);
 
 /**
- * Builds the SQLite generated column name for an indexed field.
- */
-export const computeIndexColumnName = (input: {
-	collectionId: string;
-	field: string;
-}): string => {
-	const hash = computeCollectionHash(input.collectionId);
-	return `${COLUMN_PREFIX}_${hash}_${input.field}`;
-};
-
-/**
  * Builds the SQLite index name for an indexed field.
  */
 export const computeIndexName = (input: {
@@ -69,26 +51,32 @@ export const computeIndexName = (input: {
 	field: string;
 }): string => {
 	const hash = computeCollectionHash(input.collectionId);
-	return `${COLUMN_PREFIX}_${hash}_${input.field}_${INDEX_SUFFIX}`;
+	return `${INDEX_PREFIX}_${hash}_${input.field}`;
 };
 
 /**
- * Maps a JSON schema property type to its SQLite column type.
+ * Builds the SQLite json_extract expression for a content data field.
+ * The path is inlined as a literal so expression indexes match syntactically.
  */
-export const getIndexColumnType = (property: JsonSchemaProperty): string => {
-	if (property.type === "integer") {
-		return "INTEGER";
-	}
+export const buildJsonExtractExpression = (input: {
+	field: string;
+	column?: string;
+}): string => {
+	const column = input.column ?? "data";
+	const path = `$.${input.field}`;
+	return `json_extract(${column}, '${path.replace(/'/g, "''")}')`;
+};
 
-	if (property.type === "number") {
-		return "REAL";
-	}
-
-	if (property.type === "boolean") {
-		return "INTEGER";
-	}
-
-	return "TEXT";
+/**
+ * Builds the SQLite index expression for a collection field index.
+ * The expression is a composite of collection_id and the inlined json_extract.
+ */
+export const buildIndexExpression = (input: {
+	collectionId: string;
+	field: string;
+}): string => {
+	const extract = buildJsonExtractExpression({ field: input.field });
+	return `collection_id, ${extract}`;
 };
 
 /**
@@ -102,68 +90,37 @@ export const getIndexedFields = (schema: Record<string, unknown>): string[] => {
 		.map(([key]) => key);
 };
 
-type IndexedFieldInfo = {
-	field: string;
-	type: string;
-};
-
-/**
- * Returns indexed fields with their SQLite column types.
- */
-export const getIndexedFieldsWithTypes = (
-	schema: Record<string, unknown>,
-): IndexedFieldInfo[] => {
-	const properties = getProperties(schema);
-
-	return Object.entries(properties)
-		.filter(([, property]) => property["x-index"] === true)
-		.map(([field, property]) => ({
-			field,
-			type: getIndexColumnType(property),
-		}));
-};
-
 export type IndexDiff = {
-	added: IndexedFieldInfo[];
-	removed: IndexedFieldInfo[];
-	changed: IndexedFieldInfo[];
+	added: string[];
+	removed: string[];
 };
 
 /**
- * Compares old and new schemas to find added, removed, and changed indexed fields.
+ * Compares old and new schemas to find added or removed indexed fields.
  */
 export const diffIndexedFields = (
 	oldSchema: Record<string, unknown>,
 	newSchema: Record<string, unknown>,
 ): IndexDiff => {
-	const oldFields = new Map(
-		getIndexedFieldsWithTypes(oldSchema).map((info) => [info.field, info]),
-	);
-	const newFields = new Map(
-		getIndexedFieldsWithTypes(newSchema).map((info) => [info.field, info]),
-	);
+	const oldFields = new Set(getIndexedFields(oldSchema));
+	const newFields = new Set(getIndexedFields(newSchema));
 
-	const added: IndexedFieldInfo[] = [];
-	const removed: IndexedFieldInfo[] = [];
-	const changed: IndexedFieldInfo[] = [];
+	const added: string[] = [];
+	const removed: string[] = [];
 
-	for (const [field, info] of newFields) {
-		const old = oldFields.get(field);
-
-		if (!old) {
-			added.push(info);
-		} else if (old.type !== info.type) {
-			changed.push(info);
+	for (const field of newFields) {
+		if (!oldFields.has(field)) {
+			added.push(field);
 		}
 	}
 
-	for (const [field, info] of oldFields) {
+	for (const field of oldFields) {
 		if (!newFields.has(field)) {
-			removed.push(info);
+			removed.push(field);
 		}
 	}
 
-	return { added, removed, changed };
+	return { added, removed };
 };
 
 /**

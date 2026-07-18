@@ -60,31 +60,23 @@ export const patchCollectionSchema = (
 			changeDiff: JSON.stringify(diff),
 		});
 
-		const { added, removed, changed } = diffIndexedFields(
+		const { added, removed } = diffIndexedFields(
 			collection.schema,
 			input.schema,
 		);
 
-		for (const { field } of removed) {
+		for (const field of removed) {
 			yield* deps.DL.contentIndex.dropIndex({
 				collectionId: collection.id,
 				field,
 			});
 		}
 
-		for (const { field } of changed) {
-			yield* deps.DL.contentIndex.dropIndex({
-				collectionId: collection.id,
-				field,
-			});
-		}
-
-		for (const { field, type } of [...added, ...changed]) {
+		for (const field of added) {
 			yield* deps.DL.contentIndex.createIndex({
 				collectionId: collection.id,
 				field,
 				schemaVersionId: versionId,
-				columnType: type,
 			});
 		}
 

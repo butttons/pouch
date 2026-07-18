@@ -1,6 +1,5 @@
 import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
-import { computeIndexColumnName } from "@/lib/content-index";
 import type { ContentFilter, DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import {
@@ -183,15 +182,7 @@ export const listContent = (
 				);
 			}
 
-			const indexedColumn =
-				property["x-index"] === true
-					? computeIndexColumnName({
-							collectionId: collection.id,
-							field,
-						})
-					: undefined;
-
-			filters.push({ field, op, value, indexedColumn });
+			filters.push({ field, op, value });
 		}
 
 		const limit = parseLimit(input.query.limit);

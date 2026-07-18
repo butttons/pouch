@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-	computeIndexColumnName,
-	computeIndexName,
-} from "@/lib/content-index.js";
+import { computeIndexName } from "@/lib/content-index.js";
 
 import {
 	adminToken,
@@ -11,14 +8,10 @@ import {
 	createContent,
 	fetchWorker,
 	readerToken,
-	writerToken,
 } from "../utils.js";
 import { env } from "cloudflare:test";
 
 const LONG_FIELD_KEY = "a".repeat(50);
-
-const getIndexColumn = (input: { collectionId: string; field: string }) =>
-	computeIndexColumnName(input);
 
 const getIndexName = (input: { collectionId: string; field: string }) =>
 	computeIndexName(input);
@@ -96,17 +89,13 @@ describe("x-index", () => {
 	});
 
 	describe("collection creation", () => {
-		it("creates generated columns and indexes for x-index fields", async () => {
+		it("creates expression indexes for x-index fields", async () => {
 			const collection = await createCollection({
 				slug: "indexed-posts",
 				name: "Indexed Posts",
 				schema: indexedSchema,
 			});
 
-			const columnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
-			});
 			const indexName = getIndexName({
 				collectionId: collection.id,
 				field: "score",
@@ -115,18 +104,25 @@ describe("x-index", () => {
 			const tableInfo = await env.DB.prepare(
 				`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'content'`,
 			).first<{ sql: string }>();
-			expect(tableInfo?.sql).toContain(columnName);
+			expect(tableInfo?.sql).not.toContain(indexName);
 
 			const indexes = await env.DB.prepare(`PRAGMA index_list(content)`).all<{
 				name: string;
 			}>();
 			const indexNames = indexes.results?.map((row) => row.name) ?? [];
 			expect(indexNames).toContain(indexName);
+
+			const indexInfo = await env.DB.prepare(
+				`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
+			)
+				.bind(indexName)
+				.first<{ sql: string }>();
+			expect(indexInfo?.sql).toContain("json_extract(data, '$.score')");
 		});
 	});
 
 	describe("content filtering", () => {
-		it("uses the generated column index for equality filters", async () => {
+		it("uses the expression index for equality filters", async () => {
 			const collection = await createCollection({
 				slug: "filtered-scores",
 				name: "Filtered Scores",
@@ -154,13 +150,11 @@ describe("x-index", () => {
 			expect(body.data).toHaveLength(1);
 			expect(body.data[0]!.data.title).toBe("High");
 
-			const columnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
-			});
 			const plan = await env.DB.prepare(
-				`EXPLAIN QUERY PLAN SELECT * FROM content WHERE ${columnName} = 90`,
-			).all<{ detail: string }>();
+				`EXPLAIN QUERY PLAN SELECT id FROM content WHERE collection_id = ? AND json_extract(data, '$.score') = 90`,
+			)
+				.bind(collection.id)
+				.all<{ detail: string }>();
 			const details =
 				plan.results?.map((row) => row.detail.toLowerCase()) ?? [];
 			expect(details.some((detail) => detail.includes("using index"))).toBe(
@@ -168,7 +162,7 @@ describe("x-index", () => {
 			);
 		});
 
-		it("uses the generated column for comparison filters", async () => {
+		it("uses the expression index for comparison filters", async () => {
 			const collection = await createCollection({
 				slug: "compared-scores",
 				name: "Compared Scores",
@@ -201,13 +195,11 @@ describe("x-index", () => {
 			expect(titles).toContain("B");
 			expect(titles).toContain("C");
 
-			const columnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
-			});
 			const plan = await env.DB.prepare(
-				`EXPLAIN QUERY PLAN SELECT * FROM content WHERE ${columnName} > 20`,
-			).all<{ detail: string }>();
+				`EXPLAIN QUERY PLAN SELECT id FROM content WHERE collection_id = ? AND json_extract(data, '$.score') > 20`,
+			)
+				.bind(collection.id)
+				.all<{ detail: string }>();
 			const details =
 				plan.results?.map((row) => row.detail.toLowerCase()) ?? [];
 			expect(details.some((detail) => detail.includes("using index"))).toBe(
@@ -217,7 +209,7 @@ describe("x-index", () => {
 	});
 
 	describe("schema patch lifecycle", () => {
-		it("adds a generated column and index when x-index is added to an existing field", async () => {
+		it("creates an expression index when x-index is added to an existing field", async () => {
 			const collection = await createCollection({
 				slug: "patch-add-index",
 				name: "Patch Add Index",
@@ -254,38 +246,34 @@ describe("x-index", () => {
 
 			expect(patchResponse.status).toBe(200);
 
-			const columnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
-			});
 			const indexName = getIndexName({
 				collectionId: collection.id,
 				field: "score",
 			});
-
-			const tableInfo = await env.DB.prepare(
-				`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'content'`,
-			).first<{ sql: string }>();
-			expect(tableInfo?.sql).toContain(columnName);
 
 			const indexes = await env.DB.prepare(`PRAGMA index_list(content)`).all<{
 				name: string;
 			}>();
 			const indexNames = indexes.results?.map((row) => row.name) ?? [];
 			expect(indexNames).toContain(indexName);
+
+			const indexInfo = await env.DB.prepare(
+				`SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?`,
+			)
+				.bind(indexName)
+				.first<{ sql: string }>();
+			expect(indexInfo?.sql).toContain(
+				"collection_id, json_extract(data, '$.score')",
+			);
 		});
 
-		it("drops a generated column and index when an indexed field is removed", async () => {
+		it("drops the expression index when an indexed field is removed", async () => {
 			const collection = await createCollection({
 				slug: "patch-remove-index",
 				name: "Patch Remove Index",
 				schema: indexedSchema,
 			});
 
-			const columnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
-			});
 			const indexName = getIndexName({
 				collectionId: collection.id,
 				field: "score",
@@ -314,11 +302,6 @@ describe("x-index", () => {
 
 			expect(patchResponse.status).toBe(200);
 
-			const tableInfo = await env.DB.prepare(
-				`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'content'`,
-			).first<{ sql: string }>();
-			expect(tableInfo?.sql).not.toContain(columnName);
-
 			const indexes = await env.DB.prepare(`PRAGMA index_list(content)`).all<{
 				name: string;
 			}>();
@@ -326,7 +309,7 @@ describe("x-index", () => {
 			expect(indexNames).not.toContain(indexName);
 		});
 
-		it("recreates an index when an indexed field changes type", async () => {
+		it("does not recreate an index when an indexed field changes type", async () => {
 			const collection = await createCollection({
 				slug: "patch-change-index-type",
 				name: "Patch Change Index Type",
@@ -339,11 +322,6 @@ describe("x-index", () => {
 					required: ["title", "score"],
 					additionalProperties: false,
 				},
-			});
-
-			const oldColumnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
 			});
 
 			const token = await adminToken();
@@ -369,19 +347,21 @@ describe("x-index", () => {
 
 			expect(patchResponse.status).toBe(200);
 
-			const tableInfo = await env.DB.prepare(
-				`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'content'`,
-			).first<{ sql: string }>();
-			const columnRegex = new RegExp(
-				`"${oldColumnName}" TEXT\\s+GENERATED ALWAYS AS`,
-				"i",
-			);
-			expect(tableInfo?.sql).toMatch(columnRegex);
+			const indexName = getIndexName({
+				collectionId: collection.id,
+				field: "score",
+			});
+
+			const indexes = await env.DB.prepare(`PRAGMA index_list(content)`).all<{
+				name: string;
+			}>();
+			const indexNames = indexes.results?.map((row) => row.name) ?? [];
+			expect(indexNames).toContain(indexName);
 		});
 	});
 
 	describe("collection deletion", () => {
-		it("drops generated columns and indexes when the collection is deleted with force", async () => {
+		it("drops expression indexes when the collection is deleted with force", async () => {
 			const collection = await createCollection({
 				slug: "delete-indexed",
 				name: "Delete Indexed",
@@ -392,10 +372,6 @@ describe("x-index", () => {
 				data: { title: "Item", score: 5, published: true },
 			});
 
-			const columnName = getIndexColumn({
-				collectionId: collection.id,
-				field: "score",
-			});
 			const indexName = getIndexName({
 				collectionId: collection.id,
 				field: "score",
@@ -411,11 +387,6 @@ describe("x-index", () => {
 			);
 
 			expect(deleteResponse.status).toBe(204);
-
-			const tableInfo = await env.DB.prepare(
-				`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'content'`,
-			).first<{ sql: string }>();
-			expect(tableInfo?.sql).not.toContain(columnName);
 
 			const indexes = await env.DB.prepare(`PRAGMA index_list(content)`).all<{
 				name: string;

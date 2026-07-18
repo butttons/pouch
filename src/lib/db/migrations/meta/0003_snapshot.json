@@ -1,8 +1,8 @@
 {
 	"version": "6",
 	"dialect": "sqlite",
-	"id": "d30c8503-8a94-46e1-9096-667e1d979649",
-	"prevId": "47fe08bd-823f-4f27-8310-0361d4c500a4",
+	"id": "3b9a0e2a-fbf0-4f3e-b435-20314d6aef9a",
+	"prevId": "d30c8503-8a94-46e1-9096-667e1d979649",
 	"tables": {
 		"collections": {
 			"name": "collections",
@@ -101,20 +101,6 @@
 				},
 				"index_name": {
 					"name": "index_name",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"column_name": {
-					"name": "column_name",
-					"type": "text",
-					"primaryKey": false,
-					"notNull": true,
-					"autoincrement": false
-				},
-				"column_type": {
-					"name": "column_type",
 					"type": "text",
 					"primaryKey": false,
 					"notNull": true,

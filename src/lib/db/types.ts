@@ -33,8 +33,6 @@ export interface Content {
 
 export interface ContentIndexes {
 	collection_id: string;
-	column_name: string;
-	column_type: string;
 	created_at: number;
 	deleted_at: number | null;
 	field: string;
@@ -50,8 +48,8 @@ export interface Media {
 	mime_type: string;
 	r2_key: string;
 	size_bytes: number;
-	status: string;
-	updated_at: number;
+	status: Generated<string>;
+	updated_at: Generated<number>;
 }
 
 export interface SchemaVersions {

@@ -4,12 +4,13 @@ import { D1Dialect } from "./kysely-d1";
 import type { DB } from "./types";
 
 export const createDB = (db: D1DatabaseSession | D1Database) =>
-  new Kysely<DB>({
-    dialect: new D1Dialect({
-      database: db,
-    }),
-    plugins: [new ParseJSONResultsPlugin()],
-  });
+	new Kysely<DB>({
+		dialect: new D1Dialect({
+			database: db,
+		}),
+		plugins: [new ParseJSONResultsPlugin()],
+		log: (q) => console.log("---query", q),
+	});
 
 export type Database = ReturnType<typeof createDB>;
 export type DatabaseSchema = DB;

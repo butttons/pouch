@@ -31,17 +31,14 @@ export const contentIndexesTable = sqliteTable(
 		collectionId: text("collection_id").notNull(),
 		field: text("field").notNull(),
 		indexName: text("index_name").notNull(),
-		columnName: text("column_name").notNull(),
-		columnType: text("column_type").notNull(),
 		schemaVersionId: text("schema_version_id").notNull(),
 		createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 		deletedAt: integer("deleted_at", { mode: "timestamp_ms" }),
 	},
 	(t) => ({
-		collectionDeletedAtIndex: index("idx_content_indexes_collection_id_deleted_at").on(
-			t.collectionId,
-			t.deletedAt,
-		),
+		collectionDeletedAtIndex: index(
+			"idx_content_indexes_collection_id_deleted_at",
+		).on(t.collectionId, t.deletedAt),
 	}),
 );
 

@@ -1,6 +1,7 @@
 import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
+import { buildJsonExtractExpression } from "@/lib/content-index";
 import type { Batcher } from "@/lib/db/batcher";
 import type { Database, DatabaseSchema } from "@/lib/db/client";
 
@@ -12,7 +13,6 @@ export type ContentFilter = {
 	field: string;
 	op: "eq" | "gt" | "gte" | "in" | "lt" | "lte" | "ne" | "nin";
 	value: string | number | boolean | (string | number | boolean)[];
-	indexedColumn?: string;
 };
 
 const OP_MAP: Record<Exclude<ContentFilter["op"], "in" | "nin">, string> = {
@@ -25,26 +25,18 @@ const OP_MAP: Record<Exclude<ContentFilter["op"], "in" | "nin">, string> = {
 };
 
 const getFilterExpression = (filter: ContentFilter) => {
+	const expression = buildJsonExtractExpression({ field: filter.field });
+
 	if (filter.op === "in" || filter.op === "nin") {
 		const values = Array.isArray(filter.value) ? filter.value : [filter.value];
 		const not = filter.op === "nin" ? "NOT" : "";
 
-		if (filter.indexedColumn) {
-			return sql<boolean>`${sql.ref(filter.indexedColumn)} ${sql.raw(not)} IN (${sql.join(values)})`;
-		}
-
-		const path = "$." + filter.field;
-		return sql<boolean>`json_extract(data, ${path}) ${sql.raw(not)} IN (${sql.join(values)})`;
+		return sql<boolean>`${sql.raw(expression)} ${sql.raw(not)} IN (${sql.join(values)})`;
 	}
 
 	const op = OP_MAP[filter.op];
 
-	if (filter.indexedColumn) {
-		return sql<boolean>`${sql.ref(filter.indexedColumn)} ${sql.raw(op)} ${filter.value}`;
-	}
-
-	const path = "$." + filter.field;
-	return sql<boolean>`json_extract(data, ${path}) ${sql.raw(op)} ${filter.value}`;
+	return sql<boolean>`${sql.raw(expression)} ${sql.raw(op)} ${filter.value}`;
 };
 
 export class ContentDataLayer extends BaseDataLayer {
