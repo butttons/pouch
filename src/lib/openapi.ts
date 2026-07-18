@@ -15,10 +15,11 @@ import {
 } from "@/routes/media/_openapi";
 
 import type { Deps } from "@/deps";
+import packageJson from "../../package.json";
 
 const baseInfo = {
 	title: "pouch",
-	version: "0.0.11",
+	version: packageJson.version,
 	description:
 		"API-first headless CMS. All endpoints except /docs require a Bearer token with the appropriate scope.",
 };

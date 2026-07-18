@@ -9,6 +9,7 @@ import { assembleOpenAPIDocument } from "@/lib/openapi";
 import { createRouter, type HonoVariables } from "@/utils";
 
 import type { Deps } from "@/deps";
+import packageJson from "../../../package.json";
 
 const MAX_TOOL_NAME_LENGTH = 48;
 const MAX_RESPONSE_CHARS = 50_000;
