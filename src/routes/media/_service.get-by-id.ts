@@ -1,10 +1,10 @@
 import { ok, type ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 
 import type { Media, MediaIdParam } from "./_schema";
 import { requireMediaById } from "./_util.require-media";
+import type { Deps } from "@/deps";
 
 export const getMediaById = (
 	input: MediaIdParam,

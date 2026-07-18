@@ -1,12 +1,17 @@
 import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
-import { validateContentOrFail, validateMediaFieldsOrFail } from "./_util.validate-content";
+
 import type { CollectionSlugParam } from "@/routes/collection/_schema";
+import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
+
 import type { Content, CreateContentInput } from "./_schema";
+import {
+	validateContentOrFail,
+	validateMediaFieldsOrFail,
+} from "./_util.validate-content";
+import type { Deps } from "@/deps";
 
 /**
  * Creates new content and validates it against the collection's current schema.
@@ -31,8 +36,15 @@ export const createContent = (
 			);
 		}
 
-		yield* validateContentOrFail({ data: input.data, schema: collection.schema });
-		yield* validateMediaFieldsOrFail({ data: input.data, schema: collection.schema, DL: deps.DL });
+		yield* validateContentOrFail({
+			data: input.data,
+			schema: collection.schema,
+		});
+		yield* validateMediaFieldsOrFail({
+			data: input.data,
+			schema: collection.schema,
+			DL: deps.DL,
+		});
 
 		const created = yield* deps.DL.content.createContent({
 			collectionId: collection.id,

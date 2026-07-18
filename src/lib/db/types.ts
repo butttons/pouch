@@ -5,67 +5,68 @@
 
 import type { ColumnType } from "kysely";
 
-export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
-  ? ColumnType<S, I | undefined, U>
-  : ColumnType<T, T | undefined, T>;
+export type Generated<T> =
+	T extends ColumnType<infer S, infer I, infer U>
+		? ColumnType<S, I | undefined, U>
+		: ColumnType<T, T | undefined, T>;
 
 export interface Collections {
-  created_at: number;
-  current_schema_version_id: string | null;
-  id: string;
-  name: string;
-  schema: string;
-  slug: string;
-  title_field: string | null;
-  updated_at: number;
+	created_at: number;
+	current_schema_version_id: string | null;
+	id: string;
+	name: string;
+	schema: string;
+	slug: string;
+	title_field: string | null;
+	updated_at: number;
 }
 
 export interface Content {
-  collection_id: string;
-  created_at: number;
-  data: string;
-  id: string;
-  schema_version_id: string;
-  status: Generated<string>;
-  updated_at: number;
+	collection_id: string;
+	created_at: number;
+	data: string;
+	id: string;
+	schema_version_id: string;
+	status: Generated<string>;
+	updated_at: number;
 }
 
 export interface ContentIndexes {
-  collection_id: string;
-  column_name: string;
-  column_type: string;
-  created_at: number;
-  deleted_at: number | null;
-  field: string;
-  id: string;
-  index_name: string;
-  schema_version_id: string;
+	collection_id: string;
+	column_name: string;
+	column_type: string;
+	created_at: number;
+	deleted_at: number | null;
+	field: string;
+	id: string;
+	index_name: string;
+	schema_version_id: string;
 }
 
 export interface Media {
-  created_at: number;
-  filename: string;
-  id: string;
-  mime_type: string;
-  r2_key: string;
-  size_bytes: number;
-  status: string;
-  updated_at: number;
+	created_at: number;
+	filename: string;
+	id: string;
+	mime_type: string;
+	r2_key: string;
+	size_bytes: number;
+	status: string;
+	updated_at: number;
 }
 
 export interface SchemaVersions {
-  applied_by: string | null;
-  change_diff: string | null;
-  collection_id: string;
-  created_at: number;
-  id: string;
-  schema: string;
+	applied_by: string | null;
+	change_diff: string | null;
+	collection_id: string;
+	created_at: number;
+	id: string;
+	schema: string;
 }
 
 export interface DB {
-  collections: Collections;
-  content: Content;
-  content_indexes: ContentIndexes;
-  media: Media;
-  schema_versions: SchemaVersions;
+	collections: Collections;
+	content: Content;
+	content_indexes: ContentIndexes;
+	media: Media;
+	schema_versions: SchemaVersions;
 }

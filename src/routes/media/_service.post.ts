@@ -1,11 +1,11 @@
 import { err, ok, type ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { typedId } from "@/lib/typed-id";
 
 import type { Media } from "./_schema";
+import type { Deps } from "@/deps";
 
 type CreateMediaInput = {
 	file: File;
@@ -33,15 +33,17 @@ export const createMedia = (
 		const id = typedId("media");
 		const r2Key = `media/${id}/${file.name}`;
 
-		const putResult = await deps.bucket.put(r2Key, file, {
-			httpMetadata: {
-				contentType: file.type || "application/octet-stream",
-				contentDisposition: `inline; filename="${file.name}"`,
-			},
-		}).catch((error) => {
-			console.error("Failed to upload file to R2", error);
-			return null;
-		});
+		const putResult = await deps.bucket
+			.put(r2Key, file, {
+				httpMetadata: {
+					contentType: file.type || "application/octet-stream",
+					contentDisposition: `inline; filename="${file.name}"`,
+				},
+			})
+			.catch((error) => {
+				console.error("Failed to upload file to R2", error);
+				return null;
+			});
 
 		if (!putResult) {
 			return err(

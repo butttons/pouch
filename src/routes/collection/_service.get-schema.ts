@@ -1,13 +1,11 @@
 import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import { AppHTTPException } from "@/lib/errors";
+
+import type { CollectionSchemaResponse, CollectionSlugParam } from "./_schema";
 import { requireCollectionBySlug } from "./_util.require-collection";
-import type {
-	CollectionSchemaResponse,
-	CollectionSlugParam,
-} from "./_schema";
+import type { Deps } from "@/deps";
 
 export const getCollectionSchemaBySlug = (
 	input: CollectionSlugParam,

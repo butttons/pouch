@@ -1,18 +1,19 @@
 import { unwrapResult } from "@/lib/errors";
 import { paramValidator, queryValidator } from "@/lib/validator";
+
 import { requireScopes } from "@/middleware/auth";
 import { createRouter } from "@/utils";
 
 import {
-	mediaIdParamSchema,
-	mediaQuerySchema,
 	type MediaIdParam,
 	type MediaQuery,
+	mediaIdParamSchema,
+	mediaQuerySchema,
 } from "./_schema";
-import { createMedia } from "./_service.post";
 import { deleteMedia } from "./_service.delete";
-import { getMediaById } from "./_service.get-by-id";
 import { listMedia } from "./_service.get";
+import { getMediaById } from "./_service.get-by-id";
+import { createMedia } from "./_service.post";
 
 export const mediaRouter = createRouter()
 	.get(

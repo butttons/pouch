@@ -1,4 +1,5 @@
 #!/usr/bin/env tsx
+
 /**
  * One-time migration script: uploads CMS images from cf-mono to the pouch R2 bucket.
  *
@@ -11,13 +12,16 @@
  * Requires: wrangler CLI authenticated, R2 bucket "pouch-media" created.
  */
 
+import { execSync } from "node:child_process";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
-import { execSync } from "node:child_process";
 
 const CF_MONO_CMS_DIR =
 	process.env.CF_MONO_CMS_DIR ||
-	join(process.env.HOME!, "Work/zomunk/cf-mono/apps/web-worker/public/images/cms");
+	join(
+		process.env.HOME!,
+		"Work/zomunk/cf-mono/apps/web-worker/public/images/cms",
+	);
 
 const R2_BUCKET = "pouch-media";
 
@@ -93,7 +97,9 @@ async function main() {
 		}
 	}
 
-	console.log(`\nDone: ${success} uploaded, ${skipped} skipped, ${failed} failed.`);
+	console.log(
+		`\nDone: ${success} uploaded, ${skipped} skipped, ${failed} failed.`,
+	);
 }
 
 main().catch((error) => {

@@ -1,8 +1,9 @@
 import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
+
 import type { Collection } from "./_schema";
+import type { Deps } from "@/deps";
 
 export const listCollections = (
 	deps: Deps,

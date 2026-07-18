@@ -1,4 +1,11 @@
-import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from "neverthrow";
+import {
+	err,
+	errAsync,
+	ok,
+	okAsync,
+	type Result,
+	type ResultAsync,
+} from "neverthrow";
 
 import type { DataLayer, DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";

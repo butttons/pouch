@@ -1,31 +1,29 @@
 import { unwrapResult } from "@/lib/errors";
+import { jsonValidator, paramValidator, queryValidator } from "@/lib/validator";
+
 import {
-	jsonValidator,
-	paramValidator,
-	queryValidator,
-} from "@/lib/validator";
-import { requireScopes } from "@/middleware/auth";
-import {
-	collectionSlugParamSchema,
 	type CollectionSlugParam,
+	collectionSlugParamSchema,
 } from "@/routes/collection/_schema";
+
+import { requireScopes } from "@/middleware/auth";
 import { createRouter } from "@/utils";
 
 import {
-	contentQuerySchema,
-	contentRouteParamsSchema,
-	createContentInputSchema,
-	updateContentInputSchema,
 	type ContentQuery,
 	type ContentRouteParams,
 	type CreateContentInput,
+	contentQuerySchema,
+	contentRouteParamsSchema,
+	createContentInputSchema,
 	type UpdateContentInput,
+	updateContentInputSchema,
 } from "./_schema";
-import { createContent } from "./_service.post";
 import { deleteContent } from "./_service.delete";
-import { getContentById } from "./_service.get-by-id";
 import { listContent } from "./_service.get";
+import { getContentById } from "./_service.get-by-id";
 import { updateContent } from "./_service.patch";
+import { createContent } from "./_service.post";
 
 export const contentRouter = createRouter()
 	.get(
@@ -36,7 +34,10 @@ export const contentRouter = createRouter()
 		async (c) => {
 			const params = c.req.valid("param");
 			const query = c.req.valid("query");
-			const result = await listContent({ slug: params.slug, query }, c.var.deps);
+			const result = await listContent(
+				{ slug: params.slug, query },
+				c.var.deps,
+			);
 			const value = unwrapResult(result);
 			return c.json(value);
 		},

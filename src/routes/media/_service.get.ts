@@ -1,9 +1,9 @@
 import { ok, type ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 
 import type { MediaListResponse, MediaQuery } from "./_schema";
+import type { Deps } from "@/deps";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;

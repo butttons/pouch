@@ -49,9 +49,7 @@ export const collectionSlugParamSchema = Type.Object(
 	{ additionalProperties: false },
 );
 
-export type CollectionSlugParam = Type.Static<
-	typeof collectionSlugParamSchema
->;
+export type CollectionSlugParam = Type.Static<typeof collectionSlugParamSchema>;
 
 export const collectionSchemaResponseSchema = Type.Record(
 	Type.String(),

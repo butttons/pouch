@@ -2,9 +2,10 @@ import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException } from "@/lib/errors";
-import type { Deps } from "@/deps";
-import { requireCollectionBySlug } from "./_util.require-collection";
+
 import type { CollectionSlugParam, CollectionWithSchema } from "./_schema";
+import { requireCollectionBySlug } from "./_util.require-collection";
+import type { Deps } from "@/deps";
 
 export const getCollectionBySlug = (
 	input: CollectionSlugParam,

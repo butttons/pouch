@@ -1,12 +1,12 @@
-import { fromPromise } from "neverthrow";
 import { sql } from "kysely";
+import { fromPromise } from "neverthrow";
 
-import type { Database } from "@/lib/db/client";
 import {
 	computeIndexColumnName,
 	computeIndexName,
 	getIndexColumnType,
 } from "@/lib/content-index";
+import type { Database } from "@/lib/db/client";
 import { typedId } from "@/lib/typed-id";
 
 import { BaseDataLayer } from "./_base";

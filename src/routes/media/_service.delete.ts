@@ -1,11 +1,11 @@
 import { err, ok, type ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 
 import type { MediaIdParam } from "./_schema";
 import { requireMediaById } from "./_util.require-media";
+import type { Deps } from "@/deps";
 
 export const deleteMedia = (
 	input: MediaIdParam,

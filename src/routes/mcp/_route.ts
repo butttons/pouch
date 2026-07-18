@@ -1,12 +1,14 @@
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPTransport } from "@hono/mcp";
-import { getContext } from "hono/context-storage";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Hono } from "hono";
+import { getContext } from "hono/context-storage";
 import { z } from "zod";
 
-import type { Deps } from "@/deps";
 import { assembleOpenAPIDocument } from "@/lib/openapi";
+
 import { createRouter, type HonoVariables } from "@/utils";
+
+import type { Deps } from "@/deps";
 
 const MAX_TOOL_NAME_LENGTH = 48;
 const MAX_RESPONSE_CHARS = 50_000;
@@ -100,7 +102,9 @@ const jsonSchemaToZod = (
 			const literals = values.map((value) =>
 				z.literal(value as string | number | boolean),
 			) as z.ZodTypeAny[];
-			field = z.union(literals as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]]);
+			field = z.union(
+				literals as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]],
+			);
 		}
 	} else if (schema.type === "integer") {
 		field = z.number().int();
@@ -131,9 +135,9 @@ const buildInputSchema = (
 
 	const jsonBody = operation.requestBody?.content?.["application/json"];
 	if (jsonBody) {
-		shape.body = z.record(z.string(), z.unknown()).describe(
-			`Request body schema: ${JSON.stringify(jsonBody.schema)}`,
-		);
+		shape.body = z
+			.record(z.string(), z.unknown())
+			.describe(`Request body schema: ${JSON.stringify(jsonBody.schema)}`);
 	}
 
 	return shape;
@@ -211,9 +215,7 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 
 		const openApiSpec = spec as OpenApiDocument;
 
-		for (const [path, pathItem] of Object.entries(
-			openApiSpec.paths ?? {},
-		)) {
+		for (const [path, pathItem] of Object.entries(openApiSpec.paths ?? {})) {
 			if (!pathItem || isExcludedPath(path)) {
 				continue;
 			}

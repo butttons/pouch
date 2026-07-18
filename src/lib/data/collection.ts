@@ -1,5 +1,5 @@
-import { fromPromise } from "neverthrow";
 import { sql } from "kysely";
+import { fromPromise } from "neverthrow";
 
 import type { Database } from "@/lib/db/client";
 
@@ -26,9 +26,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 
 	getCollectionBySlug(input: { slug: string }) {
 		return fromPromise(
-			this.collectionQuery
-				.where("slug", "=", input.slug)
-				.executeTakeFirst(),
+			this.collectionQuery.where("slug", "=", input.slug).executeTakeFirst(),
 			this.passThroughError({
 				message: "Failed to get collection by slug",
 				code: "GET_FAILED",
@@ -40,9 +38,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 
 	getCollectionsBySlugs(input: { slugs: string[] }) {
 		return fromPromise(
-			this.collectionQuery
-				.where("slug", "in", input.slugs)
-				.execute(),
+			this.collectionQuery.where("slug", "in", input.slugs).execute(),
 			this.passThroughError({
 				message: "Failed to get collections by slugs",
 				code: "GET_FAILED",
@@ -84,12 +80,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 		return fromPromise(
 			this.db
 				.selectFrom("collections")
-				.select([
-					"id",
-					"slug",
-					"name",
-					"title_field as titleField",
-				])
+				.select(["id", "slug", "name", "title_field as titleField"])
 				.orderBy("id", "desc")
 				.execute(),
 			this.passThroughError({
@@ -125,9 +116,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 
 	getCollectionById(input: { id: string }) {
 		return fromPromise(
-			this.collectionQuery
-				.where("id", "=", input.id)
-				.executeTakeFirst(),
+			this.collectionQuery.where("id", "=", input.id).executeTakeFirst(),
 			this.passThroughError({
 				message: "Failed to get collection by ID",
 				code: "GET_FAILED",
@@ -216,10 +205,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 
 	deleteCollectionById(input: { id: string }) {
 		return fromPromise(
-			this.db
-				.deleteFrom("collections")
-				.where("id", "=", input.id)
-				.execute(),
+			this.db.deleteFrom("collections").where("id", "=", input.id).execute(),
 			this.passThroughError({
 				message: "Failed to delete collection",
 				code: "DELETE_FAILED",

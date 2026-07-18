@@ -1,20 +1,21 @@
 import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
-import type { ContentFilter, DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
-import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { computeIndexColumnName } from "@/lib/content-index";
-import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
-import { normalizeResolveParam } from "./_util.normalize-resolve";
-import type { CollectionSlugParam } from "@/routes/collection/_schema";
-import type { ContentListResponse, ContentQuery } from "./_schema";
-import { resolveRelations } from "./_service.resolve";
-
+import type { ContentFilter, DataLayerError } from "@/lib/data";
+import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import {
+	type FilterOperator,
 	getAllowedOperators,
 	isFilterOperator,
-	type FilterOperator,
 } from "@/lib/query-filter";
+
+import type { CollectionSlugParam } from "@/routes/collection/_schema";
+import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
+
+import type { ContentListResponse, ContentQuery } from "./_schema";
+import { resolveRelations } from "./_service.resolve";
+import { normalizeResolveParam } from "./_util.normalize-resolve";
+import type { Deps } from "@/deps";
 
 const QUERY_KEY_REGEX = /^([a-zA-Z_][a-zA-Z0-9_]*)(?:\[([a-z]+)\])?$/;
 
@@ -36,16 +37,13 @@ const coerceValue = (
 	return value;
 };
 
-const coerceFilterValue = (
-	input: {
-		rawValue: unknown;
-		op: FilterOperator;
-		type: unknown;
-	},
-): string | number | boolean | (string | number | boolean)[] => {
-	const valueString = (
-		Array.isArray(input.rawValue) ? input.rawValue[0] : input.rawValue
-	) ?? "";
+const coerceFilterValue = (input: {
+	rawValue: unknown;
+	op: FilterOperator;
+	type: unknown;
+}): string | number | boolean | (string | number | boolean)[] => {
+	const valueString =
+		(Array.isArray(input.rawValue) ? input.rawValue[0] : input.rawValue) ?? "";
 	const stringValue = String(valueString);
 
 	if (input.op === "in" || input.op === "nin") {
@@ -94,7 +92,7 @@ export const listContent = (
 				? (collection.schema.properties as Record<
 						string,
 						Record<string, unknown>
-				  >)
+					>)
 				: {};
 
 		const filters: ContentFilter[] = [];
@@ -170,7 +168,11 @@ export const listContent = (
 				type: property.type,
 			});
 
-			if ((op === "in" || op === "nin") && Array.isArray(value) && value.length === 0) {
+			if (
+				(op === "in" || op === "nin") &&
+				Array.isArray(value) &&
+				value.length === 0
+			) {
 				return err(
 					new AppHTTPException({
 						code: ErrorCodes.VALIDATION_FAILED,
@@ -185,7 +187,7 @@ export const listContent = (
 					? computeIndexColumnName({
 							collectionId: collection.id,
 							field,
-					  })
+						})
 					: undefined;
 
 			filters.push({ field, op, value, indexedColumn });

@@ -52,9 +52,7 @@ export class MediaDataLayer extends BaseDataLayer {
 
 	getMediaById(input: { id: string }) {
 		return fromPromise(
-			this.mediaQuery
-				.where("id", "=", input.id)
-				.executeTakeFirst(),
+			this.mediaQuery.where("id", "=", input.id).executeTakeFirst(),
 			this.passThroughError({
 				message: "Failed to get media by ID",
 				code: "GET_FAILED",
@@ -66,9 +64,7 @@ export class MediaDataLayer extends BaseDataLayer {
 
 	getMediaByIds(input: { ids: string[] }) {
 		return fromPromise(
-			this.mediaQuery
-				.where("id", "in", input.ids)
-				.execute(),
+			this.mediaQuery.where("id", "in", input.ids).execute(),
 			this.passThroughError({
 				message: "Failed to get media by IDs",
 				code: "GET_FAILED",

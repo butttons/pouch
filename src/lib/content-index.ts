@@ -94,9 +94,7 @@ export const getIndexColumnType = (property: JsonSchemaProperty): string => {
 /**
  * Returns the keys of all properties marked with x-index.
  */
-export const getIndexedFields = (
-	schema: Record<string, unknown>,
-): string[] => {
+export const getIndexedFields = (schema: Record<string, unknown>): string[] => {
 	const properties = getProperties(schema);
 
 	return Object.entries(properties)

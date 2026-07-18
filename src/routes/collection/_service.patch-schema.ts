@@ -1,18 +1,19 @@
 import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
-import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
-import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { typedId } from "@/lib/typed-id";
 import { diffIndexedFields } from "@/lib/content-index";
+import type { DataLayerError } from "@/lib/data";
+import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { diffCollectionSchemas, validateCollectionSchema } from "@/lib/schema";
-import { requireCollectionBySlug } from "./_util.require-collection";
-import { validateRelationTargets } from "./_util.validate-relations";
+import { typedId } from "@/lib/typed-id";
+
 import type {
 	CollectionSlugParam,
 	CollectionWithSchema,
 	PatchCollectionSchemaInput,
 } from "./_schema";
+import { requireCollectionBySlug } from "./_util.require-collection";
+import { validateRelationTargets } from "./_util.validate-relations";
+import type { Deps } from "@/deps";
 
 /**
  * Validates and applies a schema patch, rebuilding indexes when fields change.

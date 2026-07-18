@@ -1,5 +1,5 @@
-import { fromPromise } from "neverthrow";
 import { sql } from "kysely";
+import { fromPromise } from "neverthrow";
 
 import type { Database } from "@/lib/db/client";
 
@@ -108,9 +108,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 	getContentById(input: { id: string }) {
 		return fromPromise(
-			this.contentQuery
-				.where("id", "=", input.id)
-				.executeTakeFirst(),
+			this.contentQuery.where("id", "=", input.id).executeTakeFirst(),
 			this.passThroughError({
 				message: "Failed to get content by ID",
 				code: "GET_FAILED",
@@ -122,9 +120,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 	getContentByIds(input: { ids: string[] }) {
 		return fromPromise(
-			this.contentQuery
-				.where("id", "in", input.ids)
-				.execute(),
+			this.contentQuery.where("id", "in", input.ids).execute(),
 			this.passThroughError({
 				message: "Failed to get content by IDs",
 				code: "GET_FAILED",
@@ -170,11 +166,7 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	updateContent(input: {
-		id: string;
-		data: string;
-		status?: string;
-	}) {
+	updateContent(input: { id: string; data: string; status?: string }) {
 		return fromPromise(
 			this.db
 				.updateTable("content")
@@ -222,7 +214,9 @@ export class ContentDataLayer extends BaseDataLayer {
 			this.db
 				.selectFrom("content")
 				.select((eb) => eb.fn.countAll<number>().as("count"))
-				.where(sql<boolean>`json_extract(data, '$') LIKE ${"%" + quotedId + "%"}`)
+				.where(
+					sql<boolean>`json_extract(data, '$') LIKE ${"%" + quotedId + "%"}`,
+				)
 				.executeTakeFirst(),
 			this.passThroughError({
 				message: "Failed to count content by media ID",

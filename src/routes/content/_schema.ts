@@ -24,9 +24,7 @@ export const createContentInputSchema = Type.Object(
 	{ additionalProperties: false },
 );
 
-export type CreateContentInput = Type.Static<
-	typeof createContentInputSchema
->;
+export type CreateContentInput = Type.Static<typeof createContentInputSchema>;
 
 export const updateContentInputSchema = Type.Object(
 	{
@@ -36,9 +34,7 @@ export const updateContentInputSchema = Type.Object(
 	{ additionalProperties: false },
 );
 
-export type UpdateContentInput = Type.Static<
-	typeof updateContentInputSchema
->;
+export type UpdateContentInput = Type.Static<typeof updateContentInputSchema>;
 
 export const contentResponseSchema = Type.Object(
 	{

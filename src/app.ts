@@ -1,6 +1,7 @@
+import { Scalar } from "@scalar/hono-api-reference";
+import { Hono } from "hono";
 import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
-import { Hono } from "hono";
 import { sign } from "hono/jwt";
 import { Type } from "typebox";
 
@@ -8,12 +9,14 @@ import { AppHTTPException, ErrorCodes, unwrapResult } from "@/lib/errors";
 import { assembleOpenAPIDocument } from "@/lib/openapi";
 import { typedId } from "@/lib/typed-id";
 import { jsonValidator } from "@/lib/validator";
-import { depsMiddleware } from "@/middleware/deps";
-import { requireScopes, SCOPES } from "@/middleware/auth";
+
 import { collectionRouter } from "@/routes/collection/_route";
-import { mediaRouter } from "@/routes/media/_route";
 import { createMcpRouter } from "@/routes/mcp/_route";
-import { Scalar } from "@scalar/hono-api-reference";
+import { mediaRouter } from "@/routes/media/_route";
+
+import { requireScopes, SCOPES } from "@/middleware/auth";
+import { depsMiddleware } from "@/middleware/deps";
+
 import { createRouter, type HonoVariables } from "./utils";
 
 const SIX_MONTHS = 60 * 60 * 24 * 180;
@@ -58,17 +61,13 @@ const app: Hono<HonoVariables> = createRouter()
 			return c.json({ token, jti, scopes, exp }, 201);
 		},
 	)
-	.get(
-		"/openapi.json",
-		requireScopes("content:read"),
-		async (c) => {
-			const url = new URL(c.req.url);
-			const baseUrl = `${url.protocol}//${url.host}`;
-			const result = await assembleOpenAPIDocument(c.var.deps, baseUrl);
-			const value = unwrapResult(result);
-			return c.json(value);
-		},
-	)
+	.get("/openapi.json", requireScopes("content:read"), async (c) => {
+		const url = new URL(c.req.url);
+		const baseUrl = `${url.protocol}//${url.host}`;
+		const result = await assembleOpenAPIDocument(c.var.deps, baseUrl);
+		const value = unwrapResult(result);
+		return c.json(value);
+	})
 	.get(
 		"/docs",
 		Scalar<HonoVariables>(async (c) => {

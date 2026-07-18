@@ -3,7 +3,11 @@ import { jwt } from "hono/jwt";
 
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 
-export const SCOPES = ["content:read", "content:write", "schema:admin"] as const;
+export const SCOPES = [
+	"content:read",
+	"content:write",
+	"schema:admin",
+] as const;
 export type Scope = (typeof SCOPES)[number];
 
 export const requireScopes = (...requiredScopes: Scope[]) =>

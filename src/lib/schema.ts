@@ -1,5 +1,5 @@
-import { err, ok, Result } from "neverthrow";
 import { atomizeChangeset, diff, type IAtomicChange } from "json-diff-ts";
+import { err, ok, Result } from "neverthrow";
 import Schema from "typebox/schema";
 
 import { validateIndexedFields } from "./content-index";
@@ -154,8 +154,7 @@ export const validateCollectionSchema = (
 	const compileResult = Result.fromThrowable(
 		() => Schema.Compile(schema),
 		(error) => {
-			const message =
-				error instanceof Error ? error.message : "Invalid schema";
+			const message = error instanceof Error ? error.message : "Invalid schema";
 			return new AppHTTPException({
 				code: ErrorCodes.COLLECTION_SCHEMA_INVALID,
 				message,
@@ -169,7 +168,8 @@ export const validateCollectionSchema = (
 };
 
 const PROPERTY_REMOVE_REGEX = /^\$\.properties\.([a-zA-Z_][a-zA-Z0-9_]*)$/;
-const PROPERTY_TYPE_CHANGE_REGEX = /^\$\.properties\.([a-zA-Z_][a-zA-Z0-9_]*)\.type$/;
+const PROPERTY_TYPE_CHANGE_REGEX =
+	/^\$\.properties\.([a-zA-Z_][a-zA-Z0-9_]*)\.type$/;
 
 const getDestructiveChangeKeys = (changeset: unknown): string[] => {
 	const atomic = atomizeChangeset(changeset as never) as IAtomicChange[];
@@ -203,12 +203,10 @@ type TypeBoxValidationError = {
 /**
  * Validates content data against a collection schema.
  */
-export const validateContentData = (
-	input: {
-		data: Record<string, unknown>;
-		schema: Record<string, unknown>;
-	},
-): Result<void, { errors: ContentValidationError[] }> => {
+export const validateContentData = (input: {
+	data: Record<string, unknown>;
+	schema: Record<string, unknown>;
+}): Result<void, { errors: ContentValidationError[] }> => {
 	const compileResult = Result.fromThrowable(
 		() => Schema.Compile(input.schema),
 		() => ({ errors: [] as ContentValidationError[] }),
@@ -328,9 +326,7 @@ export const isValidMediaArray = (input: {
 /**
  * Returns media IDs from a single media object or an array of media objects.
  */
-export const getMediaIdsFromValue = (input: {
-	value: unknown;
-}): string[] => {
+export const getMediaIdsFromValue = (input: { value: unknown }): string[] => {
 	const mediaObject = { value: input.value };
 	if (isValidMediaObject(mediaObject)) {
 		return [mediaObject.value.id];
@@ -367,10 +363,7 @@ export const collectMediaIds = (input: {
 export const diffCollectionSchemas = (
 	oldSchema: Record<string, unknown>,
 	newSchema: Record<string, unknown>,
-): Result<
-	{ diff: unknown; destructiveChanges: string[] },
-	AppHTTPException
-> =>
+): Result<{ diff: unknown; destructiveChanges: string[] }, AppHTTPException> =>
 	Result.fromThrowable(
 		() => {
 			const changeset = diff(oldSchema, newSchema);

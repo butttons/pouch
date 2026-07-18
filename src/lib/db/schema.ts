@@ -64,4 +64,3 @@ export const mediaTable = sqliteTable("media", {
 	createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull(),
 	updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
 });
-

@@ -2,12 +2,10 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import type { Deps } from "@/deps";
+
+import type { CollectionSlugParam, DeleteCollectionQuery } from "./_schema";
 import { requireCollectionBySlug } from "./_util.require-collection";
-import type {
-	CollectionSlugParam,
-	DeleteCollectionQuery,
-} from "./_schema";
+import type { Deps } from "@/deps";
 
 export const deleteCollection = (
 	input: CollectionSlugParam & { isForced: boolean },
@@ -29,17 +27,17 @@ export const deleteCollection = (
 				return err(
 					new AppHTTPException({
 						code: ErrorCodes.COLLECTION_DELETE_FAILED,
-						message:
-							"Collection has content. Use force=true to delete anyway.",
+						message: "Collection has content. Use force=true to delete anyway.",
 						status: 409,
 					}),
 				);
 			}
 		}
 
-		const activeIndexes = yield* deps.DL.contentIndex.listActiveIndexesByCollectionId({
-			collectionId: collection.id,
-		});
+		const activeIndexes =
+			yield* deps.DL.contentIndex.listActiveIndexesByCollectionId({
+				collectionId: collection.id,
+			});
 
 		for (const { field } of activeIndexes) {
 			yield* deps.DL.contentIndex.dropIndex({

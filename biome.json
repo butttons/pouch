@@ -1,0 +1,50 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.5.4/schema.json",
+	"files": {
+		"includes": [
+			"**",
+			"!**/*.css",
+			"!node_modules/**",
+			"!dist/**",
+			"!.wrangler/**",
+			"!worker-configuration.d.ts",
+			"!pnpm-lock.yaml"
+		]
+	},
+	"formatter": {
+		"indentStyle": "tab",
+		"lineWidth": 80
+	},
+	"javascript": {
+		"formatter": {
+			"quoteStyle": "double",
+			"trailingCommas": "all",
+			"semicolons": "always"
+		}
+	},
+	"linter": {
+		"enabled": false
+	},
+	"assist": {
+		"actions": {
+			"source": {
+				"organizeImports": {
+					"level": "on",
+					"options": {
+						"groups": [
+							[":PACKAGE:"],
+							":BLANK_LINE:",
+							["@/lib/**"],
+							":BLANK_LINE:",
+							["@/routes/**"],
+							":BLANK_LINE:",
+							["@/middleware", "@/middleware/**", "@/utils", "@/utils/**"],
+							":BLANK_LINE:",
+							":PATH:"
+						]
+					}
+				}
+			}
+		}
+	}
+}

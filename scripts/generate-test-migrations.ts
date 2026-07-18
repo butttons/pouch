@@ -7,17 +7,17 @@ const MIGRATIONS_DIR = join(DIRNAME, "../src/lib/db/migrations");
 const OUTPUT_FILE = join(DIRNAME, "../test/generated-migrations.ts");
 
 const files = readdirSync(MIGRATIONS_DIR)
-  .filter((file) => file.endsWith(".sql"))
-  .sort();
+	.filter((file) => file.endsWith(".sql"))
+	.sort();
 
 const migrations = files.map((name) => {
-  const content = readFileSync(join(MIGRATIONS_DIR, name), "utf-8");
-  const queries = content
-    .split("--> statement-breakpoint")
-    .map((query) => query.trim())
-    .filter(Boolean);
+	const content = readFileSync(join(MIGRATIONS_DIR, name), "utf-8");
+	const queries = content
+		.split("--> statement-breakpoint")
+		.map((query) => query.trim())
+		.filter(Boolean);
 
-  return { name, queries };
+	return { name, queries };
 });
 
 const ts = `// Generated from src/lib/db/migrations/*.sql

@@ -1,13 +1,17 @@
 import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
+import {
+	getIndexColumnType,
+	getIndexedFieldsWithTypes,
+} from "@/lib/content-index";
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { getIndexColumnType, getIndexedFieldsWithTypes } from "@/lib/content-index";
-import type { CollectionWithSchema, CreateCollectionInput } from "./_schema";
 import { validateCollectionSchema } from "@/lib/schema";
-import { validateRelationTargets } from "./_util.validate-relations";
 import { typedId } from "@/lib/typed-id";
+
+import type { CollectionWithSchema, CreateCollectionInput } from "./_schema";
+import { validateRelationTargets } from "./_util.validate-relations";
+import type { Deps } from "@/deps";
 
 /**
  * Creates a collection and its first schema version, including indexes.

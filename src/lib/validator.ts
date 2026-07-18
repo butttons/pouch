@@ -20,7 +20,9 @@ const validate = <T>(value: unknown, schema: object, message: string): T => {
 };
 
 export const jsonValidator = <T>(schema: object) =>
-	validator("json", (value, c) => validate<T>(value, schema, "Invalid request body"));
+	validator("json", (value, c) =>
+		validate<T>(value, schema, "Invalid request body"),
+	);
 
 export const paramValidator = <T>(schema: object) =>
 	validator("param", (value, c) =>

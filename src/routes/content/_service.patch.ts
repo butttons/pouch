@@ -1,12 +1,21 @@
 import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import type { AppHTTPException } from "@/lib/errors";
+
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
+
+import type {
+	Content,
+	ContentRouteParams,
+	UpdateContentInput,
+} from "./_schema";
 import { requireContentInCollection } from "./_util.require-content";
-import { validateContentOrFail, validateMediaFieldsOrFail } from "./_util.validate-content";
-import type { Content, ContentRouteParams, UpdateContentInput } from "./_schema";
+import {
+	validateContentOrFail,
+	validateMediaFieldsOrFail,
+} from "./_util.validate-content";
+import type { Deps } from "@/deps";
 
 /**
  * Merges new data into existing content and validates it against the collection schema.
@@ -30,8 +39,15 @@ export const updateContent = (
 			? { ...existing.data, ...input.data }
 			: existing.data;
 
-		yield* validateContentOrFail({ data: mergedData, schema: collection.schema });
-		yield* validateMediaFieldsOrFail({ data: mergedData, schema: collection.schema, DL: deps.DL });
+		yield* validateContentOrFail({
+			data: mergedData,
+			schema: collection.schema,
+		});
+		yield* validateMediaFieldsOrFail({
+			data: mergedData,
+			schema: collection.schema,
+			DL: deps.DL,
+		});
 
 		const updated = yield* deps.DL.content.updateContent({
 			id: input.id,

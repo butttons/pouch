@@ -1,9 +1,10 @@
-import { err, ok, safeTry, type ResultAsync } from "neverthrow";
+import { err, ok, type ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import type { Deps } from "@/deps";
 import { getRelationTargets } from "@/lib/schema";
+
+import type { Deps } from "@/deps";
 
 export const validateRelationTargets = (
 	input: { schema: Record<string, unknown> },

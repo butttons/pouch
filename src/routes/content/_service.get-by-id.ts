@@ -1,13 +1,15 @@
 import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
-import type { Deps } from "@/deps";
 import type { AppHTTPException } from "@/lib/errors";
+
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
-import { requireContentInCollection } from "./_util.require-content";
-import { normalizeResolveParam } from "./_util.normalize-resolve";
+
 import type { Content, ContentRouteParams } from "./_schema";
 import { resolveRelations } from "./_service.resolve";
+import { normalizeResolveParam } from "./_util.normalize-resolve";
+import { requireContentInCollection } from "./_util.require-content";
+import type { Deps } from "@/deps";
 
 export const getContentById = (
 	input: ContentRouteParams & { resolve?: string | string[] },
