@@ -10,12 +10,19 @@ const files = readdirSync(MIGRATIONS_DIR)
 	.filter((file) => file.endsWith(".sql"))
 	.sort();
 
+const stripSqlComments = (sql: string): string => {
+	return sql
+		.replace(/\/\*[\s\S]*?\*\//g, "")
+		.replace(/--[^\n]*/g, "")
+		.trim();
+};
+
 const migrations = files.map((name) => {
 	const content = readFileSync(join(MIGRATIONS_DIR, name), "utf-8");
 	const queries = content
 		.split("--> statement-breakpoint")
 		.map((query) => query.trim())
-		.filter(Boolean);
+		.filter((query) => stripSqlComments(query).length > 0);
 
 	return { name, queries };
 });

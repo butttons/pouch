@@ -1,0 +1,2 @@
+CREATE INDEX `idx_content_indexes_collection_id_deleted_at` ON `content_indexes` (`collection_id`,`deleted_at`);--> statement-breakpoint
+CREATE INDEX `idx_content_collection_id` ON `content` (`collection_id`,`id`);
