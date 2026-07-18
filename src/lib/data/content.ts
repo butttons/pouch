@@ -222,15 +222,11 @@ export class ContentDataLayer extends BaseDataLayer {
 				);
 
 				const results = await this.batch(
-					audit
-						? [
-								...contentStatements,
-								createAuditLogInsert(this.db, audit),
-							]
-						: contentStatements,
+					contentStatements,
+					audit ? [createAuditLogInsert(this.db, audit)] : undefined,
 				);
 
-				return audit ? results.slice(0, -1).flat() : results.flat();
+				return results.flat();
 			})(),
 			this.passThroughError({
 				message: "Failed to create content batch",
@@ -322,15 +318,11 @@ export class ContentDataLayer extends BaseDataLayer {
 				);
 
 				const results = await this.batch(
-					audit
-						? [
-								...contentStatements,
-								createAuditLogInsert(this.db, audit),
-							]
-						: contentStatements,
+					contentStatements,
+					audit ? [createAuditLogInsert(this.db, audit)] : undefined,
 				);
 
-				return audit ? results.slice(0, -1).flat() : results.flat();
+				return results.flat();
 			})(),
 			this.passThroughError({
 				message: "Failed to update content batch",

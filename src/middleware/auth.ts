@@ -21,8 +21,8 @@ export const requireScopes = (...requiredScopes: Scope[]) =>
 			});
 		}
 
-		const scopes = Array.isArray(payload["scopes"])
-			? (payload["scopes"] as Scope[])
+		const scopes = Array.isArray((payload as Record<string, unknown>)["scopes"])
+			? ((payload as Record<string, unknown>)["scopes"] as Scope[])
 			: [];
 
 		const hasRequiredScopes = requiredScopes.every((scope) =>

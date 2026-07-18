@@ -18,8 +18,9 @@ type QueryId = {
 	queryId: string;
 };
 
-export type Batcher<DB> = <Q extends readonly Batchable[]>(
+export type Batcher<DB> = <Q extends readonly Batchable[], S extends readonly Batchable[] = []>(
 	statements: Q,
+	sideEffects?: S,
 ) => Promise<{
 	[P in keyof Q]: QueryOutput<Q[P]>[];
 }>;
@@ -31,18 +32,21 @@ export const createBatcher = <DB>(args: {
 	const { database, kysely } = args;
 	const executor = (kysely as unknown as ExecutorBearer).getExecutor();
 
-	return async <Q extends readonly Batchable[]>(
+	return async <Q extends readonly Batchable[], S extends readonly Batchable[] = []>(
 		statements: Q,
+		sideEffects?: S,
 	): Promise<{
 		[P in keyof Q]: QueryOutput<Q[P]>[];
 	}> => {
-		if (statements.length === 0) {
+		const all = sideEffects ? [...statements, ...sideEffects] : statements;
+
+		if (all.length === 0) {
 			return [] as unknown as {
 				[P in keyof Q]: QueryOutput<Q[P]>[];
 			};
 		}
 
-		const compiled = statements.map((statement) => {
+		const compiled = all.map((statement) => {
 			const queryId = createQueryId();
 			const node = executor.transformQuery(
 				statement.toOperationNode(),
@@ -78,7 +82,7 @@ export const createBatcher = <DB>(args: {
 			}),
 		);
 
-		return rows as {
+		return rows.slice(0, statements.length) as {
 			[P in keyof Q]: QueryOutput<Q[P]>[];
 		};
 	};

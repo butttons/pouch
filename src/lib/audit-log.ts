@@ -38,5 +38,5 @@ export const createAuditLogInsert = (
 		target_id: event.targetId,
 		diff: event.diff === undefined || event.diff === null ? null : JSON.stringify(event.diff),
 		created_at: new Date().toISOString(),
-	});
+	}).returning(["id"]);
 };
