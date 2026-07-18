@@ -6,6 +6,7 @@ import {
 	collectionOpenAPIComponents,
 	collectionOpenAPIPaths,
 } from "@/routes/collection/_openapi";
+import { getMediaFields } from "@/lib/schema";
 import {
 	mediaObjectSchemaRef,
 	mediaOpenAPIComponents,
@@ -87,31 +88,6 @@ const getRelationFields = (
 		fields.push({
 			field,
 			targetSlug,
-			isMany: property.type === "array",
-		});
-	}
-
-	return fields;
-};
-
-const getMediaFields = (
-	schema: Record<string, unknown>,
-): Array<{ field: string; isMany: boolean }> => {
-	const fields: Array<{ field: string; isMany: boolean }> = [];
-
-	if (!schema.properties || typeof schema.properties !== "object") {
-		return fields;
-	}
-
-	const properties = schema.properties as Record<string, JsonSchemaProperty>;
-
-	for (const [field, property] of Object.entries(properties)) {
-		if (property["x-media"] !== true) {
-			continue;
-		}
-
-		fields.push({
-			field,
 			isMany: property.type === "array",
 		});
 	}

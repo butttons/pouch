@@ -522,6 +522,67 @@ describe("content", () => {
       expect(resolvedCover.sizeBytes).toBe(5);
     });
 
+    it("supports an array of media references", async () => {
+      await createCollection({
+        slug: "galleries",
+        name: "Galleries",
+        schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            images: {
+              type: "array",
+              items: { type: "object" },
+              "x-media": true,
+            },
+          },
+          required: ["title"],
+          additionalProperties: false,
+        },
+      });
+
+      const fileA = new File(["a"], "a.png", { type: "image/png" });
+      const fileB = new File(["b"], "b.png", { type: "image/png" });
+      const mediaA = await createMedia(fileA);
+      const mediaB = await createMedia(fileB);
+
+      const content = await createContent("galleries", {
+        data: {
+          title: "Gallery",
+          images: [
+            { id: mediaA.id, path: mediaA.r2Key },
+            { id: mediaB.id, path: mediaB.r2Key },
+          ],
+        },
+      });
+
+      expect(content.data.images).toEqual([
+        { id: mediaA.id, path: mediaA.r2Key },
+        { id: mediaB.id, path: mediaB.r2Key },
+      ]);
+
+      const token = await readerToken();
+      const resolved = await fetchWorker(
+        `/collections/galleries/content/${content.id}?resolve=images`,
+        {},
+        token,
+      );
+      expect(resolved.status).toBe(200);
+      const resolvedBody = (await resolved.json()) as {
+        data: Record<string, unknown>;
+      };
+
+      const resolvedImages = resolvedBody.data.images as Array<{
+        id: string;
+        filename: string;
+      }>;
+      expect(resolvedImages).toHaveLength(2);
+      expect(resolvedImages.map((image) => image.filename).sort()).toEqual([
+        "a.png",
+        "b.png",
+      ]);
+    });
+
     it("validates media existence on /content:validate", async () => {
       await createCollection({
         slug: "articles",

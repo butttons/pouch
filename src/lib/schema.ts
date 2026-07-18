@@ -259,8 +259,9 @@ export const getRelationTargets = (
 	return Array.from(targets);
 };
 
-type MediaFieldInfo = {
+export type MediaFieldInfo = {
 	field: string;
+	isMany: boolean;
 };
 
 /**
@@ -281,7 +282,7 @@ export const getMediaFields = (input: {
 
 	for (const [field, property] of Object.entries(properties)) {
 		if (property["x-media"] === true) {
-			fields.push({ field });
+			fields.push({ field, isMany: property.type === "array" });
 		}
 	}
 
@@ -310,6 +311,40 @@ export const isValidMediaObject = (input: {
 };
 
 /**
+ * Validates that a value is an array of valid MediaObjects.
+ */
+export const isValidMediaArray = (input: {
+	value: unknown;
+}): input is { value: Array<{ id: string; path: string }> } => {
+	const value = input.value;
+
+	if (!Array.isArray(value)) {
+		return false;
+	}
+
+	return value.every((item) => isValidMediaObject({ value: item }));
+};
+
+/**
+ * Returns media IDs from a single media object or an array of media objects.
+ */
+export const getMediaIdsFromValue = (input: {
+	value: unknown;
+}): string[] => {
+	const mediaObject = { value: input.value };
+	if (isValidMediaObject(mediaObject)) {
+		return [mediaObject.value.id];
+	}
+
+	const mediaArray = { value: input.value };
+	if (isValidMediaArray(mediaArray)) {
+		return mediaArray.value.map((item) => item.id);
+	}
+
+	return [];
+};
+
+/**
  * Returns media object IDs from content data for x-media fields.
  */
 export const collectMediaIds = (input: {
@@ -320,11 +355,7 @@ export const collectMediaIds = (input: {
 	const ids: string[] = [];
 
 	for (const { field } of mediaFields) {
-		const value = input.data[field];
-		const mediaObject = { value };
-		if (isValidMediaObject(mediaObject)) {
-			ids.push(mediaObject.value.id);
-		}
+		ids.push(...getMediaIdsFromValue({ value: input.data[field] }));
 	}
 
 	return ids;

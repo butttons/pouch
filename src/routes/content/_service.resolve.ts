@@ -4,7 +4,12 @@ import type { Content } from "@/routes/content/_schema";
 import type { DataLayerError } from "@/lib/data";
 import type { Deps } from "@/deps";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { getMediaFields, isValidMediaObject } from "@/lib/schema";
+import {
+  getMediaFields,
+  getMediaIdsFromValue,
+  isValidMediaArray,
+  isValidMediaObject,
+} from "@/lib/schema";
 
 type RelationField = {
   field: string;
@@ -47,6 +52,20 @@ const parseResolveFields = (resolve: string): string[] =>
     .map((field) => field.trim())
     .filter((field) => field.length > 0);
 
+const resolveMediaRecord = (record: {
+  id: string;
+  r2Key: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+}): { id: string; url: string; filename: string; mimeType: string; sizeBytes: number } => ({
+  id: record.id,
+  url: record.r2Key,
+  filename: record.filename,
+  mimeType: record.mimeType,
+  sizeBytes: record.sizeBytes,
+});
+
 /**
  * Resolves media fields by fetching media records and returning full objects.
  */
@@ -58,9 +77,9 @@ const resolveMediaFields = (input: {
 }): ResultAsync<Content[], AppHTTPException | DataLayerError> =>
   safeTry(async function* () {
     const mediaFields = getMediaFields({ schema: input.schema });
-    const mediaFieldSet = new Set(mediaFields.map((f) => f.field));
+    const mediaFieldByName = new Map(mediaFields.map((f) => [f.field, f]));
     const requestedMediaFields = input.requestedFields.filter((f) =>
-      mediaFieldSet.has(f),
+      mediaFieldByName.has(f),
     );
 
     if (requestedMediaFields.length === 0) {
@@ -71,10 +90,8 @@ const resolveMediaFields = (input: {
     const allMediaIds = new Set<string>();
     for (const row of input.rows) {
       for (const field of requestedMediaFields) {
-        const value = row.data[field];
-        const mediaObject = { value };
-        if (isValidMediaObject(mediaObject)) {
-          allMediaIds.add(mediaObject.value.id);
+        for (const id of getMediaIdsFromValue({ value: row.data[field] })) {
+          allMediaIds.add(id);
         }
       }
     }
@@ -96,19 +113,25 @@ const resolveMediaFields = (input: {
 
       for (const field of requestedMediaFields) {
         const value = resolvedData[field];
-        const mediaObject = { value };
-        if (!isValidMediaObject(mediaObject)) continue;
+        const fieldInfo = mediaFieldByName.get(field);
+        if (!fieldInfo) continue;
 
-        const record = mediaById.get(mediaObject.value.id);
-        if (!record) continue;
+        if (fieldInfo.isMany) {
+          const mediaArray = { value };
+          if (!isValidMediaArray(mediaArray)) continue;
+          resolvedData[field] = mediaArray.value
+            .map((item) => mediaById.get(item.id))
+            .filter((record): record is NonNullable<typeof record> => record !== undefined)
+            .map((record) => resolveMediaRecord(record));
+        } else {
+          const mediaObject = { value };
+          if (!isValidMediaObject(mediaObject)) continue;
 
-        resolvedData[field] = {
-          id: record.id,
-          url: record.r2Key,
-          filename: record.filename,
-          mimeType: record.mimeType,
-          sizeBytes: record.sizeBytes,
-        };
+          const record = mediaById.get(mediaObject.value.id);
+          if (!record) continue;
+
+          resolvedData[field] = resolveMediaRecord(record);
+        }
       }
 
       return { ...row, data: resolvedData };

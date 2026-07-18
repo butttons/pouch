@@ -33,7 +33,7 @@ Collection schemas are standard JSON Schema (draft 2020-12). CMS-specific behavi
 - `x-widget` — authoring hint only. `"richtext"` is the only supported value today.
 - `x-relation` — target collection slug. `type: "string"` = single relation; `type: "array"` = many.
 - `x-index` — scalar fields only (`string`, `integer`, `number`, `boolean`). Creates a generated column + index for filtering.
-- `x-media` — marks an object field as a media reference. The stored value must be `{ id: "med_...", path: string }`. Request `?resolve=<field>` to expand it into the full media record.
+- `x-media` — marks an object field as a media reference. The stored value must be `{ id: "med_...", path: string }`. Use `type: "array"` for many media references. Request `?resolve=<field>` to expand it into the full media record(s).
 
 ```jsonc
 // text
@@ -63,8 +63,11 @@ Collection schemas are standard JSON Schema (draft 2020-12). CMS-specific behavi
 // indexed field
 { "type": "number", "x-index": true }
 
-// media
+// media (single)
 { "type": "object", "x-media": true }
+
+// media (many)
+{ "type": "array", "items": { "type": "object" }, "x-media": true }
 
 // json
 {}

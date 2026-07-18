@@ -2,7 +2,13 @@ import { err, errAsync, ok, okAsync, type Result, type ResultAsync } from "never
 
 import type { DataLayer, DataLayerError } from "@/lib/data";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
-import { collectMediaIds, getMediaFields, isValidMediaObject, validateContentData } from "@/lib/schema";
+import {
+	collectMediaIds,
+	getMediaFields,
+	isValidMediaArray,
+	isValidMediaObject,
+	validateContentData,
+} from "@/lib/schema";
 
 export const validateContentOrFail = (input: {
 	data: Record<string, unknown>;
@@ -40,13 +46,17 @@ export const validateMediaFieldsOrFail = (input: {
 
 	const invalidFields: string[] = [];
 
-	for (const { field } of mediaFields) {
+	for (const { field, isMany } of mediaFields) {
 		const value = input.data[field];
 		if (value === undefined) {
 			continue;
 		}
 
-		if (!isValidMediaObject({ value })) {
+		const isValid = isMany
+			? isValidMediaArray({ value })
+			: isValidMediaObject({ value });
+
+		if (!isValid) {
 			invalidFields.push(field);
 		}
 	}
