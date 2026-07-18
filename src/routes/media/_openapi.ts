@@ -30,11 +30,16 @@ export const mediaOpenAPIComponents = {
 	[mediaObjectSchemaRef]: mediaObjectSchema,
 };
 
+const mediaTags = ["Media"];
+
 export const mediaOpenAPIPaths = {
 	"/media": {
 		get: {
 			summary: "List media",
+			description: "Lists uploaded media records.",
 			operationId: "listMedia",
+			tags: mediaTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "limit",
@@ -74,7 +79,10 @@ export const mediaOpenAPIPaths = {
 		},
 		post: {
 			summary: "Upload media",
+			description: "Uploads a file and creates a media record.",
 			operationId: "createMedia",
+			tags: mediaTags,
+			security: [{ bearerAuth: [] }],
 			requestBody: {
 				required: true,
 				content: {
@@ -109,8 +117,11 @@ export const mediaOpenAPIPaths = {
 	},
 	"/media/{id}": {
 		get: {
-			summary: "Get media by ID",
+			summary: "Get media",
+			description: "Returns a media record by ID.",
 			operationId: "getMediaById",
+			tags: mediaTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "id",
@@ -134,7 +145,10 @@ export const mediaOpenAPIPaths = {
 		},
 		delete: {
 			summary: "Delete media",
+			description: "Deletes a media record and its stored file.",
 			operationId: "deleteMedia",
+			tags: mediaTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "id",
@@ -152,8 +166,11 @@ export const mediaOpenAPIPaths = {
 	},
 	"/media/{id}/file": {
 		get: {
-			summary: "Get media file content",
+			summary: "Download media file",
+			description: "Returns the raw file bytes for a media record.",
 			operationId: "getMediaFile",
+			tags: mediaTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "id",

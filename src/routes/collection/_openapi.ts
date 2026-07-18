@@ -22,11 +22,15 @@ export const collectionOpenAPIComponents = {
 	[patchCollectionSchemaInputSchemaRef]: patchCollectionSchemaInputSchema,
 };
 
+const collectionTags = ["Collections"];
+
 export const collectionOpenAPIPaths = {
 	"/collections": {
 		get: {
 			summary: "List collections",
 			operationId: "listCollections",
+			tags: collectionTags,
+			security: [{ bearerAuth: [] }],
 			responses: {
 				"200": {
 					description: "List of collections",
@@ -46,6 +50,8 @@ export const collectionOpenAPIPaths = {
 		post: {
 			summary: "Create collection",
 			operationId: "createCollection",
+			tags: collectionTags,
+			security: [{ bearerAuth: [] }],
 			requestBody: {
 				required: true,
 				content: {
@@ -72,8 +78,11 @@ export const collectionOpenAPIPaths = {
 	},
 	"/collections/{slug}/schema": {
 		get: {
-			summary: "Get collection schema by slug",
+			summary: "Get collection schema",
+			description: "Returns the current JSON Schema for a collection.",
 			operationId: "getCollectionSchemaBySlug",
+			tags: collectionTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "slug",
@@ -96,8 +105,11 @@ export const collectionOpenAPIPaths = {
 			},
 		},
 		patch: {
-			summary: "Patch collection schema",
+			summary: "Update collection schema",
+			description: "Patches the collection schema. Existing content must still validate against the new schema unless force is true.",
 			operationId: "patchCollectionSchema",
+			tags: collectionTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "slug",
@@ -132,8 +144,11 @@ export const collectionOpenAPIPaths = {
 	},
 	"/collections/{slug}": {
 		get: {
-			summary: "Get collection by slug",
+			summary: "Get collection",
+			description: "Returns a collection including its current schema.",
 			operationId: "getCollectionBySlug",
+			tags: collectionTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "slug",
@@ -157,7 +172,10 @@ export const collectionOpenAPIPaths = {
 		},
 		delete: {
 			summary: "Delete collection",
+			description: "Deletes a collection and all its content. Use force=true if the collection has content.",
 			operationId: "deleteCollection",
+			tags: collectionTags,
+			security: [{ bearerAuth: [] }],
 			parameters: [
 				{
 					name: "slug",

@@ -191,7 +191,7 @@ const buildRequest = (
 export const createMcpRouter = (app: Hono<HonoVariables>) => {
 	const mcpServer = new McpServer({
 		name: "pouch",
-		version: "0.0.10",
+		version: "0.0.11",
 	});
 
 	const transport = new StreamableHTTPTransport();

@@ -15,8 +15,94 @@ import {
 
 const baseInfo = {
 	title: "pouch",
-	version: "0.0.10",
+	version: "0.0.11",
+	description:
+		"API-first headless CMS. All endpoints except /docs require a Bearer token with the appropriate scope.",
 };
+
+const tags = [
+	{ name: "Auth", description: "API key management" },
+	{ name: "Collections", description: "Collection and schema management" },
+	{ name: "Media", description: "File uploads and media records" },
+];
+
+const securitySchemes = {
+	bearerAuth: {
+		type: "http",
+		scheme: "bearer",
+		bearerFormat: "JWT",
+		description:
+			"Admin or content API key. Generate keys via POST /auth/keys using JWT_SECRET.",
+	},
+};
+
+const authPaths = {
+	"/auth/keys": {
+		post: {
+			summary: "Create API key",
+			description:
+				"Creates a new JWT API key. Requires the JWT_SECRET configured on the worker.",
+			operationId: "createApiKey",
+			tags: ["Auth"],
+			requestBody: {
+				required: true,
+				content: {
+					"application/json": {
+						schema: {
+							type: "object",
+							properties: {
+								secret: {
+									type: "string",
+									description: "The JWT_SECRET value from the worker environment.",
+								},
+								scopes: {
+									type: "array",
+									items: {
+										type: "string",
+										enum: ["content:read", "content:write", "schema:admin"],
+									},
+									description: "Scopes for the new key. Defaults to all scopes.",
+								},
+								expiresInSeconds: {
+									type: "number",
+									minimum: 60,
+									description: "Key lifetime in seconds. Defaults to 180 days.",
+								},
+							},
+							required: ["secret"],
+							additionalProperties: false,
+						},
+					},
+				},
+			},
+			responses: {
+				"201": {
+					description: "Created API key",
+					content: {
+						"application/json": {
+							schema: {
+								type: "object",
+								properties: {
+									token: { type: "string" },
+									jti: { type: "string" },
+									scopes: {
+										type: "array",
+										items: { type: "string" },
+									},
+									exp: { type: "number" },
+								},
+								required: ["token", "jti", "scopes", "exp"],
+								additionalProperties: false,
+							},
+						},
+					},
+				},
+			},
+		},
+	},
+};
+
+const baseSecurity = [{ bearerAuth: [] }];
 
 const contentWrapperSchemaRef = (slug: string) => `__Content_${slug}`;
 const contentInputSchemaRef = (slug: string) => `__ContentInput_${slug}`;
@@ -318,183 +404,206 @@ const buildContentItemSchema = (
 const buildCollectionContentPaths = (
 	slug: string,
 	schema: Record<string, unknown>,
-) => ({
-	[`/collections/${slug}/content`]: {
-		get: {
-			summary: `List ${slug} content`,
-			operationId: `list${slug}Content`,
-			parameters: buildContentQueryParameters(schema),
-			responses: {
-				"200": {
-					description: `List of ${slug} content`,
-					content: {
-						"application/json": {
-							schema: {
-								type: "object",
-								properties: {
-									data: {
-										type: "array",
-										items: buildContentItemSchema(slug, schema),
+) => {
+	const collectionTag = slug;
+
+	return {
+		[`/collections/${slug}/content`]: {
+			get: {
+				summary: "List",
+				description: `Lists content in the ${slug} collection with optional filtering and relation/media resolution.`,
+				operationId: `list${slug}Content`,
+				tags: [collectionTag],
+				security: baseSecurity,
+				parameters: buildContentQueryParameters(schema),
+				responses: {
+					"200": {
+						description: `List of ${slug} content`,
+						content: {
+							"application/json": {
+								schema: {
+									type: "object",
+									properties: {
+										data: {
+											type: "array",
+											items: buildContentItemSchema(slug, schema),
+										},
+										nextCursor: {
+											type: ["string", "null"],
+											description:
+												"ID cursor for the next page, or null if there are no more items.",
+										},
 									},
-									nextCursor: {
-										type: ["string", "null"],
-										description:
-											"ID cursor for the next page, or null if there are no more items.",
+									required: ["data", "nextCursor"],
+									additionalProperties: false,
+								},
+							},
+						},
+					},
+				},
+			},
+			post: {
+				summary: "Create",
+				description: `Creates a new content item in the ${slug} collection.`,
+				operationId: `create${slug}Content`,
+				tags: [collectionTag],
+				security: baseSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						"application/json": {
+							schema: {
+								$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
+							},
+						},
+					},
+				},
+				responses: {
+					"201": {
+						description: `Created ${slug} content`,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		[`/collections/${slug}/content:validate`]: {
+			post: {
+				summary: "Validate",
+				description: `Validates content data against the ${slug} schema without creating it.`,
+				operationId: `validate${slug}Content`,
+				tags: [collectionTag],
+				security: baseSecurity,
+				requestBody: {
+					required: true,
+					content: {
+						"application/json": {
+							schema: {
+								$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
+							},
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: `Validation result`,
+						content: {
+							"application/json": {
+								schema: {
+									type: "object",
+									properties: {
+										valid: { type: "boolean" },
 									},
+									required: ["valid"],
+									additionalProperties: false,
 								},
-								required: ["data", "nextCursor"],
-								additionalProperties: false,
 							},
 						},
 					},
 				},
 			},
 		},
-		post: {
-			summary: `Create ${slug} content`,
-			operationId: `create${slug}Content`,
-			requestBody: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: {
-							$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
-						},
+		[`/collections/${slug}/content/{id}`]: {
+			get: {
+				summary: "Get by ID",
+				description: `Returns a single ${slug} content item.`,
+				operationId: `get${slug}ContentById`,
+				tags: [collectionTag],
+				security: baseSecurity,
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
 					},
-				},
-			},
-			responses: {
-				"201": {
-					description: `Created ${slug} content`,
-					content: {
-						"application/json": {
-							schema: {
-								$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
+					...buildContentQueryParameters(schema).filter(
+						(param) => param.name === "resolve",
+					),
+				],
+				responses: {
+					"200": {
+						description: `${slug} content details`,
+						content: {
+							"application/json": {
+								schema: buildContentItemSchema(slug, schema),
 							},
 						},
 					},
 				},
 			},
-		},
-	},
-	[`/collections/${slug}/content:validate`]: {
-		post: {
-			summary: `Validate ${slug} content`,
-			operationId: `validate${slug}Content`,
-			requestBody: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: {
-							$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
-						},
+			patch: {
+				summary: "Update",
+				description: `Updates a ${slug} content item.`,
+				operationId: `update${slug}Content`,
+				tags: [collectionTag],
+				security: baseSecurity,
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
 					},
-				},
-			},
-			responses: {
-				"200": {
-					description: `Validation result`,
+				],
+				requestBody: {
+					required: true,
 					content: {
 						"application/json": {
 							schema: {
-								type: "object",
-								properties: {
-									valid: { type: "boolean" },
+								$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
+							},
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: `Updated ${slug} content`,
+						content: {
+							"application/json": {
+								schema: {
+									$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
 								},
-								required: ["valid"],
-								additionalProperties: false,
 							},
 						},
 					},
 				},
 			},
-		},
-	},
-	[`/collections/${slug}/content/{id}`]: {
-		get: {
-			summary: `Get ${slug} content by ID`,
-			operationId: `get${slug}ContentById`,
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-				...buildContentQueryParameters(schema).filter(
-					(param) => param.name === "resolve",
-				),
-			],
-			responses: {
-				"200": {
-					description: `${slug} content details`,
-					content: {
-						"application/json": {
-							schema: buildContentItemSchema(slug, schema),
-						},
+			delete: {
+				summary: "Delete",
+				description: `Deletes a ${slug} content item.`,
+				operationId: `delete${slug}Content`,
+				tags: [collectionTag],
+				security: baseSecurity,
+				parameters: [
+					{
+						name: "id",
+						in: "path",
+						required: true,
+						schema: { type: "string" },
+					},
+				],
+				responses: {
+					"204": {
+						description: `${slug} content deleted`,
 					},
 				},
 			},
 		},
-		patch: {
-			summary: `Update ${slug} content`,
-			operationId: `update${slug}Content`,
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-			],
-			requestBody: {
-				required: true,
-				content: {
-					"application/json": {
-						schema: {
-							$ref: `#/components/schemas/${contentInputSchemaRef(slug)}`,
-						},
-					},
-				},
-			},
-			responses: {
-				"200": {
-					description: `Updated ${slug} content`,
-					content: {
-						"application/json": {
-							schema: {
-								$ref: `#/components/schemas/${contentWrapperSchemaRef(slug)}`,
-							},
-						},
-					},
-				},
-			},
-		},
-		delete: {
-			summary: `Delete ${slug} content`,
-			operationId: `delete${slug}Content`,
-			parameters: [
-				{
-					name: "id",
-					in: "path",
-					required: true,
-					schema: { type: "string" },
-				},
-			],
-			responses: {
-				"204": {
-					description: `${slug} content deleted`,
-				},
-			},
-		},
-	},
-});
+	};
+};
 
 /**
  * Builds the full OpenAPI document including dynamic content schemas and paths.
  */
 export const assembleOpenAPIDocument = (
 	deps: Deps,
+	baseUrl?: string,
 ): ResultAsync<Record<string, unknown>, DataLayerError> =>
 	safeTry(async function* () {
 		const collections = yield* deps.DL.collection.listCollectionsWithSchema();
@@ -534,15 +643,26 @@ export const assembleOpenAPIDocument = (
 			);
 		}
 
+		const collectionSlugs = collections.map((c) => c.slug);
+		const servers = baseUrl ? [{ url: baseUrl }] : undefined;
+
 		return ok({
 			openapi: "3.1.0",
 			info: baseInfo,
+			tags,
+			"x-tagGroups": [
+				{ name: "Management", tags: ["Auth", "Collections", "Media"] },
+				{ name: "Content", tags: collectionSlugs },
+			],
+			servers,
 			paths: {
+				...authPaths,
 				...collectionOpenAPIPaths,
 				...mediaOpenAPIPaths,
 				...dynamicPaths,
 			},
 			components: {
+				securitySchemes,
 				schemas: {
 					...collectionOpenAPIComponents,
 					...mediaOpenAPIComponents,

@@ -13,6 +13,7 @@ import { requireScopes, SCOPES } from "@/middleware/auth";
 import { collectionRouter } from "@/routes/collection/_route";
 import { mediaRouter } from "@/routes/media/_route";
 import { createMcpRouter } from "@/routes/mcp/_route";
+import { Scalar } from "@scalar/hono-api-reference";
 import { createRouter, type HonoVariables } from "./utils";
 
 const SIX_MONTHS = 60 * 60 * 24 * 180;
@@ -61,10 +62,27 @@ const app: Hono<HonoVariables> = createRouter()
 		"/openapi.json",
 		requireScopes("content:read"),
 		async (c) => {
-			const result = await assembleOpenAPIDocument(c.var.deps);
+			const url = new URL(c.req.url);
+			const baseUrl = `${url.protocol}//${url.host}`;
+			const result = await assembleOpenAPIDocument(c.var.deps, baseUrl);
 			const value = unwrapResult(result);
 			return c.json(value);
 		},
+	)
+	.get(
+		"/docs",
+		Scalar<HonoVariables>(async (c) => {
+			const url = new URL(c.req.url);
+			const baseUrl = `${url.protocol}//${url.host}`;
+			const result = await assembleOpenAPIDocument(c.var.deps, baseUrl);
+			const value = unwrapResult(result);
+			return {
+				content: value,
+				theme: "default",
+				pageTitle: "pouch API docs",
+				hideDownloadButton: false,
+			};
+		}),
 	)
 	.route("/collections", collectionRouter)
 	.route("/media", mediaRouter)
