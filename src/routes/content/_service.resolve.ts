@@ -54,13 +54,22 @@ const parseResolveFields = (resolve: string): string[] =>
 		.map((field) => field.trim())
 		.filter((field) => field.length > 0);
 
-const resolveMediaRecord = (record: {
-	id: string;
-	r2Key: string;
-	filename: string;
-	mimeType: string;
-	sizeBytes: number;
-}): {
+const joinMediaUrl = (baseUrl: string, r2Key: string): string => {
+	const normalizedBase = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+	const normalizedKey = r2Key.startsWith("/") ? r2Key.slice(1) : r2Key;
+	return `${normalizedBase}/${normalizedKey}`;
+};
+
+const resolveMediaRecord = (
+	record: {
+		id: string;
+		r2Key: string;
+		filename: string;
+		mimeType: string;
+		sizeBytes: number;
+	},
+	mediaPublicUrl: string,
+): {
 	id: string;
 	url: string;
 	filename: string;
@@ -68,7 +77,10 @@ const resolveMediaRecord = (record: {
 	sizeBytes: number;
 } => ({
 	id: record.id,
-	url: record.r2Key,
+	url:
+		mediaPublicUrl.length > 0
+			? joinMediaUrl(mediaPublicUrl, record.r2Key)
+			: record.r2Key,
 	filename: record.filename,
 	mimeType: record.mimeType,
 	sizeBytes: record.sizeBytes,
@@ -133,7 +145,7 @@ const resolveMediaFields = (input: {
 							(record): record is NonNullable<typeof record> =>
 								record !== undefined,
 						)
-						.map((record) => resolveMediaRecord(record));
+						.map((record) => resolveMediaRecord(record, input.deps.mediaPublicUrl));
 				} else {
 					const mediaObject = { value };
 					if (!isValidMediaObject(mediaObject)) continue;
@@ -141,7 +153,7 @@ const resolveMediaFields = (input: {
 					const record = mediaById.get(mediaObject.value.id);
 					if (!record) continue;
 
-					resolvedData[field] = resolveMediaRecord(record);
+					resolvedData[field] = resolveMediaRecord(record, input.deps.mediaPublicUrl);
 				}
 			}
 

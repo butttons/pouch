@@ -23,7 +23,7 @@
 		}
 	],
 	"vars": {
-		"MEDIA_PUBLIC_URL": ""
+		"MEDIA_PUBLIC_URL": "http://localhost:3200"
 	},
 	"secrets": {
 		"required": ["JWT_SECRET"]

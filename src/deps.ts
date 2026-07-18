@@ -26,6 +26,7 @@ export const createDeps = ({
 	return {
 		DL: createDL({ db }),
 		bucket: env.MEDIA_BUCKET,
+		mediaPublicUrl: env.MEDIA_PUBLIC_URL,
 		session,
 		getNextBookmark,
 	};

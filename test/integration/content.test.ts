@@ -643,7 +643,7 @@ describe("content", () => {
 				sizeBytes: number;
 			};
 			expect(resolvedCover.id).toBe(media.id);
-			expect(resolvedCover.url).toBe(media.r2Key);
+			expect(resolvedCover.url).toBe(`${env.MEDIA_PUBLIC_URL}/${media.r2Key}`);
 			expect(resolvedCover.filename).toBe("cover.png");
 			expect(resolvedCover.mimeType).toBe("image/png");
 			expect(resolvedCover.sizeBytes).toBe(5);
