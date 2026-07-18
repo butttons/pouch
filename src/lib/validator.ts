@@ -33,3 +33,9 @@ export const queryValidator = <T>(schema: object) =>
 	validator("query", (value, c) =>
 		validate<T>(value, schema, "Invalid query parameters"),
 	);
+
+export const isValid = (value: unknown, schema: object): boolean => {
+	const compiled = Schema.Compile(schema);
+	const [isValid] = compiled.Errors(value);
+	return isValid;
+};

@@ -1,8 +1,19 @@
+import { Type } from "typebox";
+
+export const d1BookmarkSchema = Type.Union([
+	Type.Literal("first-unconstrained"),
+	Type.Literal("first-primary"),
+	Type.String({
+		pattern:
+			"^[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{8}-[0-9a-f]{32}$",
+	}),
+]);
+
 export const d1BookmarkParam = {
 	name: "x-d1-bookmark",
 	in: "header",
 	required: false,
-	schema: { type: "string" },
+	schema: d1BookmarkSchema,
 	description:
 		"D1 read-replication bookmark from a previous response. When provided, the request is anchored to a D1 session at this bookmark and the response will include the next bookmark.",
 };
@@ -10,7 +21,7 @@ export const d1BookmarkParam = {
 export const d1BookmarkHeader = {
 	description:
 		"Next D1 read-replication bookmark. Pass this value in the x-d1-bookmark header of subsequent read requests to maintain read-after-write consistency. Only returned when an x-d1-bookmark request header was provided.",
-	schema: { type: "string" },
+	schema: d1BookmarkSchema,
 };
 
 export const errorSchema = {
