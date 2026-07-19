@@ -12,8 +12,11 @@ The worker needs the following bindings to run:
 
 1. `DB` - [Cloudflare D1](https://developers.cloudflare.com/d1/) - SQLite database for collections, content, schema versions, and media metadata.
 2. `MEDIA_BUCKET` - [Cloudflare R2](https://developers.cloudflare.com/r2/) - Object storage for uploaded media files.
-3. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
-4. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
+3. `OAUTH_KV` - [Cloudflare KV](https://developers.cloudflare.com/kv/) - Token and grant storage for the OAuth provider. Separate from D1.
+4. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
+5. `MCP_ADMIN_PASSPHRASE` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
+6. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
+7. `MCP_CLIENTS` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - JSON array of allowed OAuth clients. Optional. Only needed if using OAuth for MCP.
 
 ### Quick deploy
 
@@ -102,6 +105,14 @@ npx wrangler secret put JWT_SECRET
 
 Generate a strong secret and keep it safe. You will need it to create API keys.
 
+7. Set the `MCP_ADMIN_PASSPHRASE` secret (optional — only needed for OAuth MCP)
+
+```sh
+npx wrangler secret put MCP_ADMIN_PASSPHRASE
+```
+
+This is the single shared passphrase used to log in to the OAuth consent screen at `/authorize`.
+
 ## Local development
 
 1. Install dependencies
@@ -114,6 +125,7 @@ pnpm install
 
 ```sh
 JWT_SECRET='your-local-dev-secret-min-32-chars-long'
+MCP_ADMIN_PASSPHRASE='your-local-dev-passphrase'
 ```
 
 3. Generate an admin key (optional)
@@ -211,6 +223,55 @@ The MCP server reads `/openapi.json` on the first request and registers one tool
 - `content:write` / `schema:admin` for write tools.
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
+
+### OAuth for MCP (claude.ai Custom Connectors)
+
+Some MCP clients (e.g. claude.ai's web connector UI) only support OAuth and have no custom-headers option. pouch supports OAuth 2.1 authorization for the `/mcp` route specifically, while the REST API continues to use the existing bearer-token auth.
+
+To use OAuth with claude.ai:
+
+1. Paste the MCP server URL into claude.ai's "Add custom connector":
+   ```
+   https://pouch-cms.[account].workers.dev/mcp
+   ```
+2. Under Advanced settings, set the OAuth Client ID to one of the clients configured in `MCP_CLIENTS`.
+
+**How to add a client:**
+
+Add a JSON array to the `MCP_CLIENTS` environment variable (or `vars` in `wrangler.jsonc`). Each entry needs `client_id`, `redirect_uris`, `name`, and `max_scopes`:
+
+```json
+[
+  {
+    "client_id": "claude-ai",
+    "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
+    "name": "Claude.ai",
+    "max_scopes": ["content:read", "content:write"]
+  },
+  {
+    "client_id": "cursor",
+    "redirect_uris": ["https://cursor.com/callback"],
+    "name": "Cursor",
+    "max_scopes": ["content:read", "content:write", "schema:admin"]
+  }
+]
+```
+
+- `max_scopes` is the ceiling of what that client may ever be granted. The consent screen shows only the intersection of requested scopes and `max_scopes`.
+- The operator approves grants on a minimal HTML consent screen at `/authorize` after entering a single shared passphrase (`MCP_ADMIN_PASSPHRASE`).
+- Grants are stored in `OAUTH_KV` (a Cloudflare KV namespace), separate from D1.
+- On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes.
+
+**Note:** Claude Code, Cursor, and other clients that support custom headers should keep using the existing bearer-token approach (e.g. `.mcp.json` with `Authorization: Bearer [TOKEN]`). OAuth is specifically for clients that require it and have no alternative.
+
+### Discovery endpoints
+
+The OAuth provider automatically serves RFC 8414 and RFC 9728 discovery metadata at:
+
+- `/.well-known/oauth-authorization-server`
+- `/.well-known/oauth-protected-resource`
+
+These are relative to the `/mcp` route (e.g. `https://pouch-cms.[account].workers.dev/.well-known/oauth-authorization-server`).
 
 ## Interactive API docs
 

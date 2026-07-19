@@ -22,11 +22,18 @@
 			"bucket_name": "pouch-media"
 		}
 	],
+	"kv_namespaces": [
+		{
+			"binding": "OAUTH_KV",
+			"id": "00000000-0000-0000-0000-000000000000"
+		}
+	],
 	"vars": {
-		"MEDIA_PUBLIC_URL": "http://localhost:3200"
+		"MEDIA_PUBLIC_URL": "http://localhost:3200",
+		"MCP_CLIENTS": "[{\"client_id\":\"claude-ai\",\"redirect_uris\":[\"https://claude.ai/api/mcp/auth_callback\"],\"name\":\"Claude.ai\",\"max_scopes\":[\"content:read\",\"content:write\"]}]"
 	},
 	"secrets": {
-		"required": ["JWT_SECRET", "DOCS_SECRET"]
+		"required": ["JWT_SECRET", "DOCS_SECRET", "MCP_ADMIN_PASSPHRASE"]
 	},
 	"observability": {
 		"enabled": false,
