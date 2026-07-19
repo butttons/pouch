@@ -18,7 +18,10 @@ type QueryId = {
 	queryId: string;
 };
 
-export type Batcher<DB> = <Q extends readonly Batchable[], S extends readonly Batchable[] = []>(
+export type Batcher<DB> = <
+	Q extends readonly Batchable[],
+	S extends readonly Batchable[] = [],
+>(
 	statements: Q,
 	sideEffects?: S,
 ) => Promise<{
@@ -32,7 +35,10 @@ export const createBatcher = <DB>(args: {
 	const { database, kysely } = args;
 	const executor = (kysely as unknown as ExecutorBearer).getExecutor();
 
-	return async <Q extends readonly Batchable[], S extends readonly Batchable[] = []>(
+	return async <
+		Q extends readonly Batchable[],
+		S extends readonly Batchable[] = [],
+	>(
 		statements: Q,
 		sideEffects?: S,
 	): Promise<{

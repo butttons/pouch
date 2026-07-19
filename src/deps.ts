@@ -1,6 +1,6 @@
-import { createDL } from "@/lib/data";
-import { createDB } from "@/lib/db/client";
+import { DataLayer } from "@/lib/data";
 import { createBatcher } from "@/lib/db/batcher";
+import { createDB } from "@/lib/db/client";
 
 export const createDeps = ({
 	env,
@@ -26,9 +26,10 @@ export const createDeps = ({
 
 	const db = createDB(session.db);
 	const batch = createBatcher({ database: session.db, kysely: db });
+	const DL = new DataLayer({ db, batch });
 
 	return {
-		DL: createDL({ db, batch }),
+		DL,
 		actor,
 		bucket: env.MEDIA_BUCKET,
 		mediaPublicUrl: env.MEDIA_PUBLIC_URL,

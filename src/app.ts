@@ -14,6 +14,7 @@ import { jsonValidator } from "@/lib/validator";
 import { collectionRouter } from "@/routes/collection/_route";
 import { createMcpRouter } from "@/routes/mcp/_route";
 import { mediaRouter } from "@/routes/media/_route";
+import { auditLogRouter } from "@/routes/audit-log/_route";
 
 import { requireScopes, SCOPES } from "@/middleware/auth";
 import { depsMiddleware } from "@/middleware/deps";
@@ -102,6 +103,7 @@ const app: Hono<HonoVariables> = createRouter()
 	)
 	.route("/collections", collectionRouter)
 	.route("/media", mediaRouter)
+	.route("/audit-logs", auditLogRouter)
 	.notFound((c) =>
 		c.json(
 			{

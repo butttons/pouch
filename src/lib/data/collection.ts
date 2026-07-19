@@ -1,11 +1,12 @@
 import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
-import { createAuditLogInsert, type AuditLogEvent } from "@/lib/audit-log";
+import { type AuditLogEvent } from "@/lib/audit-log";
 import type { Batcher } from "@/lib/db/batcher";
 import type { Database, DatabaseSchema } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
+import { AuditLogDataLayer } from "./audit-log";
 
 export class CollectionDataLayer extends BaseDataLayer {
 	constructor(
@@ -16,17 +17,17 @@ export class CollectionDataLayer extends BaseDataLayer {
 		this.entity = "collection";
 	}
 
+	public collectionColumns = [
+		"id",
+		"slug",
+		"name",
+		"title_field as titleField",
+		"current_schema_version_id as currentSchemaVersionId",
+		sql<Record<string, unknown>>`schema`.as("schema"),
+	] as const;
+
 	get collectionQuery() {
-		return this.db
-			.selectFrom("collections")
-			.select([
-				"id",
-				"slug",
-				"name",
-				"title_field as titleField",
-				"current_schema_version_id as currentSchemaVersionId",
-				sql<Record<string, unknown>>`schema`.as("schema"),
-			]);
+		return this.db.selectFrom("collections").select(this.collectionColumns);
 	}
 
 	getCollectionBySlug(input: { slug: string }) {
@@ -78,9 +79,10 @@ export class CollectionDataLayer extends BaseDataLayer {
 					)
 					.returning(["id", "slug", "name", "title_field as titleField"]);
 
-				const results = await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				const results = await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 
 				const rows = results[0]!;
 				const row = rows[0];
@@ -197,18 +199,12 @@ export class CollectionDataLayer extends BaseDataLayer {
 						}),
 					)
 					.where("id", "=", input.id)
-					.returning([
-						"id",
-						"slug",
-						"name",
-						"title_field as titleField",
-						"current_schema_version_id as currentSchemaVersionId",
-						sql<Record<string, unknown>>`schema`.as("schema"),
-					]);
+					.returning(this.collectionColumns);
 
-				const results = await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				const results = await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 
 				const rows = results[0]!;
 				const row = rows[0];
@@ -251,9 +247,10 @@ export class CollectionDataLayer extends BaseDataLayer {
 					.deleteFrom("collections")
 					.where("id", "=", input.id);
 
-				await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)],
-				);
+				await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				]);
 			})(),
 			this.passThroughError({
 				message: "Failed to delete collection",

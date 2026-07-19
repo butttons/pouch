@@ -23,6 +23,10 @@ import {
 	mediaPaths,
 	mediaSchemas,
 } from "@/routes/media/_openapi";
+import {
+	auditLogPaths,
+	auditLogSchemas,
+} from "@/routes/audit-log/_openapi";
 
 import packageJson from "../../package.json";
 import type { Deps } from "@/deps";
@@ -38,6 +42,7 @@ const tags = [
 	{ name: "Auth", description: "API key management" },
 	{ name: "Collections", description: "Collection and schema management" },
 	{ name: "Media", description: "File uploads and media records" },
+	{ name: "Audit Log", description: "Audit log entries" },
 ];
 
 const securitySchemes = {
@@ -912,7 +917,7 @@ export const assembleOpenAPIDocument = (
 			info: baseInfo,
 			tags,
 			"x-tagGroups": [
-				{ name: "Management", tags: ["Auth", "Collections", "Media"] },
+				{ name: "Management", tags: ["Auth", "Collections", "Media", "Audit Log"] },
 				{ name: "Content", tags: collectionSlugs },
 			],
 			servers,
@@ -920,6 +925,7 @@ export const assembleOpenAPIDocument = (
 				...authPaths,
 				...collectionPaths,
 				...mediaPaths,
+				...auditLogPaths,
 				...dynamicPaths,
 			},
 			components: {
@@ -935,6 +941,7 @@ export const assembleOpenAPIDocument = (
 					[contentBatchDeleteInputSchemaRef]: contentBatchDeleteInputSchema,
 					...collectionSchemas,
 					...mediaSchemas,
+					...auditLogSchemas,
 					...dynamicSchemas,
 				},
 			},

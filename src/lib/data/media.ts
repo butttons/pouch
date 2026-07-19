@@ -1,10 +1,11 @@
 import { fromPromise } from "neverthrow";
 
-import { createAuditLogInsert, type AuditLogEvent } from "@/lib/audit-log";
+import { type AuditLogEvent } from "@/lib/audit-log";
 import type { Batcher } from "@/lib/db/batcher";
 import type { Database, DatabaseSchema } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
+import { AuditLogDataLayer } from "./audit-log";
 
 export class MediaDataLayer extends BaseDataLayer {
 	constructor(
@@ -15,19 +16,19 @@ export class MediaDataLayer extends BaseDataLayer {
 		this.entity = "media";
 	}
 
+	public mediaColumns = [
+		"id",
+		"r2_key as r2Key",
+		"filename",
+		"mime_type as mimeType",
+		"size_bytes as sizeBytes",
+		"status",
+		"created_at as createdAt",
+		"updated_at as updatedAt",
+	] as const;
+
 	get mediaQuery() {
-		return this.db
-			.selectFrom("media")
-			.select([
-				"id",
-				"r2_key as r2Key",
-				"filename",
-				"mime_type as mimeType",
-				"size_bytes as sizeBytes",
-				"status",
-				"created_at as createdAt",
-				"updated_at as updatedAt",
-			]);
+		return this.db.selectFrom("media").select(this.mediaColumns);
 	}
 
 	listMedia(input: { limit: number; cursor?: string }) {
@@ -104,20 +105,12 @@ export class MediaDataLayer extends BaseDataLayer {
 				const mutation = this.db
 					.insertInto("media")
 					.values(values)
-					.returning([
-						"id",
-						"r2_key as r2Key",
-						"filename",
-						"mime_type as mimeType",
-						"size_bytes as sizeBytes",
-						"status",
-						"created_at as createdAt",
-						"updated_at as updatedAt",
-					]);
+					.returning(this.mediaColumns);
 
-				const results = await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				const results = await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 
 				const rows = results[0]!;
 				const row = rows[0];
@@ -142,9 +135,10 @@ export class MediaDataLayer extends BaseDataLayer {
 			(async () => {
 				const mutation = this.db.deleteFrom("media").where("id", "=", input.id);
 
-				await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 			})(),
 			this.passThroughError({
 				message: "Failed to delete media",

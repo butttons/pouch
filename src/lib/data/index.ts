@@ -15,20 +15,18 @@ import { ContentDataLayer } from "./content";
 import { ContentIndexDataLayer } from "./content-index";
 import { MediaDataLayer } from "./media";
 
-export const createDL = ({
-	db,
-	batch,
-}: {
-	db: Database;
-	batch: Batcher<DatabaseSchema>;
-}) => {
-	return {
-		auditLog: new AuditLogDataLayer(db),
-		collection: new CollectionDataLayer(db, batch),
-		content: new ContentDataLayer(db, batch),
-		contentIndex: new ContentIndexDataLayer(db, batch),
-		media: new MediaDataLayer(db, batch),
-	};
-};
+export class DataLayer {
+	public auditLog: AuditLogDataLayer;
+	public collection: CollectionDataLayer;
+	public content: ContentDataLayer;
+	public contentIndex: ContentIndexDataLayer;
+	public media: MediaDataLayer;
 
-export type DataLayer = ReturnType<typeof createDL>;
+	constructor({ db, batch }: { db: Database; batch: Batcher<DatabaseSchema> }) {
+		this.auditLog = new AuditLogDataLayer(db, batch);
+		this.collection = new CollectionDataLayer(db, batch);
+		this.content = new ContentDataLayer(db, batch);
+		this.contentIndex = new ContentIndexDataLayer(db, batch);
+		this.media = new MediaDataLayer(db, batch);
+	}
+}

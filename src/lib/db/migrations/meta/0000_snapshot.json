@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6a3708c6-14d6-449b-9025-4e66799993e3",
+  "id": "ab1d83ce-cfc4-49c1-88e3-4a0fa14e572c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "audit_log": {
@@ -63,6 +63,13 @@
           "columns": [
             "actor",
             "created_at"
+          ],
+          "isUnique": false
+        },
+        "idx_audit_action": {
+          "name": "idx_audit_action",
+          "columns": [
+            "action"
           ],
           "isUnique": false
         }

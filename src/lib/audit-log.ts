@@ -1,6 +1,3 @@
-import type { Database } from "@/lib/db/client";
-import { typedId } from "@/lib/typed-id";
-
 export const AUDIT_LOG_ACTION = [
 	"key.create",
 	"collection.create",
@@ -25,18 +22,4 @@ export type AuditLogEvent = {
 	actor: string;
 	targetId: string;
 	diff?: AuditLogDiff;
-};
-
-export const createAuditLogInsert = (
-	db: Database,
-	event: AuditLogEvent,
-) => {
-	return db.insertInto("audit_log").values({
-		id: typedId("audit_log"),
-		actor: event.actor,
-		action: event.action,
-		target_id: event.targetId,
-		diff: event.diff === undefined || event.diff === null ? null : JSON.stringify(event.diff),
-		created_at: Date.now(),
-	}).returning(["id"]);
 };

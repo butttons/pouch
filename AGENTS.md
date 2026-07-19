@@ -98,8 +98,20 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - Use `neverthrow` for all fallible operations. No `try/catch` for control flow.
 - Every error response must be JSON, including 404s and unhandled exceptions.
 - Data layer methods are thin Kysely wrappers. Business rules live in services.
+- `DataLayer` is a class with public sub-layer properties (`auditLog`, `collection`, `content`, `contentIndex`, `media`). Instantiate it with `new DataLayer({ db, batch })` — do not use a factory function.
+- Audit log inserts are built via `AuditLogDataLayer.createInsert(db, event)` static method. Other data layers import this from `./audit-log` sibling module, not from `@/lib/audit-log`.
+- Audit is required on all mutating data layer methods (create, update, delete). Callers in services always pass an `AuditLogEvent`.
 - Define route schemas with TypeBox and infer TS types from them. Do not hand-write interfaces that duplicate the schema.
 - Colocate static OpenAPI pieces with routes (`_openapi.ts`). `src/lib/openapi.ts` only assembles.
+
+## Database changes
+
+1. Edit `src/lib/db/schema.ts` (Drizzle table definitions).
+2. Run `pnpm db:generate` to generate a new Drizzle migration.
+3. Run `pnpm db:migrate` to apply it to the local D1 database.
+4. Run `pnpm db:codegen` to regenerate Kysely types from the updated schema.
+5. Run `pnpm generate-test-migrations` to regenerate `test/generated-migrations.ts` for the test suite.
+6. Run `pnpm test` to verify nothing broke.
 
 ## Testing
 

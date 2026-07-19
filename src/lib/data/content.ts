@@ -1,12 +1,13 @@
 import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
-import { createAuditLogInsert, type AuditLogEvent } from "@/lib/audit-log";
+import { type AuditLogEvent } from "@/lib/audit-log";
 import { buildJsonExtractExpression } from "@/lib/content-index";
 import type { Batcher } from "@/lib/db/batcher";
 import type { Database, DatabaseSchema } from "@/lib/db/client";
 
 import { BaseDataLayer } from "./_base";
+import { AuditLogDataLayer } from "./audit-log";
 
 export type ContentStatus = "draft" | "published" | "archived";
 
@@ -49,18 +50,18 @@ export class ContentDataLayer extends BaseDataLayer {
 		this.entity = "content";
 	}
 
+	public contentColumns = [
+		"id",
+		"collection_id as collectionId",
+		sql<Record<string, unknown>>`data`.as("data"),
+		sql<ContentStatus>`status`.as("status"),
+		"schema_version_id as schemaVersionId",
+		"created_at as createdAt",
+		"updated_at as updatedAt",
+	] as const;
+
 	get contentQuery() {
-		return this.db
-			.selectFrom("content")
-			.select([
-				"id",
-				"collection_id as collectionId",
-				sql<Record<string, unknown>>`data`.as("data"),
-				sql<ContentStatus>`status`.as("status"),
-				"schema_version_id as schemaVersionId",
-				"created_at as createdAt",
-				"updated_at as updatedAt",
-			]);
+		return this.db.selectFrom("content").select(this.contentColumns);
 	}
 
 	listContent(input: {
@@ -150,19 +151,12 @@ export class ContentDataLayer extends BaseDataLayer {
 							status: input.status,
 						}),
 					)
-					.returning([
-						"id",
-						"collection_id as collectionId",
-						sql<Record<string, unknown>>`data`.as("data"),
-						sql<ContentStatus>`status`.as("status"),
-						"schema_version_id as schemaVersionId",
-						"created_at as createdAt",
-						"updated_at as updatedAt",
-					]);
+					.returning(this.contentColumns);
 
-				const results = await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				const results = await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 
 				const rows = results[0]!;
 				const row = rows[0];
@@ -208,21 +202,12 @@ export class ContentDataLayer extends BaseDataLayer {
 								status: item.status,
 							}),
 						)
-						.returning([
-							"id",
-							"collection_id as collectionId",
-							sql<Record<string, unknown>>`data`.as("data"),
-							sql<ContentStatus>`status`.as("status"),
-							"schema_version_id as schemaVersionId",
-							"created_at as createdAt",
-							"updated_at as updatedAt",
-						]),
+						.returning(this.contentColumns),
 				);
 
-				const results = await this.batch(
-					contentStatements,
-					[createAuditLogInsert(this.db, audit)],
-				);
+				const results = await this.batch(contentStatements, [
+					AuditLogDataLayer.createInsert(this.db, audit),
+				]);
 
 				return results.flat();
 			})(),
@@ -250,19 +235,12 @@ export class ContentDataLayer extends BaseDataLayer {
 						}),
 					)
 					.where("id", "=", input.id)
-					.returning([
-						"id",
-						"collection_id as collectionId",
-						sql<Record<string, unknown>>`data`.as("data"),
-						sql<ContentStatus>`status`.as("status"),
-						"schema_version_id as schemaVersionId",
-						"created_at as createdAt",
-						"updated_at as updatedAt",
-					]);
+					.returning(this.contentColumns);
 
-				const results = await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				const results = await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 
 				const rows = results[0]!;
 				const row = rows[0];
@@ -296,27 +274,16 @@ export class ContentDataLayer extends BaseDataLayer {
 						.set(
 							this.forUpdate({
 								data: item.data,
-								...(item.status !== undefined
-									? { status: item.status }
-									: {}),
+								...(item.status !== undefined ? { status: item.status } : {}),
 							}),
 						)
 						.where("id", "=", item.id)
-						.returning([
-							"id",
-							"collection_id as collectionId",
-							sql<Record<string, unknown>>`data`.as("data"),
-							sql<ContentStatus>`status`.as("status"),
-							"schema_version_id as schemaVersionId",
-							"created_at as createdAt",
-							"updated_at as updatedAt",
-						]),
+						.returning(this.contentColumns),
 				);
 
-				const results = await this.batch(
-					contentStatements,
-					[createAuditLogInsert(this.db, audit)],
-				);
+				const results = await this.batch(contentStatements, [
+					AuditLogDataLayer.createInsert(this.db, audit),
+				]);
 
 				return results.flat();
 			})(),
@@ -332,11 +299,14 @@ export class ContentDataLayer extends BaseDataLayer {
 	deleteContentById(input: { id: string }, audit: AuditLogEvent) {
 		return fromPromise(
 			(async () => {
-				const mutation = this.db.deleteFrom("content").where("id", "=", input.id);
+				const mutation = this.db
+					.deleteFrom("content")
+					.where("id", "=", input.id);
 
-				await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 			})(),
 			this.passThroughError({
 				message: "Failed to delete content",
@@ -354,9 +324,10 @@ export class ContentDataLayer extends BaseDataLayer {
 					.deleteFrom("content")
 					.where("id", "in", input.ids);
 
-				await this.batch(
-					[mutation, createAuditLogInsert(this.db, audit)] as const,
-				);
+				await this.batch([
+					mutation,
+					AuditLogDataLayer.createInsert(this.db, audit),
+				] as const);
 			})(),
 			this.passThroughError({
 				message: "Failed to delete content batch",

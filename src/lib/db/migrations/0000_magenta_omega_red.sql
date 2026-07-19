@@ -60,6 +60,7 @@ CREATE TABLE `schema_versions` (
 --> statement-breakpoint
 CREATE INDEX `idx_audit_target` ON `audit_log` (`target_id`);--> statement-breakpoint
 CREATE INDEX `idx_audit_actor` ON `audit_log` (`actor`,`created_at`);--> statement-breakpoint
+CREATE INDEX `idx_audit_action` ON `audit_log` (`action`);--> statement-breakpoint
 CREATE UNIQUE INDEX `collections_slug_unique` ON `collections` (`slug`);--> statement-breakpoint
 CREATE INDEX `idx_content_indexes_collection_id_deleted_at` ON `content_indexes` (`collection_id`,`deleted_at`);--> statement-breakpoint
 CREATE INDEX `idx_content_collection_status` ON `content` (`collection_id`,`status`);--> statement-breakpoint

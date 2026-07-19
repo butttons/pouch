@@ -2,8 +2,8 @@ import { sql } from "kysely";
 import { fromPromise } from "neverthrow";
 
 import { buildIndexExpression, computeIndexName } from "@/lib/content-index";
-import type { Database, DatabaseSchema } from "@/lib/db/client";
 import type { Batcher } from "@/lib/db/batcher";
+import type { Database, DatabaseSchema } from "@/lib/db/client";
 import { typedId } from "@/lib/typed-id";
 
 import { BaseDataLayer } from "./_base";
@@ -16,6 +16,16 @@ export class ContentIndexDataLayer extends BaseDataLayer {
 		super();
 		this.entity = "content_index";
 	}
+
+	public contentIndexColumns = [
+		"id",
+		"collection_id as collectionId",
+		"field",
+		"index_name as indexName",
+		"schema_version_id as schemaVersionId",
+		"created_at as createdAt",
+		"deleted_at as deletedAt",
+	] as const;
 
 	createIndex(input: {
 		collectionId: string;
@@ -48,15 +58,7 @@ export class ContentIndexDataLayer extends BaseDataLayer {
 							schema_version_id: input.schemaVersionId,
 							created_at: Date.now(),
 						})
-						.returning([
-							"id",
-							"collection_id as collectionId",
-							"field",
-							"index_name as indexName",
-							"schema_version_id as schemaVersionId",
-							"created_at as createdAt",
-							"deleted_at as deletedAt",
-						]),
+						.returning(this.contentIndexColumns),
 				] as const);
 
 				const index = indexes[0];
@@ -91,15 +93,7 @@ export class ContentIndexDataLayer extends BaseDataLayer {
 						.where("collection_id", "=", input.collectionId)
 						.where("field", "=", input.field)
 						.where("deleted_at", "is", null)
-						.returning([
-							"id",
-							"collection_id as collectionId",
-							"field",
-							"index_name as indexName",
-							"schema_version_id as schemaVersionId",
-							"created_at as createdAt",
-							"deleted_at as deletedAt",
-						]),
+						.returning(this.contentIndexColumns),
 				] as const);
 
 				const index = indexes[0];
@@ -122,15 +116,7 @@ export class ContentIndexDataLayer extends BaseDataLayer {
 		return fromPromise(
 			this.db
 				.selectFrom("content_indexes")
-				.select([
-					"id",
-					"collection_id as collectionId",
-					"field",
-					"index_name as indexName",
-					"schema_version_id as schemaVersionId",
-					"created_at as createdAt",
-					"deleted_at as deletedAt",
-				])
+				.select(this.contentIndexColumns)
 				.where("collection_id", "=", input.collectionId)
 				.where("deleted_at", "is", null)
 				.execute(),
