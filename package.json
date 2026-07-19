@@ -59,6 +59,9 @@
       },
       "MEDIA_BUCKET": {
         "description": "R2 bucket for storing uploaded media files."
+      },
+      "MCP_ADMIN_PASSPHRASE": {
+        "description": "MCP Admin password."
       }
     }
   }
