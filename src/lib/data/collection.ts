@@ -61,7 +61,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 			schema: string;
 			titleField: string | null;
 		},
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -79,9 +79,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					.returning(["id", "slug", "name", "title_field as titleField"]);
 
 				const results = await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 
 				const rows = results[0]!;
@@ -186,7 +184,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 			schema: string;
 			currentSchemaVersionId: string;
 		},
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -209,9 +207,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					]);
 
 				const results = await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 
 				const rows = results[0]!;
@@ -248,7 +244,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteCollectionById(input: { id: string }, audit?: AuditLogEvent) {
+	deleteCollectionById(input: { id: string }, audit: AuditLogEvent) {
 		return fromPromise(
 			(async () => {
 				const mutation = this.db
@@ -256,9 +252,7 @@ export class CollectionDataLayer extends BaseDataLayer {
 					.where("id", "=", input.id);
 
 				await this.batch(
-					audit
-						? [mutation, createAuditLogInsert(this.db, audit)]
-						: [mutation],
+					[mutation, createAuditLogInsert(this.db, audit)],
 				);
 			})(),
 			this.passThroughError({

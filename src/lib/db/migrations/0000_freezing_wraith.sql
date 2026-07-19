@@ -1,3 +1,12 @@
+CREATE TABLE `audit_log` (
+	`id` text PRIMARY KEY NOT NULL,
+	`actor` text NOT NULL,
+	`action` text NOT NULL,
+	`target_id` text NOT NULL,
+	`diff` text,
+	`created_at` integer NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE `collections` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
@@ -14,8 +23,6 @@ CREATE TABLE `content_indexes` (
 	`collection_id` text NOT NULL,
 	`field` text NOT NULL,
 	`index_name` text NOT NULL,
-	`column_name` text NOT NULL,
-	`column_type` text NOT NULL,
 	`schema_version_id` text NOT NULL,
 	`created_at` integer NOT NULL,
 	`deleted_at` integer
@@ -37,7 +44,9 @@ CREATE TABLE `media` (
 	`filename` text NOT NULL,
 	`mime_type` text NOT NULL,
 	`size_bytes` integer NOT NULL,
-	`created_at` integer NOT NULL
+	`status` text DEFAULT 'ready' NOT NULL,
+	`created_at` integer NOT NULL,
+	`updated_at` integer NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE `schema_versions` (
@@ -49,5 +58,9 @@ CREATE TABLE `schema_versions` (
 	`created_at` integer NOT NULL
 );
 --> statement-breakpoint
+CREATE INDEX `idx_audit_target` ON `audit_log` (`target_id`);--> statement-breakpoint
+CREATE INDEX `idx_audit_actor` ON `audit_log` (`actor`,`created_at`);--> statement-breakpoint
 CREATE UNIQUE INDEX `collections_slug_unique` ON `collections` (`slug`);--> statement-breakpoint
-CREATE INDEX `idx_content_collection_status` ON `content` (`collection_id`,`status`);
+CREATE INDEX `idx_content_indexes_collection_id_deleted_at` ON `content_indexes` (`collection_id`,`deleted_at`);--> statement-breakpoint
+CREATE INDEX `idx_content_collection_status` ON `content` (`collection_id`,`status`);--> statement-breakpoint
+CREATE INDEX `idx_content_collection_id` ON `content` (`collection_id`,`id`);

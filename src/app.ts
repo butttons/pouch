@@ -25,7 +25,7 @@ const SIX_MONTHS = 60 * 60 * 24 * 180;
 const createKeyInputSchema = Type.Object(
 	{
 		secret: Type.String({ minLength: 1 }),
-		name: Type.Optional(Type.String({ minLength: 1 })),
+		name: Type.String({ minLength: 1 }),
 		scopes: Type.Optional(
 			Type.Array(Type.Union(SCOPES.map((scope) => Type.Literal(scope)))),
 		),

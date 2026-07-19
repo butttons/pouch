@@ -135,7 +135,7 @@ export class ContentDataLayer extends BaseDataLayer {
 			schemaVersionId: string;
 			status: string;
 		},
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -161,9 +161,7 @@ export class ContentDataLayer extends BaseDataLayer {
 					]);
 
 				const results = await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 
 				const rows = results[0]!;
@@ -194,7 +192,7 @@ export class ContentDataLayer extends BaseDataLayer {
 				status: string;
 			}>;
 		},
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -223,7 +221,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 				const results = await this.batch(
 					contentStatements,
-					audit ? [createAuditLogInsert(this.db, audit)] : undefined,
+					[createAuditLogInsert(this.db, audit)],
 				);
 
 				return results.flat();
@@ -239,7 +237,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 	updateContent(
 		input: { id: string; data: string; status?: string },
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -263,9 +261,7 @@ export class ContentDataLayer extends BaseDataLayer {
 					]);
 
 				const results = await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 
 				const rows = results[0]!;
@@ -290,7 +286,7 @@ export class ContentDataLayer extends BaseDataLayer {
 		input: {
 			items: Array<{ id: string; data: string; status?: string }>;
 		},
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -319,7 +315,7 @@ export class ContentDataLayer extends BaseDataLayer {
 
 				const results = await this.batch(
 					contentStatements,
-					audit ? [createAuditLogInsert(this.db, audit)] : undefined,
+					[createAuditLogInsert(this.db, audit)],
 				);
 
 				return results.flat();
@@ -333,15 +329,13 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteContentById(input: { id: string }, audit?: AuditLogEvent) {
+	deleteContentById(input: { id: string }, audit: AuditLogEvent) {
 		return fromPromise(
 			(async () => {
 				const mutation = this.db.deleteFrom("content").where("id", "=", input.id);
 
 				await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 			})(),
 			this.passThroughError({
@@ -353,7 +347,7 @@ export class ContentDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteContentBatch(input: { ids: string[] }, audit?: AuditLogEvent) {
+	deleteContentBatch(input: { ids: string[] }, audit: AuditLogEvent) {
 		return fromPromise(
 			(async () => {
 				const mutation = this.db
@@ -361,9 +355,7 @@ export class ContentDataLayer extends BaseDataLayer {
 					.where("id", "in", input.ids);
 
 				await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 			})(),
 			this.passThroughError({

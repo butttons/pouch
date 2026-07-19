@@ -73,11 +73,19 @@ export const createCollection = (
 			});
 		}
 
-		const updated = yield* deps.DL.collection.updateCollectionSchema({
-			id: created.id,
-			schema: schemaString,
-			currentSchemaVersionId: versionId,
-		});
+		const updated = yield* deps.DL.collection.updateCollectionSchema(
+			{
+				id: created.id,
+				schema: schemaString,
+				currentSchemaVersionId: versionId,
+			},
+			{
+				action: "collection.schema.update",
+				actor: deps.actor,
+				targetId: created.id,
+				diff: null,
+			},
+		);
 
 		return ok(updated);
 	});

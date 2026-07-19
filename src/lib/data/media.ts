@@ -87,7 +87,7 @@ export class MediaDataLayer extends BaseDataLayer {
 			mimeType: string;
 			sizeBytes: number;
 		},
-		audit?: AuditLogEvent,
+		audit: AuditLogEvent,
 	) {
 		return fromPromise(
 			(async () => {
@@ -116,9 +116,7 @@ export class MediaDataLayer extends BaseDataLayer {
 					]);
 
 				const results = await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 
 				const rows = results[0]!;
@@ -139,15 +137,13 @@ export class MediaDataLayer extends BaseDataLayer {
 		);
 	}
 
-	deleteMediaById(input: { id: string }, audit?: AuditLogEvent) {
+	deleteMediaById(input: { id: string }, audit: AuditLogEvent) {
 		return fromPromise(
 			(async () => {
 				const mutation = this.db.deleteFrom("media").where("id", "=", input.id);
 
 				await this.batch(
-					audit
-						? ([mutation, createAuditLogInsert(this.db, audit)] as const)
-						: ([mutation] as const),
+					[mutation, createAuditLogInsert(this.db, audit)] as const,
 				);
 			})(),
 			this.passThroughError({
