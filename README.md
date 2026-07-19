@@ -275,10 +275,10 @@ These are relative to the `/mcp` route (e.g. `https://pouch-cms.[account].worker
 
 ## Interactive API docs
 
-pouch serves interactive API documentation at `/docs` using Scalar. The page is protected by HTTP Basic Auth with username `pouch` and password `JWT_SECRET`:
+pouch serves interactive API documentation at `/docs` using Scalar. The page is protected by HTTP Basic Auth with username `pouch` and password `DOCS_SECRET`:
 
 ```sh
-open https://pouch:[JWT_SECRET]@pouch-cms.[account].workers.dev/docs
+open https://pouch:[DOCS_SECRET]@pouch-cms.[account].workers.dev/docs
 ```
 
 The page is generated from the same OpenAPI spec as `/openapi.json`, so it reflects the current collections, scopes, error responses, and examples. For local development use `http://localhost:3200/docs`.
@@ -408,4 +408,3 @@ pnpm run deploy
 `pnpm run deploy` runs `db:migrate:prod` before deploying, so D1 migrations are applied automatically.
 
 > **Note:** The `.github/workflows/update.yml` file is added after the first manual update. Once it is present, you can use the GitHub Actions workflow for future updates instead of merging locally.
-

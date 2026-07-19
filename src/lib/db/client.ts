@@ -9,7 +9,6 @@ export const createDB = (db: D1DatabaseSession | D1Database) =>
 			database: db,
 		}),
 		plugins: [new ParseJSONResultsPlugin()],
-		log: (q) => console.log("---query", q),
 	});
 
 export type Database = ReturnType<typeof createDB>;
