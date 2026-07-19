@@ -1,2 +1,3 @@
 JWT_SECRET=your-local-dev-secret-min-32-chars-long
 DOCS_SECRET=your-local-docs-secret
+MCP_ADMIN_PASSPHRASE=local-dev-passphrase
