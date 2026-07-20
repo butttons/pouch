@@ -8,7 +8,7 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { Hono } from "hono";
 import { getContext } from "hono/context-storage";
-import { ResultAsync } from "neverthrow";
+import { Result, ResultAsync } from "neverthrow";
 
 import { assembleOpenAPIDocument } from "@/lib/openapi";
 
@@ -32,6 +32,11 @@ type OpenApiParameter = {
 	schema?: Record<string, unknown>;
 };
 
+type OpenApiResponse = {
+	description?: string;
+	content?: Record<string, { schema?: Record<string, unknown> }>;
+};
+
 type OpenApiOperation = {
 	operationId?: string;
 	summary?: string;
@@ -42,6 +47,7 @@ type OpenApiOperation = {
 		required?: boolean;
 		content?: Record<string, { schema: Record<string, unknown> }>;
 	};
+	responses?: Record<string, OpenApiResponse>;
 };
 
 type OpenApiPathItem = Partial<Record<HttpMethod, OpenApiOperation>>;
@@ -55,6 +61,9 @@ type ToolDefinition = {
 	name: string;
 	description: string;
 	inputSchema: Record<string, unknown>;
+	outputSchema?: Record<string, unknown>;
+	/** Key wrapping non-object success bodies inside structuredContent. */
+	outputWrapKey?: string;
 	method: HttpMethod;
 	path: string;
 };
@@ -191,6 +200,69 @@ const buildToolInputSchema = (input: {
 	};
 };
 
+const SUCCESS_STATUS_PATTERN = /^2\d\d$/;
+
+type ToolOutputShape = {
+	outputSchema: Record<string, unknown>;
+	wrapKey?: string;
+};
+
+/**
+ * Derives the MCP outputSchema from the operation's first 2xx response.
+ * MCP requires a top-level object schema, so array/scalar bodies are wrapped
+ * under a `data` key and executeTool mirrors that wrapping in
+ * structuredContent. 204-style responses (no content) map to an empty object;
+ * non-JSON success bodies (file downloads) declare no schema at all.
+ */
+const buildToolOutputShape = (input: {
+	operation: OpenApiOperation;
+	schemas: Record<string, unknown>;
+}): ToolOutputShape | undefined => {
+	const responses = input.operation.responses ?? {};
+	const successStatus = Object.keys(responses)
+		.filter((status) => SUCCESS_STATUS_PATTERN.test(status))
+		.sort()[0];
+
+	if (!successStatus) {
+		return undefined;
+	}
+
+	const content = responses[successStatus]?.content;
+	if (!content) {
+		return {
+			outputSchema: {
+				type: "object",
+				properties: {},
+				additionalProperties: false,
+			},
+		};
+	}
+
+	const bodySchema = content["application/json"]?.schema;
+	if (!bodySchema) {
+		return undefined;
+	}
+
+	const resolved = resolveSchemaRefs({
+		schema: bodySchema,
+		schemas: input.schemas,
+	}) as Record<string, unknown>;
+
+	if (resolved.type !== "object" && !resolved.properties) {
+		return {
+			outputSchema: {
+				type: "object",
+				properties: { data: resolved },
+				required: ["data"],
+				additionalProperties: false,
+			},
+			wrapKey: "data",
+		};
+	}
+
+	return { outputSchema: { type: "object", ...resolved } };
+};
+
 const buildToolsFromOpenApi = (input: {
 	spec: OpenApiDocument;
 }): ToolDefinition[] => {
@@ -207,6 +279,8 @@ const buildToolsFromOpenApi = (input: {
 				continue;
 			}
 
+			const outputShape = buildToolOutputShape({ operation, schemas });
+
 			tools.push({
 				name: buildToolName({ method, path, operation }),
 				description: [
@@ -218,6 +292,8 @@ const buildToolsFromOpenApi = (input: {
 					.filter(Boolean)
 					.join("\n\n"),
 				inputSchema: buildToolInputSchema({ operation, schemas }),
+				outputSchema: outputShape?.outputSchema,
+				outputWrapKey: outputShape?.wrapKey,
 				method,
 				path,
 			});
@@ -276,6 +352,45 @@ const buildRequest = (input: {
 	return { url, init };
 };
 
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+	typeof value === "object" && value !== null && !Array.isArray(value);
+
+const parseJsonBody = (input: {
+	text: string;
+}): { hasValue: boolean; value?: unknown } => {
+	if (!input.text) {
+		return { hasValue: false };
+	}
+	const parsed = Result.fromThrowable(
+		() => JSON.parse(input.text) as unknown,
+		() => "invalid json",
+	)();
+	return parsed.isOk()
+		? { hasValue: true, value: parsed.value }
+		: { hasValue: false };
+};
+
+/**
+ * Shapes a success body into structuredContent matching the tool's declared
+ * outputSchema: empty bodies (204) become an empty object, wrapped tools nest
+ * non-object bodies under their wrapKey, plain objects pass through as-is.
+ */
+const toStructuredContent = (input: {
+	body: { hasValue: boolean; value?: unknown };
+	wrapKey?: string;
+}): Record<string, unknown> | undefined => {
+	if (!input.body.hasValue) {
+		return {};
+	}
+	if (input.wrapKey) {
+		return { [input.wrapKey]: input.body.value };
+	}
+	if (isPlainObject(input.body.value)) {
+		return input.body.value;
+	}
+	return undefined;
+};
+
 const executeTool = (input: {
 	tool: ToolDefinition;
 	args: Record<string, unknown>;
@@ -321,6 +436,17 @@ const executeTool = (input: {
 			maxLength: MAX_RESPONSE_CHARS,
 		});
 
+		// structuredContent mirrors the success body so clients validating
+		// against outputSchema (e.g. ChatGPT) get a conforming payload. Error
+		// bodies stay text-only: they never match the success schema.
+		const structuredContent =
+			response.ok && input.tool.outputSchema
+				? toStructuredContent({
+						body: parseJsonBody({ text: responseText }),
+						wrapKey: input.tool.outputWrapKey,
+					})
+				: undefined;
+
 		return {
 			isError: !response.ok,
 			content: [
@@ -329,6 +455,7 @@ const executeTool = (input: {
 					text: `HTTP ${response.status}\n\n${text}`,
 				},
 			],
+			...(structuredContent ? { structuredContent } : {}),
 		};
 	};
 
@@ -368,11 +495,14 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 			: [];
 
 		server.setRequestHandler(ListToolsRequestSchema, () => ({
-			tools: tools.map(({ name, description, inputSchema }) => ({
-				name,
-				description,
-				inputSchema,
-			})),
+			tools: tools.map(
+				({ name, description, inputSchema, outputSchema }) => ({
+					name,
+					description,
+					inputSchema,
+					...(outputSchema ? { outputSchema } : {}),
+				}),
+			),
 		}));
 
 		server.setRequestHandler(CallToolRequestSchema, async (request) => {
