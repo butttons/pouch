@@ -25,8 +25,15 @@ type SchemaNode = {
 
 type McpTool = {
 	name: string;
+	title?: string;
 	description?: string;
 	inputSchema: SchemaNode;
+	annotations: {
+		readOnlyHint?: boolean;
+		destructiveHint?: boolean;
+		idempotentHint?: boolean;
+		openWorldHint?: boolean;
+	};
 };
 
 type OpenApiSpec = {
@@ -227,6 +234,71 @@ describe("POST /mcp tools/list", () => {
 			const refs = collectComponentRefs({ node: tool.inputSchema });
 			expect(refs, `unresolved $ref in tool ${tool.name}`).toEqual([]);
 		}
+	});
+
+	it("includes title and behavior annotations for every tool", async () => {
+		await createCollection({
+			slug: "mcp_annotations",
+			name: "MCP Annotations",
+			schema: widgetSchema,
+		});
+
+		const token = await adminToken();
+		const tools = await listTools({ token });
+		expect(tools.length).toBeGreaterThan(0);
+
+		for (const tool of tools) {
+			expect(tool.title).toBeDefined();
+			expect(tool.annotations).toBeDefined();
+			expect(typeof tool.annotations.readOnlyHint).toBe("boolean");
+			expect(typeof tool.annotations.destructiveHint).toBe("boolean");
+			expect(typeof tool.annotations.idempotentHint).toBe("boolean");
+			expect(typeof tool.annotations.openWorldHint).toBe("boolean");
+		}
+	});
+
+	it("annotates read and write tools with the correct behavior hints", async () => {
+		await createCollection({
+			slug: "mcp_hints",
+			name: "MCP Hints",
+			schema: widgetSchema,
+		});
+
+		const token = await adminToken();
+		const tools = await listTools({ token });
+
+		const getTool = tools.find(
+			(tool) => tool.name === "get_mcp_hints_content_by_id",
+		);
+		expect(getTool).toBeDefined();
+		expect(getTool!.annotations).toMatchObject({
+			readOnlyHint: true,
+			destructiveHint: false,
+			idempotentHint: true,
+			openWorldHint: false,
+		});
+
+		const createTool = tools.find(
+			(tool) => tool.name === "create_mcp_hints_content",
+		);
+		expect(createTool).toBeDefined();
+		expect(createTool!.annotations).toMatchObject({
+			readOnlyHint: false,
+			destructiveHint: false,
+			idempotentHint: false,
+			openWorldHint: false,
+		});
+
+		const deleteTool = tools.find(
+			(tool) => tool.name === "delete_mcp_hints_content",
+		);
+		expect(deleteTool).toBeDefined();
+		expect(deleteTool!.annotations).toMatchObject({
+			readOnlyHint: false,
+			destructiveHint: true,
+			idempotentHint: true,
+			openWorldHint: false,
+		});
 	});
 
 	it("reflects collections created after previous requests", async () => {

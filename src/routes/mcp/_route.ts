@@ -59,11 +59,13 @@ type OpenApiDocument = {
 
 type ToolDefinition = {
 	name: string;
+	title?: string;
 	description: string;
 	inputSchema: Record<string, unknown>;
 	outputSchema?: Record<string, unknown>;
 	/** Key wrapping non-object success bodies inside structuredContent. */
 	outputWrapKey?: string;
+	annotations: Record<string, unknown>;
 	method: HttpMethod;
 	path: string;
 };
@@ -111,6 +113,29 @@ const buildToolName = (input: {
 		.replace(/[{}]/g, "")
 		.replace(/[^a-zA-Z0-9]/g, "_");
 	return sanitizeToolName({ name: `${methodPart}_${pathPart}` });
+};
+
+const buildToolTitle = (input: {
+	method: HttpMethod;
+	path: string;
+	operation: OpenApiOperation;
+}): string | undefined =>
+	input.operation.summary ?? input.operation.operationId ?? undefined;
+
+const buildToolAnnotations = (input: {
+	method: HttpMethod;
+	title?: string;
+}): Record<string, unknown> => {
+	const isReadOnly = input.method === "get";
+	const isIdempotent = isReadOnly || input.method === "put" || input.method === "delete";
+
+	return {
+		...(input.title ? { title: input.title } : {}),
+		readOnlyHint: isReadOnly,
+		destructiveHint: !isReadOnly && input.method !== "post",
+		idempotentHint: isIdempotent,
+		openWorldHint: false,
+	};
 };
 
 const COMPONENTS_SCHEMAS_PREFIX = "#/components/schemas/";
@@ -280,9 +305,12 @@ const buildToolsFromOpenApi = (input: {
 			}
 
 			const outputShape = buildToolOutputShape({ operation, schemas });
+			const title = buildToolTitle({ method, path, operation });
+			const annotations = buildToolAnnotations({ method, title });
 
 			tools.push({
 				name: buildToolName({ method, path, operation }),
+				title,
 				description: [
 					operation.summary,
 					operation.description,
@@ -294,6 +322,7 @@ const buildToolsFromOpenApi = (input: {
 				inputSchema: buildToolInputSchema({ operation, schemas }),
 				outputSchema: outputShape?.outputSchema,
 				outputWrapKey: outputShape?.wrapKey,
+				annotations,
 				method,
 				path,
 			});
@@ -496,11 +525,13 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 
 		server.setRequestHandler(ListToolsRequestSchema, () => ({
 			tools: tools.map(
-				({ name, description, inputSchema, outputSchema }) => ({
+				({ name, title, description, inputSchema, outputSchema, annotations }) => ({
 					name,
+					...(title ? { title } : {}),
 					description,
 					inputSchema,
 					...(outputSchema ? { outputSchema } : {}),
+					annotations,
 				}),
 			),
 		}));
