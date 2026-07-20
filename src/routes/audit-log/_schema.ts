@@ -46,4 +46,6 @@ export const auditLogListResponseSchema = Type.Object(
 	{ additionalProperties: false },
 );
 
-export type AuditLogListResponse = Type.Static<typeof auditLogListResponseSchema>;
+export type AuditLogListResponse = Type.Static<
+	typeof auditLogListResponseSchema
+>;

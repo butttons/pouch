@@ -26,10 +26,11 @@ export const createDeps = ({
 
 	const db = createDB(session.db);
 	const batch = createBatcher({ database: session.db, kysely: db });
-	const DL = new DataLayer({ db, batch });
+	const DL = new DataLayer({ db, batch, env });
 
 	return {
 		DL,
+		env,
 		actor,
 		bucket: env.MEDIA_BUCKET,
 		mediaPublicUrl: env.MEDIA_PUBLIC_URL,

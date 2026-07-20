@@ -3,7 +3,7 @@
 	"name": "pouch-cms",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-09-27",
-	"compatibility_flags": ["nodejs_als"],
+	"compatibility_flags": ["nodejs_als", "global_fetch_strictly_public"],
 
 	"dev": {
 		"port": 3200
@@ -29,8 +29,7 @@
 		}
 	],
 	"vars": {
-		"MEDIA_PUBLIC_URL": "http://localhost:3200",
-		"MCP_CLIENTS": "[{\"client_id\":\"claude-ai\",\"redirect_uris\":[\"https://claude.ai/api/mcp/auth_callback\"],\"name\":\"Claude.ai\",\"max_scopes\":[\"content:read\",\"content:write\"]}]"
+		"MEDIA_PUBLIC_URL": "http://localhost:3200"
 	},
 	"secrets": {
 		"required": ["JWT_SECRET", "DOCS_SECRET", "MCP_ADMIN_PASSPHRASE"]

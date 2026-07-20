@@ -16,7 +16,6 @@ The worker needs the following bindings to run:
 4. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
 5. `MCP_ADMIN_PASSPHRASE` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
 6. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
-7. `MCP_CLIENTS` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - JSON array of allowed OAuth clients. Optional. Only needed if using OAuth for MCP.
 
 ### Quick deploy
 
@@ -224,43 +223,40 @@ The MCP server reads `/openapi.json` on the first request and registers one tool
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
 
-### OAuth for MCP (claude.ai Custom Connectors)
+### OAuth for MCP (Claude chat, claude.ai Custom Connectors)
 
-Some MCP clients (e.g. claude.ai's web connector UI) only support OAuth and have no custom-headers option. pouch supports OAuth 2.1 authorization for the `/mcp` route specifically, while the REST API continues to use the existing bearer-token auth.
+Some MCP clients (e.g. the Claude chat app's connector UI) only support OAuth and have no custom-headers option. pouch supports OAuth 2.1 authorization for the `/mcp` route specifically, while the REST API continues to use the existing bearer-token auth.
 
-To use OAuth with claude.ai:
+There is no dynamic client registration. OAuth clients live in a KV registry managed through the REST API (`schema:admin` scope required) — register each client app once, then connect as many times as you like.
 
-1. Paste the MCP server URL into claude.ai's "Add custom connector":
-   ```
-   https://pouch-cms.[account].workers.dev/mcp
-   ```
-2. Under Advanced settings, set the OAuth Client ID to one of the clients configured in `MCP_CLIENTS`.
+**1. Register the client (once):**
 
-**How to add a client:**
-
-Add a JSON array to the `MCP_CLIENTS` environment variable (or `vars` in `wrangler.jsonc`). Each entry needs `client_id`, `redirect_uris`, `name`, and `max_scopes`:
-
-```json
-[
-  {
-    "client_id": "claude-ai",
-    "redirect_uris": ["https://claude.ai/api/mcp/auth_callback"],
+```sh
+curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
+  -H "Authorization: Bearer [TOKEN]" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "clientId": "claude-ai",
     "name": "Claude.ai",
-    "max_scopes": ["content:read", "content:write"]
-  },
-  {
-    "client_id": "cursor",
-    "redirect_uris": ["https://cursor.com/callback"],
-    "name": "Cursor",
-    "max_scopes": ["content:read", "content:write", "schema:admin"]
-  }
-]
+    "redirectUris": ["https://claude.ai/api/mcp/auth_callback"],
+    "maxScopes": ["content:read", "content:write"]
+  }'
 ```
 
-- `max_scopes` is the ceiling of what that client may ever be granted. The consent screen shows only the intersection of requested scopes and `max_scopes`.
-- The operator approves grants on a minimal HTML consent screen at `/authorize` after entering a single shared passphrase (`MCP_ADMIN_PASSPHRASE`).
-- Grants are stored in `OAUTH_KV` (a Cloudflare KV namespace), separate from D1.
-- On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes.
+- `clientId` is caller-supplied so setup instructions can use stable IDs. Omit it to get a generated `ocl_` ID.
+- `redirectUris` must match exactly what the client app sends — this is the open-redirect guard. For Claude (web + desktop connectors), it is `https://claude.ai/api/mcp/auth_callback`.
+- `maxScopes` is the ceiling of scopes this client may ever be granted. The consent screen shows only the intersection of requested scopes and `maxScopes`.
+
+Manage clients with `GET/PATCH/DELETE /oauth/clients/{id}` — all operations are audited (`auth.oauth.client.*`). Agents with a `schema:admin` key can register themselves.
+
+**2. Connect Claude chat:**
+
+1. Open Settings → Connectors → Add custom connector.
+2. MCP server URL: `https://pouch-cms.[account].workers.dev/mcp`
+3. Under Advanced settings, set OAuth Client ID to `claude-ai` (or whatever you registered). Leave OAuth Client Secret blank — clients are public and use PKCE only.
+4. Click Connect. A browser window opens the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_PASSPHRASE`), review the scope checkboxes, and approve.
+
+On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1. Deleting a client revokes all of its grants.
 
 **Note:** Claude Code, Cursor, and other clients that support custom headers should keep using the existing bearer-token approach (e.g. `.mcp.json` with `Authorization: Bearer [TOKEN]`). OAuth is specifically for clients that require it and have no alternative.
 

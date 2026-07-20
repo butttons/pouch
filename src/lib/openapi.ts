@@ -14,6 +14,7 @@ import {
 import { getAllowedOperators } from "@/lib/query-filter";
 import { getMediaFields } from "@/lib/schema";
 
+import { auditLogPaths, auditLogSchemas } from "@/routes/audit-log/_openapi";
 import {
 	collectionPaths,
 	collectionSchemas,
@@ -23,10 +24,7 @@ import {
 	mediaPaths,
 	mediaSchemas,
 } from "@/routes/media/_openapi";
-import {
-	auditLogPaths,
-	auditLogSchemas,
-} from "@/routes/audit-log/_openapi";
+import { oauthClientPaths, oauthClientSchemas } from "@/routes/oauth/_openapi";
 
 import packageJson from "../../package.json";
 import type { Deps } from "@/deps";
@@ -43,6 +41,7 @@ const tags = [
 	{ name: "Collections", description: "Collection and schema management" },
 	{ name: "Media", description: "File uploads and media records" },
 	{ name: "Audit Log", description: "Audit log entries" },
+	{ name: "OAuth", description: "OAuth client registry for the MCP endpoint" },
 ];
 
 const securitySchemes = {
@@ -917,7 +916,10 @@ export const assembleOpenAPIDocument = (
 			info: baseInfo,
 			tags,
 			"x-tagGroups": [
-				{ name: "Management", tags: ["Auth", "Collections", "Media", "Audit Log"] },
+				{
+					name: "Management",
+					tags: ["Auth", "Collections", "Media", "Audit Log", "OAuth"],
+				},
 				{ name: "Content", tags: collectionSlugs },
 			],
 			servers,
@@ -926,6 +928,7 @@ export const assembleOpenAPIDocument = (
 				...collectionPaths,
 				...mediaPaths,
 				...auditLogPaths,
+				...oauthClientPaths,
 				...dynamicPaths,
 			},
 			components: {
@@ -942,6 +945,7 @@ export const assembleOpenAPIDocument = (
 					...collectionSchemas,
 					...mediaSchemas,
 					...auditLogSchemas,
+					...oauthClientSchemas,
 					...dynamicSchemas,
 				},
 			},

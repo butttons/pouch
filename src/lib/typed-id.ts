@@ -11,6 +11,7 @@ const APP_ENTITY = [
 	"media",
 	"key",
 	"audit_log",
+	"oauth_client",
 	"misc",
 ] as const;
 
@@ -24,6 +25,7 @@ const APP_ENTITY_PREFIX_MAP = {
 	media: "med",
 	key: "key",
 	audit_log: "aud",
+	oauth_client: "ocl",
 	[ENTITY_FALLBACK]: ENTITY_FALLBACK_PREFIX,
 } as const satisfies Record<AppEntity, string>;
 

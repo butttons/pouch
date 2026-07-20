@@ -22,6 +22,7 @@ UUIDv7, prefixed by namespace:
 - `med_` — media
 - `cix_` — content indexes
 - `key_` — API keys
+- `ocl_` — OAuth clients (only when the caller does not supply an ID)
 
 Time-sortable. No separate ordering column.
 
@@ -98,11 +99,21 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - Use `neverthrow` for all fallible operations. No `try/catch` for control flow.
 - Every error response must be JSON, including 404s and unhandled exceptions.
 - Data layer methods are thin Kysely wrappers. Business rules live in services.
-- `DataLayer` is a class with public sub-layer properties (`auditLog`, `collection`, `content`, `contentIndex`, `media`). Instantiate it with `new DataLayer({ db, batch })` — do not use a factory function.
+- `DataLayer` is a class with public sub-layer properties (`auditLog`, `collection`, `content`, `contentIndex`, `media`, `oauthClient`). Instantiate it with `new DataLayer({ db, batch, env })` — do not use a factory function.
+- The `oauthClient` sub-layer is KV-backed (not Kysely): it mirrors the `@cloudflare/workers-oauth-provider` client record shape in `OAUTH_KV` directly (the library's `createClient` cannot accept caller-supplied IDs), and keeps pouch-specific fields (`maxScopes`, `createdBy`) in a sidecar `client-meta:{clientId}` key.
 - Audit log inserts are built via `AuditLogDataLayer.createInsert(db, event)` static method. Other data layers import this from `./audit-log` sibling module, not from `@/lib/audit-log`.
 - Audit is required on all mutating data layer methods (create, update, delete). Callers in services always pass an `AuditLogEvent`.
 - Define route schemas with TypeBox and infer TS types from them. Do not hand-write interfaces that duplicate the schema.
 - Colocate static OpenAPI pieces with routes (`_openapi.ts`). `src/lib/openapi.ts` only assembles.
+
+## OAuth for MCP
+
+- No DCR and no env-var client lists. OAuth clients are managed via `POST/GET/PATCH/DELETE /oauth/clients` (`schema:admin` scope), stored in `OAUTH_KV`.
+- Clients are public (PKCE-only, `tokenEndpointAuthMethod: "none"`). Never issue client secrets.
+- The consent flow (`GET/POST /authorize`) lives in `src/routes/oauth/` and renders JSX pages via `hono/jsx`. Human-facing pages use the shared `Layout` from `src/components/Layout.tsx` — fully self-contained, styles inlined, no static assets.
+- The consent flow router is mounted by the `OAuthProvider` defaultHandler in `src/index.ts`, outside the main app pipeline, so it applies `depsMiddleware` itself.
+- Plain pouch JWTs remain valid on `/mcp` via the `resolveExternalToken` callback in `src/lib/oauth.ts`. OAuth-issued and JWT-issued requests both reach tool handlers as `executionCtx.props.accessToken` — tool dispatch must read props before the incoming `Authorization` header.
+- Multi-value form fields (e.g. scope checkboxes) must be read with `formData.getAll()` — Hono's `parseBody()` keeps only the last repeated key.
 
 ## Database changes
 

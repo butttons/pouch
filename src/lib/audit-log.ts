@@ -1,6 +1,9 @@
 export const AUDIT_LOG_ACTION = [
 	"key.create",
 	"auth.oauth.grant",
+	"auth.oauth.client.create",
+	"auth.oauth.client.update",
+	"auth.oauth.client.delete",
 	"collection.create",
 	"collection.schema.update",
 	"collection.delete",
