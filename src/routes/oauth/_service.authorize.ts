@@ -20,7 +20,7 @@ import type { Deps } from "@/deps";
 const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 180; // 180 days
 
 export type ConsentView =
-	| { type: "login"; returnUrl: string }
+	| { type: "login"; clientName: string; returnUrl: string }
 	| { type: "consent"; clientName: string; scopes: Scope[]; returnUrl: string };
 
 const computeGrantedScopes = (
@@ -79,7 +79,11 @@ export const prepareConsent = (
 		}
 
 		if (!input.isAuthenticated) {
-			return ok({ type: "login" as const, returnUrl: input.requestUrl });
+			return ok({
+				type: "login" as const,
+				clientName: client.name,
+				returnUrl: input.requestUrl,
+			});
 		}
 
 		const requested =

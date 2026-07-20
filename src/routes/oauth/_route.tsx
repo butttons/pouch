@@ -1,5 +1,6 @@
 import type { Context } from "hono";
 import { getSignedCookie, setSignedCookie } from "hono/cookie";
+import { Result } from "neverthrow";
 
 import { unwrapResult } from "@/lib/errors";
 import { jsonValidator, paramValidator, queryValidator } from "@/lib/validator";
@@ -43,6 +44,26 @@ const parseScopes = (form: FormData): string[] =>
 	form.getAll("scope").map(String);
 
 /**
+ * Best-effort lookup of the client name embedded in an authorize URL, so the
+ * login error state can keep showing the client chip. Falls back to undefined
+ * when the URL or client cannot be resolved.
+ */
+const resolveClientName = async (
+	c: Context,
+	returnUrl: string,
+): Promise<string | undefined> => {
+	const clientId = Result.fromThrowable(
+		() => new URL(returnUrl).searchParams.get("client_id") ?? "",
+		() => "",
+	)().unwrapOr("");
+	if (!clientId) return undefined;
+	const client = (
+		await c.var.deps.DL.oauthClient.getById({ clientId })
+	).unwrapOr(null);
+	return client?.name;
+};
+
+/**
  * Browser-facing OAuth consent flow. Mounted by the OAuthProvider
  * defaultHandler in src/index.ts — runs outside the main app pipeline, so it
  * applies depsMiddleware itself.
@@ -58,7 +79,10 @@ export const oauthRouter = createRouter()
 		const view = unwrapResult(result);
 
 		if (view.type === "login") {
-			return c.html(<LoginPage returnUrl={view.returnUrl} />, 401);
+			return c.html(
+				<LoginPage clientName={view.clientName} returnUrl={view.returnUrl} />,
+				401,
+			);
 		}
 
 		return c.html(
@@ -82,7 +106,11 @@ export const oauthRouter = createRouter()
 				typeof passphrase !== "string" ||
 				passphrase !== c.env.MCP_ADMIN_PASSPHRASE
 			) {
-				return c.html(<LoginPage returnUrl={returnUrl} hasError />, 401);
+				const clientName = await resolveClientName(c, returnUrl);
+				return c.html(
+					<LoginPage returnUrl={returnUrl} clientName={clientName} hasError />,
+					401,
+				);
 			}
 
 			await setSignedCookie(c, SESSION_COOKIE_NAME, "1", c.env.JWT_SECRET, {

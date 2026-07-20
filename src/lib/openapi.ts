@@ -531,7 +531,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "List",
 					description: `Lists content in the ${slug} collection with optional filtering and relation/media resolution.`,
-					operationId: `list${slug}Content`,
+					operationId: `list_${slug}_content`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					parameters: buildContentQueryParameters(schema),
@@ -567,7 +567,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Create",
 					description: `Creates a new content item in the ${slug} collection.`,
-					operationId: `create${slug}Content`,
+					operationId: `create_${slug}_content`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					requestBody: {
@@ -605,7 +605,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Create batch",
 					description: `Creates multiple content items in the ${slug} collection in a single request.`,
-					operationId: `create${slug}ContentBatch`,
+					operationId: `create_${slug}_content_batch`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					requestBody: {
@@ -651,7 +651,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Update batch",
 					description: `Updates multiple content items in the ${slug} collection in a single request.`,
-					operationId: `update${slug}ContentBatch`,
+					operationId: `update_${slug}_content_batch`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					requestBody: {
@@ -695,7 +695,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Delete batch",
 					description: `Deletes multiple content items in the ${slug} collection in a single request.`,
-					operationId: `delete${slug}ContentBatch`,
+					operationId: `delete_${slug}_content_batch`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					requestBody: {
@@ -723,7 +723,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Validate",
 					description: `Validates content data against the ${slug} schema without creating it.`,
-					operationId: `validate${slug}Content`,
+					operationId: `validate_${slug}_content`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					requestBody: {
@@ -763,7 +763,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Get by ID",
 					description: `Returns a single ${slug} content item.`,
-					operationId: `get${slug}ContentById`,
+					operationId: `get_${slug}_content_by_id`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					parameters: [
@@ -795,7 +795,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Update",
 					description: `Updates a ${slug} content item.`,
-					operationId: `update${slug}Content`,
+					operationId: `update_${slug}_content`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					parameters: [
@@ -837,7 +837,7 @@ const buildCollectionContentPaths = (
 				{
 					summary: "Delete",
 					description: `Deletes a ${slug} content item.`,
-					operationId: `delete${slug}Content`,
+					operationId: `delete_${slug}_content`,
 					tags: [collectionTag],
 					security: baseSecurity,
 					parameters: [

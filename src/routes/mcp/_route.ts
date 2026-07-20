@@ -9,7 +9,6 @@ import { assembleOpenAPIDocument } from "@/lib/openapi";
 import { createRouter, type HonoVariables } from "@/utils";
 
 import packageJson from "../../../package.json";
-import type { Deps } from "@/deps";
 
 const MAX_TOOL_NAME_LENGTH = 48;
 const MAX_RESPONSE_CHARS = 50_000;
@@ -196,143 +195,138 @@ const buildRequest = (
 	return { url, init };
 };
 
-export const createMcpRouter = (app: Hono<HonoVariables>) => {
-	const mcpServer = new McpServer({
-		name: "pouch",
-		version: packageJson.version,
-	});
-
-	const transport = new StreamableHTTPTransport();
-	let hasRegisteredTools = false;
-
-	const registerToolsFromOpenApi = async (deps: Deps) => {
-		if (hasRegisteredTools) {
-			return;
+const registerToolsFromOpenApi = (
+	mcpServer: McpServer,
+	app: Hono<HonoVariables>,
+	spec: OpenApiDocument,
+) => {
+	for (const [path, pathItem] of Object.entries(spec.paths ?? {})) {
+		if (!pathItem || isExcludedPath(path)) {
+			continue;
 		}
 
-		const result = await assembleOpenAPIDocument(deps);
-		const spec = result.isOk() ? result.value : null;
-
-		if (!spec || typeof spec !== "object") {
-			return;
-		}
-
-		const openApiSpec = spec as OpenApiDocument;
-
-		for (const [path, pathItem] of Object.entries(openApiSpec.paths ?? {})) {
-			if (!pathItem || isExcludedPath(path)) {
+		for (const [method, operation] of Object.entries(pathItem)) {
+			if (!isHttpMethod(method) || !operation) {
 				continue;
 			}
 
-			for (const [method, operation] of Object.entries(pathItem)) {
-				if (!isHttpMethod(method) || !operation) {
-					continue;
-				}
+			const toolName = buildToolName(method, path, operation);
+			const description = [
+				operation.summary,
+				operation.description,
+				`Method: ${method.toUpperCase()}`,
+				`Path: ${path}`,
+			]
+				.filter(Boolean)
+				.join("\n\n");
 
-				const toolName = buildToolName(method, path, operation);
-				const description = [
-					operation.summary,
-					operation.description,
-					`Method: ${method.toUpperCase()}`,
-					`Path: ${path}`,
-				]
-					.filter(Boolean)
-					.join("\n\n");
+			const inputSchema = buildInputSchema(operation);
 
-				const inputSchema = buildInputSchema(operation);
+			mcpServer.registerTool(
+				toolName,
+				{
+					description,
+					inputSchema,
+				},
+				async (args) => {
+					try {
+						const baseUrl = "http://localhost";
+						const { url, init } = buildRequest(
+							baseUrl,
+							path,
+							method,
+							args as Record<string, unknown>,
+						);
 
-				mcpServer.registerTool(
-					toolName,
-					{
-						description,
-						inputSchema,
-					},
-					async (args) => {
-						try {
-							const baseUrl = "http://localhost";
-							const { url, init } = buildRequest(
-								baseUrl,
-								path,
-								method,
-								args as Record<string, unknown>,
-							);
-
-							const headers = new Headers(init.headers);
-							const context = getContext<HonoVariables>();
-							// OAuth flow: the provider validated the bearer token and
-							// decrypted our props — the pouch JWT minted at consent time
-							// lives there, not in the incoming Authorization header (which
-							// holds the opaque library token). Header-capable clients fall
-							// back to the plain bearer path.
-							const props = (
-								context.executionCtx as unknown as {
-									props?: { accessToken?: string };
-								}
-							).props;
-							const authHeader = props?.accessToken
-								? `Bearer ${props.accessToken}`
-								: (context.req.header("authorization") ??
-									context.var.accessToken);
-							if (authHeader) {
-								headers.set("authorization", authHeader);
+						const headers = new Headers(init.headers);
+						const context = getContext<HonoVariables>();
+						// OAuth flow: the provider validated the bearer token and
+						// decrypted our props — the pouch JWT minted at consent time
+						// lives there, not in the incoming Authorization header (which
+						// holds the opaque library token). Header-capable clients fall
+						// back to the plain bearer path.
+						const props = (
+							context.executionCtx as unknown as {
+								props?: { accessToken?: string };
 							}
-
-							const request = new Request(url, {
-								...init,
-								headers,
-							});
-
-							const response = await app.fetch(
-								request,
-								context.env,
-								context.executionCtx,
-							);
-
-							const responseText = await response.text();
-							const text = truncateText(responseText, MAX_RESPONSE_CHARS);
-
-							return {
-								isError: !response.ok,
-								content: [
-									{
-										type: "text" as const,
-										text: `HTTP ${response.status}\n\n${text}`,
-									},
-								],
-							};
-						} catch (error) {
-							const message =
-								error instanceof Error ? error.message : "Unknown error";
-
-							return {
-								isError: true,
-								content: [
-									{
-										type: "text" as const,
-										text: `Tool failed: ${message}`,
-									},
-								],
-							};
+						).props;
+						const authHeader = props?.accessToken
+							? `Bearer ${props.accessToken}`
+							: (context.req.header("authorization") ??
+								context.var.accessToken);
+						if (authHeader) {
+							headers.set("authorization", authHeader);
 						}
-					},
-				);
-			}
+
+						const request = new Request(url, {
+							...init,
+							headers,
+						});
+
+						const response = await app.fetch(
+							request,
+							context.env,
+							context.executionCtx,
+						);
+
+						const responseText = await response.text();
+						const text = truncateText(responseText, MAX_RESPONSE_CHARS);
+
+						return {
+							isError: !response.ok,
+							content: [
+								{
+									type: "text" as const,
+									text: `HTTP ${response.status}\n\n${text}`,
+								},
+							],
+						};
+					} catch (error) {
+						const message =
+							error instanceof Error ? error.message : "Unknown error";
+
+						return {
+							isError: true,
+							content: [
+								{
+									type: "text" as const,
+									text: `Tool failed: ${message}`,
+								},
+							],
+						};
+					}
+				},
+			);
 		}
+	}
+};
 
-		hasRegisteredTools = true;
-	};
-
+/**
+ * Fully stateless: every request gets a fresh McpServer + transport with
+ * tools registered from a freshly assembled OpenAPI document. No session
+ * mode (sessionIdGenerator stays undefined) because session affinity is not
+ * guaranteed across Workers isolates — and no shared registration state, so
+ * the tool list always reflects the collections that exist right now.
+ */
+export const createMcpRouter = (app: Hono<HonoVariables>) => {
 	const router = createRouter().all("/", async (c) => {
 		const accessToken = c.req.query("access_token");
 		if (accessToken) {
 			c.set("accessToken", `Bearer ${accessToken}`);
 		}
 
-		if (!mcpServer.isConnected()) {
-			await registerToolsFromOpenApi(c.var.deps);
-			await mcpServer.connect(transport);
+		const mcpServer = new McpServer({
+			name: "pouch",
+			version: packageJson.version,
+		});
+
+		const result = await assembleOpenAPIDocument(c.var.deps);
+		if (result.isOk()) {
+			registerToolsFromOpenApi(mcpServer, app, result.value as OpenApiDocument);
 		}
 
+		const transport = new StreamableHTTPTransport();
+		await mcpServer.connect(transport);
 		return transport.handleRequest(c);
 	});
 

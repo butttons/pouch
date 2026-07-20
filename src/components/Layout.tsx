@@ -16,15 +16,19 @@ export const Layout: FC<LayoutProps> = ({ title, description, children }) => (
 		<head>
 			<meta charset="UTF-8" />
 			<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+			<meta name="theme-color" content="#09090b" />
 			<title>{`${title} · pouch`}</title>
 			{description && <meta name="description" content={description} />}
 			<meta name="robots" content="noindex, nofollow" />
-			<style>{styles}</style>
+			<link
+				rel="icon"
+				href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2309090b'/%3E%3Ccircle cx='16' cy='16' r='6' fill='%23fafafa'/%3E%3C/svg%3E"
+			/>
+			{/* Raw text: hono/jsx would HTML-escape quotes in font names and break the CSS */}
+			<style dangerouslySetInnerHTML={{ __html: styles }} />
 		</head>
 		<body>
 			<main class="shell">
-				<div class="aurora aurora-a" />
-				<div class="aurora aurora-b" />
 				<div class="card">
 					<div class="brand">
 						<span class="brand-mark">pouch</span>
@@ -42,34 +46,39 @@ export const Layout: FC<LayoutProps> = ({ title, description, children }) => (
 
 const styles = `
 :root {
-	--bg: #09090d;
-	--bg-raise: #101017;
-	--card: rgba(19, 19, 27, 0.72);
-	--border: rgba(255, 255, 255, 0.08);
-	--border-strong: rgba(255, 255, 255, 0.16);
-	--text: #f2f2f5;
-	--text-dim: #9a9aa8;
-	--text-faint: #5d5d6c;
-	--accent: #8b7cff;
-	--accent-strong: #a99cff;
-	--accent-ink: #0c0a1d;
-	--danger: #ff6b6b;
+	--bg: #09090b;
+	--card: #101013;
+	--raise: #18181b;
+	--border: #27272a;
+	--border-strong: #3f3f46;
+	--text: #fafafa;
+	--text-dim: #a1a1aa;
+	--text-faint: #71717a;
+	--danger: #f87171;
 	--radius: 16px;
 	--radius-sm: 10px;
-	--font: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
-	--mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+	--font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+	--font-mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace;
 }
 
 * { box-sizing: border-box; }
 
-html, body {
+html { color-scheme: dark; }
+
+body {
 	margin: 0;
-	padding: 0;
 	background: var(--bg);
 	color: var(--text);
-	font-family: var(--font);
+	font-family: var(--font-sans);
+	font-size: 15px;
+	line-height: 1.5;
+	font-synthesis: none;
+	text-rendering: optimizeLegibility;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
+
+::selection { background: rgba(255, 255, 255, 0.2); }
 
 .shell {
 	position: relative;
@@ -80,41 +89,18 @@ html, body {
 	justify-content: center;
 	gap: 20px;
 	padding: 32px 20px;
-	overflow: hidden;
-}
-
-.aurora {
-	position: absolute;
-	width: 560px;
-	height: 560px;
-	border-radius: 50%;
-	filter: blur(120px);
-	opacity: 0.5;
-	pointer-events: none;
-}
-.aurora-a {
-	top: -220px;
-	left: -140px;
-	background: radial-gradient(circle, rgba(139, 124, 255, 0.35), transparent 65%);
-}
-.aurora-b {
-	bottom: -260px;
-	right: -160px;
-	background: radial-gradient(circle, rgba(64, 190, 255, 0.22), transparent 65%);
 }
 
 .card {
-	position: relative;
 	width: 100%;
 	max-width: 420px;
 	background: var(--card);
 	border: 1px solid var(--border);
 	border-radius: var(--radius);
-	padding: 32px;
-	backdrop-filter: blur(18px);
+	padding: 36px;
 	box-shadow:
-		0 0 0 1px rgba(0, 0, 0, 0.2),
-		0 24px 64px rgba(0, 0, 0, 0.45);
+		inset 0 1px 0 rgba(255, 255, 255, 0.04),
+		0 16px 48px rgba(0, 0, 0, 0.5);
 	animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -127,38 +113,49 @@ html, body {
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	margin-bottom: 24px;
+	margin-bottom: 28px;
 }
 .brand-mark {
-	font-family: var(--mono);
-	font-size: 15px;
-	font-weight: 600;
-	letter-spacing: -0.02em;
+	font-family: var(--font-mono);
+	font-size: 16px;
+	font-weight: 700;
+	letter-spacing: -0.045em;
 	color: var(--text);
 }
 .brand-dot {
 	width: 7px;
 	height: 7px;
 	border-radius: 50%;
-	background: var(--accent);
-	box-shadow: 0 0 12px var(--accent);
+	background: var(--text);
+	box-shadow: 0 0 10px rgba(255, 255, 255, 0.45);
 }
 
 h1 {
-	margin: 0 0 6px;
-	font-size: 22px;
-	font-weight: 650;
-	letter-spacing: -0.02em;
+	margin: 0 0 8px;
+	font-size: 24px;
+	font-weight: 700;
+	line-height: 1.2;
+	letter-spacing: -0.022em;
+	background: linear-gradient(180deg, #ffffff 30%, rgba(255, 255, 255, 0.68));
+	-webkit-background-clip: text;
+	background-clip: text;
+	color: transparent;
+	-webkit-text-fill-color: transparent;
 }
 
 .lede {
 	margin: 0 0 24px;
-	font-size: 14px;
-	line-height: 1.55;
+	font-size: 14.5px;
+	line-height: 1.6;
+	letter-spacing: -0.006em;
 	color: var(--text-dim);
 }
+.lede .mono {
+	font-size: 13.5px;
+	color: var(--text);
+}
 
-.mono { font-family: var(--mono); }
+.mono { font-family: var(--font-mono); }
 
 .field {
 	display: flex;
@@ -167,28 +164,29 @@ h1 {
 	margin-bottom: 20px;
 }
 .field label {
-	font-size: 12px;
+	font-size: 13px;
 	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	color: var(--text-faint);
+	letter-spacing: -0.006em;
+	color: var(--text-dim);
 }
 .field input[type="password"],
 .field input[type="text"] {
 	width: 100%;
 	padding: 12px 14px;
 	font-size: 15px;
-	font-family: var(--font);
+	letter-spacing: -0.006em;
+	font-family: var(--font-sans);
 	color: var(--text);
-	background: var(--bg-raise);
+	background: var(--bg);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	outline: none;
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.field input::placeholder { color: var(--text-faint); }
 .field input:focus {
-	border-color: var(--accent);
-	box-shadow: 0 0 0 3px rgba(139, 124, 255, 0.22);
+	border-color: var(--border-strong);
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
 }
 
 .scopes {
@@ -204,13 +202,15 @@ h1 {
 	align-items: center;
 	gap: 12px;
 	padding: 12px 14px;
-	background: var(--bg-raise);
+	background: var(--raise);
 	border: 1px solid var(--border);
 	border-radius: var(--radius-sm);
 	cursor: pointer;
 	transition: border-color 0.15s ease, background 0.15s ease;
 }
-.scope:hover { border-color: var(--border-strong); }
+.scope:hover {
+	border-color: var(--border-strong);
+}
 .scope input {
 	appearance: none;
 	width: 18px;
@@ -225,8 +225,8 @@ h1 {
 	transition: background 0.15s ease, border-color 0.15s ease;
 }
 .scope input:checked {
-	background: var(--accent);
-	border-color: var(--accent);
+	background: var(--text);
+	border-color: var(--text);
 }
 .scope input:checked::after {
 	content: "";
@@ -235,22 +235,49 @@ h1 {
 	top: 2px;
 	width: 5px;
 	height: 9px;
-	border: solid var(--accent-ink);
+	border: solid var(--bg);
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg);
 }
 .scope input:focus-visible {
 	outline: none;
-	box-shadow: 0 0 0 3px rgba(139, 124, 255, 0.22);
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.12);
 }
 .scope-name {
-	font-family: var(--mono);
+	font-family: var(--font-mono);
 	font-size: 13px;
-	color: var(--text);
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	color: var(--text-dim);
 }
+.scope-sep { color: var(--text-faint); }
+.scope-action { color: var(--text); }
 .scope-hint {
 	margin-left: auto;
-	font-size: 11px;
+	font-size: 12px;
+	letter-spacing: -0.006em;
+	color: var(--text-faint);
+}
+
+.empty {
+	margin: 0 0 24px;
+	padding: 18px 16px;
+	text-align: center;
+	background: var(--raise);
+	border: 1px dashed var(--border-strong);
+	border-radius: var(--radius-sm);
+}
+.empty-title {
+	margin: 0 0 4px;
+	font-size: 13.5px;
+	font-weight: 600;
+	letter-spacing: -0.006em;
+	color: var(--text-dim);
+}
+.empty-sub {
+	margin: 0;
+	font-size: 12.5px;
+	line-height: 1.5;
 	color: var(--text-faint);
 }
 
@@ -263,20 +290,24 @@ h1 {
 	padding: 12px 18px;
 	font-size: 14px;
 	font-weight: 600;
-	font-family: var(--font);
+	letter-spacing: -0.006em;
+	font-family: var(--font-sans);
 	border-radius: var(--radius-sm);
 	border: 1px solid transparent;
 	cursor: pointer;
-	transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+	transition: transform 0.1s ease, background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, color 0.15s ease;
 }
 .btn:active { transform: translateY(1px); }
+.btn:focus-visible {
+	outline: none;
+	box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.18);
+}
 .btn-primary {
-	background: var(--accent);
-	color: var(--accent-ink);
+	background: var(--text);
+	color: var(--bg);
 }
 .btn-primary:hover {
-	background: var(--accent-strong);
-	box-shadow: 0 6px 24px rgba(139, 124, 255, 0.35);
+	background: rgba(250, 250, 250, 0.85);
 }
 .btn-ghost {
 	background: transparent;
@@ -292,16 +323,18 @@ h1 {
 	margin: 0 0 18px;
 	padding: 10px 14px;
 	font-size: 13px;
+	line-height: 1.5;
+	letter-spacing: -0.006em;
 	color: var(--danger);
-	background: rgba(255, 107, 107, 0.08);
-	border: 1px solid rgba(255, 107, 107, 0.25);
+	background: rgba(248, 113, 113, 0.08);
+	border: 1px solid rgba(248, 113, 113, 0.25);
 	border-radius: var(--radius-sm);
 }
 
 .foot {
-	position: relative;
 	margin: 0;
 	font-size: 12px;
+	letter-spacing: -0.006em;
 	color: var(--text-faint);
 }
 .foot .mono { color: var(--text-dim); }
@@ -311,12 +344,18 @@ h1 {
 	align-items: center;
 	gap: 8px;
 	margin-bottom: 16px;
-	padding: 6px 12px;
-	font-family: var(--mono);
-	font-size: 12px;
-	color: var(--accent-strong);
-	background: rgba(139, 124, 255, 0.1);
-	border: 1px solid rgba(139, 124, 255, 0.3);
+	padding: 5px 11px;
+	font-family: var(--font-mono);
+	font-size: 12.5px;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	color: var(--text);
+	background: rgba(255, 255, 255, 0.06);
+	border: 1px solid var(--border);
 	border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.card { animation: none; }
 }
 `;

@@ -4,16 +4,23 @@ import { Layout } from "@/components/Layout";
 
 type LoginPageProps = {
 	returnUrl: string;
+	clientName?: string;
 	hasError?: boolean;
 };
 
-export const LoginPage: FC<LoginPageProps> = ({ returnUrl, hasError }) => (
-	<Layout title="Authorize">
+export const LoginPage: FC<LoginPageProps> = ({
+	returnUrl,
+	clientName,
+	hasError,
+}) => (
+	<Layout title="Sign in">
+		{clientName && <span class="client-chip">{clientName}</span>}
 		<h1>Operator sign-in</h1>
 		<p class="lede">
-			Enter the operator passphrase to review this authorization request.
+			This application is requesting access to this pouch instance. Enter the
+			operator passphrase to review the request.
 		</p>
-		{hasError && <p class="error">Invalid passphrase. Try again.</p>}
+		{hasError && <p class="error">That passphrase didn't match. Try again.</p>}
 		<form method="post" action="/authorize?login=1">
 			<input type="hidden" name="return_url" value={returnUrl} />
 			<div class="field">
@@ -22,6 +29,7 @@ export const LoginPage: FC<LoginPageProps> = ({ returnUrl, hasError }) => (
 					id="passphrase"
 					type="password"
 					name="passphrase"
+					placeholder="Operator passphrase"
 					required
 					autofocus
 					autocomplete="current-password"

@@ -239,7 +239,7 @@ curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
     "clientId": "claude-ai",
     "name": "Claude.ai",
     "redirectUris": ["https://claude.ai/api/mcp/auth_callback"],
-    "maxScopes": ["content:read", "content:write"]
+    "maxScopes": ["content:read", "content:write", "schema:admin"]
   }'
 ```
 
