@@ -301,6 +301,35 @@ describe("POST /mcp tools/list", () => {
 		});
 	});
 
+	it("includes the collection slug in content tool titles", async () => {
+		await createCollection({
+			slug: "mcp_titles",
+			name: "MCP Titles",
+			schema: widgetSchema,
+		});
+
+		const token = await adminToken();
+		const tools = await listTools({ token });
+
+		const createTool = tools.find(
+			(tool) => tool.name === "create_mcp_titles_content",
+		);
+		expect(createTool).toBeDefined();
+		expect(createTool!.title).toBe("Create 'mcp_titles'");
+
+		const listTool = tools.find(
+			(tool) => tool.name === "list_mcp_titles_content",
+		);
+		expect(listTool).toBeDefined();
+		expect(listTool!.title).toBe("List 'mcp_titles'");
+
+		const getTool = tools.find(
+			(tool) => tool.name === "get_mcp_titles_content_by_id",
+		);
+		expect(getTool).toBeDefined();
+		expect(getTool!.title).toBe("Get by ID 'mcp_titles'");
+	});
+
 	it("reflects collections created after previous requests", async () => {
 		const token = await adminToken();
 

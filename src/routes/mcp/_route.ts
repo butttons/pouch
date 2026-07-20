@@ -115,12 +115,23 @@ const buildToolName = (input: {
 	return sanitizeToolName({ name: `${methodPart}_${pathPart}` });
 };
 
+const CONTENT_PATH_PATTERN = /^\/collections\/([^/]+)\/content(?=\/|:|$)/;
+
 const buildToolTitle = (input: {
 	method: HttpMethod;
 	path: string;
 	operation: OpenApiOperation;
-}): string | undefined =>
-	input.operation.summary ?? input.operation.operationId ?? undefined;
+}): string | undefined => {
+	const baseTitle = input.operation.summary ?? input.operation.operationId;
+	if (!baseTitle) return undefined;
+
+	const match = CONTENT_PATH_PATTERN.exec(input.path);
+	if (match) {
+		return `${baseTitle} '${match[1]}'`;
+	}
+
+	return baseTitle;
+};
 
 const buildToolAnnotations = (input: {
 	method: HttpMethod;
