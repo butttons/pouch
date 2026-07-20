@@ -61,7 +61,7 @@ export const mediaPaths = {
 			{
 				summary: "List media",
 				description: "Lists uploaded media records.",
-				operationId: "listMedia",
+				operationId: "list_media",
 				tags: mediaTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -107,7 +107,7 @@ export const mediaPaths = {
 			{
 				summary: "Upload media",
 				description: "Uploads a file and creates a media record.",
-				operationId: "createMedia",
+				operationId: "create_media",
 				tags: mediaTags,
 				security: [{ bearerAuth: [] }],
 				requestBody: {
@@ -149,7 +149,7 @@ export const mediaPaths = {
 			{
 				summary: "Get media",
 				description: "Returns a media record by ID.",
-				operationId: "getMediaById",
+				operationId: "get_media_by_id",
 				tags: mediaTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -180,7 +180,7 @@ export const mediaPaths = {
 			{
 				summary: "Delete media",
 				description: "Deletes a media record and its stored file.",
-				operationId: "deleteMedia",
+				operationId: "delete_media",
 				tags: mediaTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -210,7 +210,7 @@ export const mediaPaths = {
 			{
 				summary: "Download media file",
 				description: "Returns the raw file bytes for a media record.",
-				operationId: "getMediaFile",
+				operationId: "get_media_file",
 				tags: mediaTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [

@@ -36,7 +36,7 @@ export const oauthClientPaths = {
 				summary: "List OAuth clients",
 				description:
 					"Lists registered OAuth clients from the KV registry. These are the clients allowed to request authorization grants for the /mcp endpoint.",
-				operationId: "listOAuthClients",
+				operationId: "list_oauth_clients",
 				tags: oauthClientTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -82,7 +82,7 @@ export const oauthClientPaths = {
 				summary: "Register OAuth client",
 				description:
 					"Registers a new public (PKCE-only) OAuth client allowed to request grants for the /mcp endpoint. Pass a stable clientId (e.g. `claude-ai`) or omit it to get a generated `ocl_` ID. `maxScopes` is the ceiling of scopes this client may ever be granted; the consent screen shows only the intersection of requested scopes and `maxScopes`.",
-				operationId: "createOAuthClient",
+				operationId: "create_oauth_client",
 				tags: oauthClientTags,
 				security: [{ bearerAuth: [] }],
 				requestBody: {
@@ -117,7 +117,7 @@ export const oauthClientPaths = {
 			{
 				summary: "Get OAuth client by ID",
 				description: "Returns a single registered OAuth client.",
-				operationId: "getOAuthClientById",
+				operationId: "get_oauth_client_by_id",
 				tags: oauthClientTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [clientIdParameter],
@@ -142,7 +142,7 @@ export const oauthClientPaths = {
 				summary: "Update OAuth client",
 				description:
 					"Updates an OAuth client's name, redirect URIs, or scope ceiling.",
-				operationId: "updateOAuthClient",
+				operationId: "update_oauth_client",
 				tags: oauthClientTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [clientIdParameter],
@@ -177,7 +177,7 @@ export const oauthClientPaths = {
 				summary: "Delete OAuth client",
 				description:
 					"Deletes an OAuth client and revokes all grants issued to it.",
-				operationId: "deleteOAuthClient",
+				operationId: "delete_oauth_client",
 				tags: oauthClientTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [clientIdParameter],

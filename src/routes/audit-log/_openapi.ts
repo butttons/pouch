@@ -20,7 +20,7 @@ export const auditLogPaths = {
 			{
 				summary: "List audit logs",
 				description: "Lists audit log entries with optional filtering.",
-				operationId: "listAuditLogs",
+				operationId: "list_audit_logs",
 				tags: auditLogTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -95,7 +95,7 @@ export const auditLogPaths = {
 			{
 				summary: "Get audit log by ID",
 				description: "Returns a single audit log entry.",
-				operationId: "getAuditLogById",
+				operationId: "get_audit_log_by_id",
 				tags: auditLogTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [

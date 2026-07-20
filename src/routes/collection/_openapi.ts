@@ -31,7 +31,7 @@ export const collectionPaths = {
 		get: withOperation(
 			{
 				summary: "List collections",
-				operationId: "listCollections",
+				operationId: "list_collections",
 				tags: collectionTags,
 				security: [{ bearerAuth: [] }],
 				responses: {
@@ -55,7 +55,7 @@ export const collectionPaths = {
 		post: withOperation(
 			{
 				summary: "Create collection",
-				operationId: "createCollection",
+				operationId: "create_collection",
 				tags: collectionTags,
 				security: [{ bearerAuth: [] }],
 				requestBody: {
@@ -91,7 +91,7 @@ export const collectionPaths = {
 			{
 				summary: "Get collection schema",
 				description: "Returns the current JSON Schema for a collection.",
-				operationId: "getCollectionSchemaBySlug",
+				operationId: "get_collection_schema_by_slug",
 				tags: collectionTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -123,7 +123,7 @@ export const collectionPaths = {
 				summary: "Update collection schema",
 				description:
 					"Patches the collection schema. Existing content must still validate against the new schema unless force is true.",
-				operationId: "patchCollectionSchema",
+				operationId: "patch_collection_schema",
 				tags: collectionTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -171,7 +171,7 @@ export const collectionPaths = {
 			{
 				summary: "Get collection",
 				description: "Returns a collection including its current schema.",
-				operationId: "getCollectionBySlug",
+				operationId: "get_collection_by_slug",
 				tags: collectionTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [
@@ -203,7 +203,7 @@ export const collectionPaths = {
 				summary: "Delete collection",
 				description:
 					"Deletes a collection and all its content. Use force=true if the collection has content.",
-				operationId: "deleteCollection",
+				operationId: "delete_collection",
 				tags: collectionTags,
 				security: [{ bearerAuth: [] }],
 				parameters: [

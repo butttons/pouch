@@ -376,7 +376,7 @@ describe("mcp authentication", () => {
 				jsonrpc: "2.0",
 				id: 1,
 				method: "tools/call",
-				params: { name: "listCollections", arguments: {} },
+				params: { name: "list_collections", arguments: {} },
 			}),
 		});
 

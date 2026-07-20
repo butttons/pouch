@@ -61,7 +61,7 @@ const authPaths = {
 				summary: "Create API key",
 				description:
 					"Creates a new JWT API key. Requires the JWT_SECRET configured on the worker.",
-				operationId: "createApiKey",
+				operationId: "create_api_key",
 				tags: ["Auth"],
 				requestBody: {
 					required: true,
