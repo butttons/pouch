@@ -1,8 +1,14 @@
 import { StreamableHTTPTransport } from "@hono/mcp";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import {
+	CallToolRequestSchema,
+	ErrorCode,
+	ListToolsRequestSchema,
+	McpError,
+} from "@modelcontextprotocol/sdk/types.js";
 import type { Hono } from "hono";
 import { getContext } from "hono/context-storage";
-import { z } from "zod";
+import { ResultAsync } from "neverthrow";
 
 import { assembleOpenAPIDocument } from "@/lib/openapi";
 
@@ -23,7 +29,7 @@ type OpenApiParameter = {
 	name: string;
 	in: "path" | "query" | "header";
 	required?: boolean;
-	schema: Record<string, unknown>;
+	schema?: Record<string, unknown>;
 };
 
 type OpenApiOperation = {
@@ -42,6 +48,15 @@ type OpenApiPathItem = Partial<Record<HttpMethod, OpenApiOperation>>;
 
 type OpenApiDocument = {
 	paths?: Record<string, OpenApiPathItem>;
+	components?: { schemas?: Record<string, unknown> };
+};
+
+type ToolDefinition = {
+	name: string;
+	description: string;
+	inputSchema: Record<string, unknown>;
+	method: HttpMethod;
+	path: string;
 };
 
 const isHttpMethod = (value: string): value is HttpMethod =>
@@ -50,16 +65,16 @@ const isHttpMethod = (value: string): value is HttpMethod =>
 const isExcludedPath = (path: string): boolean =>
 	EXCLUDED_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 
-const truncateText = (text: string, maxLength: number): string => {
-	if (text.length <= maxLength) {
-		return text;
+const truncateText = (input: { text: string; maxLength: number }): string => {
+	if (input.text.length <= input.maxLength) {
+		return input.text;
 	}
 
-	return `${text.slice(0, maxLength)}\n\n[truncated ${text.length - maxLength} characters]`;
+	return `${input.text.slice(0, input.maxLength)}\n\n[truncated ${input.text.length - input.maxLength} characters]`;
 };
 
-const sanitizeToolName = (name: string): string => {
-	const cleaned = name.replace(/[^a-zA-Z0-9_-]/g, "_");
+const sanitizeToolName = (input: { name: string }): string => {
+	const cleaned = input.name.replace(/[^a-zA-Z0-9_-]/g, "_");
 	if (cleaned.length <= MAX_TOOL_NAME_LENGTH) {
 		return cleaned;
 	}
@@ -73,90 +88,156 @@ const sanitizeToolName = (name: string): string => {
 	return `${cleaned.slice(0, MAX_TOOL_NAME_LENGTH - hash.length - 1)}_${hash}`;
 };
 
-const buildToolName = (
-	method: HttpMethod,
-	path: string,
-	operation: OpenApiOperation,
-): string => {
-	if (operation.operationId) {
-		return sanitizeToolName(operation.operationId);
+const buildToolName = (input: {
+	method: HttpMethod;
+	path: string;
+	operation: OpenApiOperation;
+}): string => {
+	if (input.operation.operationId) {
+		return sanitizeToolName({ name: input.operation.operationId });
 	}
 
-	const methodPart = method.toLowerCase();
-	const pathPart = path.replace(/[{}]/g, "").replace(/[^a-zA-Z0-9]/g, "_");
-	return sanitizeToolName(`${methodPart}_${pathPart}`);
+	const methodPart = input.method.toLowerCase();
+	const pathPart = input.path
+		.replace(/[{}]/g, "")
+		.replace(/[^a-zA-Z0-9]/g, "_");
+	return sanitizeToolName({ name: `${methodPart}_${pathPart}` });
 };
 
-const jsonSchemaToZod = (
-	schema: Record<string, unknown>,
-	isRequired: boolean,
-): z.ZodTypeAny => {
-	let field: z.ZodTypeAny;
+const COMPONENTS_SCHEMAS_PREFIX = "#/components/schemas/";
 
-	if (Array.isArray(schema.enum) && schema.enum.length > 0) {
-		const values = schema.enum as Array<string | number | boolean>;
-		const allStrings = values.every((value) => typeof value === "string");
-		if (allStrings) {
-			field = z.enum(values as unknown as [string, ...string[]]);
-		} else {
-			const literals = values.map((value) =>
-				z.literal(value as string | number | boolean),
-			) as z.ZodTypeAny[];
-			field = z.union(
-				literals as [z.ZodTypeAny, z.ZodTypeAny, ...z.ZodTypeAny[]],
-			);
+/**
+ * Deep-resolves local `#/components/schemas/*` refs so tool input schemas are
+ * fully self-contained — MCP clients see the actual structure (properties,
+ * required fields, enums) instead of an unresolvable pointer. Cycles and
+ * unknown refs degrade to a generic object rather than failing the document.
+ */
+const resolveSchemaRefs = (input: {
+	schema: unknown;
+	schemas: Record<string, unknown>;
+	seen?: Set<string>;
+}): unknown => {
+	const seen = input.seen ?? new Set<string>();
+
+	if (Array.isArray(input.schema)) {
+		return input.schema.map((item) =>
+			resolveSchemaRefs({ schema: item, schemas: input.schemas, seen }),
+		);
+	}
+
+	if (!input.schema || typeof input.schema !== "object") {
+		return input.schema;
+	}
+
+	const record = input.schema as Record<string, unknown>;
+	const ref = record.$ref;
+	if (typeof ref === "string" && ref.startsWith(COMPONENTS_SCHEMAS_PREFIX)) {
+		const refName = ref.slice(COMPONENTS_SCHEMAS_PREFIX.length);
+		const target = input.schemas[refName];
+		if (!target || seen.has(refName)) {
+			return { type: "object" };
 		}
-	} else if (schema.type === "integer") {
-		field = z.number().int();
-	} else if (schema.type === "number") {
-		field = z.number();
-	} else if (schema.type === "boolean") {
-		field = z.boolean();
-	} else {
-		field = z.string();
+		return resolveSchemaRefs({
+			schema: target,
+			schemas: input.schemas,
+			seen: new Set(seen).add(refName),
+		});
 	}
 
-	if (!isRequired) {
-		field = field.optional();
-	}
-
-	return field;
+	return Object.fromEntries(
+		Object.entries(record).map(([key, value]) => [
+			key,
+			resolveSchemaRefs({ schema: value, schemas: input.schemas, seen }),
+		]),
+	);
 };
 
-const buildInputSchema = (
-	operation: OpenApiOperation,
-): Record<string, z.ZodTypeAny> => {
-	const shape: Record<string, z.ZodTypeAny> = {};
+const buildToolInputSchema = (input: {
+	operation: OpenApiOperation;
+	schemas: Record<string, unknown>;
+}): Record<string, unknown> => {
+	const properties: Record<string, unknown> = {};
+	const required: string[] = [];
 
-	for (const parameter of operation.parameters ?? []) {
-		// $ref parameters (e.g. the shared d1Bookmark header) have no inline
-		// schema and are not resolvable here — skip them.
+	for (const parameter of input.operation.parameters ?? []) {
+		// $ref-only parameters (e.g. the shared d1Bookmark header) carry no
+		// inline schema and are not resolvable here — skip them.
 		if (!parameter.schema) continue;
-		const isRequired = parameter.required === true;
-		shape[parameter.name] = jsonSchemaToZod(parameter.schema, isRequired);
+		properties[parameter.name] = resolveSchemaRefs({
+			schema: parameter.schema,
+			schemas: input.schemas,
+		});
+		if (parameter.required === true) {
+			required.push(parameter.name);
+		}
 	}
 
-	const jsonBody = operation.requestBody?.content?.["application/json"];
-	if (jsonBody) {
-		shape.body = z
-			.record(z.string(), z.unknown())
-			.describe(`Request body schema: ${JSON.stringify(jsonBody.schema)}`);
+	const bodySchema =
+		input.operation.requestBody?.content?.["application/json"]?.schema;
+	if (bodySchema) {
+		properties.body = resolveSchemaRefs({
+			schema: bodySchema,
+			schemas: input.schemas,
+		});
+		if (input.operation.requestBody?.required) {
+			required.push("body");
+		}
 	}
 
-	return shape;
+	return {
+		type: "object",
+		properties,
+		...(required.length > 0 ? { required } : {}),
+	};
 };
 
-const buildRequest = (
-	baseUrl: string,
-	path: string,
-	method: HttpMethod,
-	args: Record<string, unknown>,
-): { url: URL; init: RequestInit } => {
-	let requestPath = path;
+const buildToolsFromOpenApi = (input: {
+	spec: OpenApiDocument;
+}): ToolDefinition[] => {
+	const schemas = input.spec.components?.schemas ?? {};
+	const tools: ToolDefinition[] = [];
+
+	for (const [path, pathItem] of Object.entries(input.spec.paths ?? {})) {
+		if (!pathItem || isExcludedPath(path)) {
+			continue;
+		}
+
+		for (const [method, operation] of Object.entries(pathItem)) {
+			if (!isHttpMethod(method) || !operation) {
+				continue;
+			}
+
+			tools.push({
+				name: buildToolName({ method, path, operation }),
+				description: [
+					operation.summary,
+					operation.description,
+					`Method: ${method.toUpperCase()}`,
+					`Path: ${path}`,
+				]
+					.filter(Boolean)
+					.join("\n\n"),
+				inputSchema: buildToolInputSchema({ operation, schemas }),
+				method,
+				path,
+			});
+		}
+	}
+
+	return tools;
+};
+
+const buildRequest = (input: {
+	baseUrl: string;
+	path: string;
+	method: HttpMethod;
+	args: Record<string, unknown>;
+}): { url: URL; init: RequestInit } => {
+	let requestPath = input.path;
 	const query = new URLSearchParams();
 	let body: Record<string, unknown> | undefined;
 
-	for (const [key, value] of Object.entries(args)) {
+	for (const [key, value] of Object.entries(input.args)) {
 		if (value === undefined) {
 			continue;
 		}
@@ -180,11 +261,11 @@ const buildRequest = (
 	const queryString = query.toString();
 	const url = new URL(
 		`${requestPath}${queryString ? `?${queryString}` : ""}`,
-		baseUrl,
+		input.baseUrl,
 	);
 
 	const init: RequestInit = {
-		method: method.toUpperCase(),
+		method: input.method.toUpperCase(),
 		headers: { "content-type": "application/json" },
 	};
 
@@ -195,116 +276,77 @@ const buildRequest = (
 	return { url, init };
 };
 
-const registerToolsFromOpenApi = (
-	mcpServer: McpServer,
-	app: Hono<HonoVariables>,
-	spec: OpenApiDocument,
-) => {
-	for (const [path, pathItem] of Object.entries(spec.paths ?? {})) {
-		if (!pathItem || isExcludedPath(path)) {
-			continue;
-		}
+const executeTool = (input: {
+	tool: ToolDefinition;
+	args: Record<string, unknown>;
+	app: Hono<HonoVariables>;
+}) => {
+	const runTool = async () => {
+		const baseUrl = "http://localhost";
+		const { url, init } = buildRequest({
+			baseUrl,
+			path: input.tool.path,
+			method: input.tool.method,
+			args: input.args,
+		});
 
-		for (const [method, operation] of Object.entries(pathItem)) {
-			if (!isHttpMethod(method) || !operation) {
-				continue;
+		const headers = new Headers(init.headers);
+		const context = getContext<HonoVariables>();
+		// OAuth flow: the provider validated the bearer token and decrypted our
+		// props — the pouch JWT minted at consent time lives there, not in the
+		// incoming Authorization header (which holds the opaque library token).
+		// Header-capable clients fall back to the plain bearer path.
+		const props = (
+			context.executionCtx as unknown as {
+				props?: { accessToken?: string };
 			}
-
-			const toolName = buildToolName(method, path, operation);
-			const description = [
-				operation.summary,
-				operation.description,
-				`Method: ${method.toUpperCase()}`,
-				`Path: ${path}`,
-			]
-				.filter(Boolean)
-				.join("\n\n");
-
-			const inputSchema = buildInputSchema(operation);
-
-			mcpServer.registerTool(
-				toolName,
-				{
-					description,
-					inputSchema,
-				},
-				async (args) => {
-					try {
-						const baseUrl = "http://localhost";
-						const { url, init } = buildRequest(
-							baseUrl,
-							path,
-							method,
-							args as Record<string, unknown>,
-						);
-
-						const headers = new Headers(init.headers);
-						const context = getContext<HonoVariables>();
-						// OAuth flow: the provider validated the bearer token and
-						// decrypted our props — the pouch JWT minted at consent time
-						// lives there, not in the incoming Authorization header (which
-						// holds the opaque library token). Header-capable clients fall
-						// back to the plain bearer path.
-						const props = (
-							context.executionCtx as unknown as {
-								props?: { accessToken?: string };
-							}
-						).props;
-						const authHeader = props?.accessToken
-							? `Bearer ${props.accessToken}`
-							: (context.req.header("authorization") ??
-								context.var.accessToken);
-						if (authHeader) {
-							headers.set("authorization", authHeader);
-						}
-
-						const request = new Request(url, {
-							...init,
-							headers,
-						});
-
-						const response = await app.fetch(
-							request,
-							context.env,
-							context.executionCtx,
-						);
-
-						const responseText = await response.text();
-						const text = truncateText(responseText, MAX_RESPONSE_CHARS);
-
-						return {
-							isError: !response.ok,
-							content: [
-								{
-									type: "text" as const,
-									text: `HTTP ${response.status}\n\n${text}`,
-								},
-							],
-						};
-					} catch (error) {
-						const message =
-							error instanceof Error ? error.message : "Unknown error";
-
-						return {
-							isError: true,
-							content: [
-								{
-									type: "text" as const,
-									text: `Tool failed: ${message}`,
-								},
-							],
-						};
-					}
-				},
-			);
+		).props;
+		const authHeader = props?.accessToken
+			? `Bearer ${props.accessToken}`
+			: (context.req.header("authorization") ?? context.var.accessToken);
+		if (authHeader) {
+			headers.set("authorization", authHeader);
 		}
-	}
+
+		const request = new Request(url, { ...init, headers });
+		const response = await input.app.fetch(
+			request,
+			context.env,
+			context.executionCtx,
+		);
+
+		const responseText = await response.text();
+		const text = truncateText({
+			text: responseText,
+			maxLength: MAX_RESPONSE_CHARS,
+		});
+
+		return {
+			isError: !response.ok,
+			content: [
+				{
+					type: "text" as const,
+					text: `HTTP ${response.status}\n\n${text}`,
+				},
+			],
+		};
+	};
+
+	return ResultAsync.fromPromise(runTool(), (error) =>
+		error instanceof Error ? error.message : "Unknown error",
+	).match(
+		(value) => value,
+		(message) => ({
+			isError: true,
+			content: [{ type: "text" as const, text: `Tool failed: ${message}` }],
+		}),
+	);
 };
 
 /**
- * Fully stateless: every request gets a fresh McpServer + transport with
- * tools registered from a freshly assembled OpenAPI document. No session
- * mode (sessionIdGenerator stays undefined) because session affinity is not
+ * Fully stateless: every request gets a fresh Server + transport with tools
+ * built from a freshly assembled OpenAPI document. No session mode
+ * (sessionIdGenerator stays undefined) because session affinity is not
  * guaranteed across Workers isolates — and no shared registration state, so
  * the tool list always reflects the collections that exist right now.
  */
@@ -315,18 +357,43 @@ export const createMcpRouter = (app: Hono<HonoVariables>) => {
 			c.set("accessToken", `Bearer ${accessToken}`);
 		}
 
-		const mcpServer = new McpServer({
-			name: "pouch",
-			version: packageJson.version,
-		});
+		const server = new Server(
+			{ name: "pouch", version: packageJson.version },
+			{ capabilities: { tools: {} } },
+		);
 
 		const result = await assembleOpenAPIDocument(c.var.deps);
-		if (result.isOk()) {
-			registerToolsFromOpenApi(mcpServer, app, result.value as OpenApiDocument);
-		}
+		const tools = result.isOk()
+			? buildToolsFromOpenApi({ spec: result.value as OpenApiDocument })
+			: [];
+
+		server.setRequestHandler(ListToolsRequestSchema, () => ({
+			tools: tools.map(({ name, description, inputSchema }) => ({
+				name,
+				description,
+				inputSchema,
+			})),
+		}));
+
+		server.setRequestHandler(CallToolRequestSchema, async (request) => {
+			const tool = tools.find(
+				(candidate) => candidate.name === request.params.name,
+			);
+			if (!tool) {
+				throw new McpError(
+					ErrorCode.InvalidParams,
+					`Tool ${request.params.name} not found`,
+				);
+			}
+			return executeTool({
+				tool,
+				args: (request.params.arguments ?? {}) as Record<string, unknown>,
+				app,
+			});
+		});
 
 		const transport = new StreamableHTTPTransport();
-		await mcpServer.connect(transport);
+		await server.connect(transport);
 		return transport.handleRequest(c);
 	});
 

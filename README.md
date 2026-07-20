@@ -223,13 +223,13 @@ The MCP server reads `/openapi.json` on the first request and registers one tool
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
 
-### OAuth for MCP (Claude chat, claude.ai Custom Connectors)
+### OAuth for MCP clients (Claude, ChatGPT)
 
-Some MCP clients (e.g. the Claude chat app's connector UI) only support OAuth and have no custom-headers option. pouch supports OAuth 2.1 authorization for the `/mcp` route specifically, while the REST API continues to use the existing bearer-token auth.
+Some MCP clients (the Claude chat app, ChatGPT connectors) only support OAuth and have no custom-headers option. pouch supports OAuth 2.1 authorization for the `/mcp` route specifically, while the REST API continues to use the existing bearer-token auth.
 
-There is no dynamic client registration. OAuth clients live in a KV registry managed through the REST API (`schema:admin` scope required) — register each client app once, then connect as many times as you like.
+There is no dynamic client registration (and no CIMD). OAuth clients live in a KV registry managed through the REST API (`schema:admin` scope required) — register each client app once, then connect as many times as you like. When a client asks how it should register, always choose its "use your own client credentials" option (e.g. **User-Defined OAuth Client** in ChatGPT).
 
-**1. Register the client (once):**
+**Registering a client:**
 
 ```sh
 curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
@@ -244,19 +244,45 @@ curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
 ```
 
 - `clientId` is caller-supplied so setup instructions can use stable IDs. Omit it to get a generated `ocl_` ID.
-- `redirectUris` must match exactly what the client app sends — this is the open-redirect guard. For Claude (web + desktop connectors), it is `https://claude.ai/api/mcp/auth_callback`.
+- `redirectUris` must match exactly what the client app sends — this is the open-redirect guard. Claude uses one fixed URI; ChatGPT generates a per-connector callback URI (see below).
 - `maxScopes` is the ceiling of scopes this client may ever be granted. The consent screen shows only the intersection of requested scopes and `maxScopes`.
 
 Manage clients with `GET/PATCH/DELETE /oauth/clients/{id}` — all operations are audited (`auth.oauth.client.*`). Agents with a `schema:admin` key can register themselves.
 
-**2. Connect Claude chat:**
+Whichever client you connect, the flow ends at the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_PASSPHRASE`), review the scope checkboxes, and approve. On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1. Deleting a client revokes all of its grants.
+
+#### Claude (claude.ai Custom Connectors)
 
 1. Open Settings → Connectors → Add custom connector.
 2. MCP server URL: `https://pouch-cms.[account].workers.dev/mcp`
 3. Under Advanced settings, set OAuth Client ID to `claude-ai` (or whatever you registered). Leave OAuth Client Secret blank — clients are public and use PKCE only.
-4. Click Connect. A browser window opens the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_PASSPHRASE`), review the scope checkboxes, and approve.
+4. Click Connect and complete the pouch consent screen.
 
-On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1. Deleting a client revokes all of its grants.
+#### ChatGPT (Developer Mode connectors)
+
+ChatGPT assigns every connector its own callback URI, so create the connector shell first, then register the client with the URI ChatGPT gives you:
+
+1. In ChatGPT, open Settings → Apps & Connectors → Advanced Settings and enable Developer Mode.
+2. Click Create → New App. Set MCP server URL to `https://pouch-cms.[account].workers.dev/mcp` and Authentication to OAuth.
+3. Under Advanced settings / Client registration, choose **User-Defined OAuth Client** (DCR and CIMD are not supported).
+4. Copy the Callback URL ChatGPT shows — it looks like `https://chatgpt.com/connector/oauth/{callback_id}`.
+5. Register the pouch client with that exact URI:
+
+   ```sh
+   curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
+     -H "Authorization: Bearer [TOKEN]" \
+     -H "Content-Type: application/json" \
+     -d '{
+       "clientId": "chat-gpt",
+       "name": "ChatGPT",
+       "redirectUris": ["https://chatgpt.com/connector/oauth/{callback_id}"],
+       "maxScopes": ["content:read", "content:write", "schema:admin"]
+     }'
+   ```
+
+6. Back in ChatGPT: set OAuth Client ID to `chat-gpt`, leave OAuth Client Secret blank, and set Token endpoint auth method to `none`.
+7. Set Default scopes to `content:read content:write schema:admin` (or a subset — the grant is capped by `maxScopes` either way).
+8. Click Create, then Connect, and complete the pouch consent screen.
 
 **Note:** Claude Code, Cursor, and other clients that support custom headers should keep using the existing bearer-token approach (e.g. `.mcp.json` with `Authorization: Bearer [TOKEN]`). OAuth is specifically for clients that require it and have no alternative.
 
@@ -271,10 +297,10 @@ These are relative to the `/mcp` route (e.g. `https://pouch-cms.[account].worker
 
 ## Interactive API docs
 
-pouch serves interactive API documentation at `/docs` using Scalar. The page is protected by HTTP Basic Auth with username `pouch` and password `JWT_SECRET`:
+pouch serves interactive API documentation at `/docs` using Scalar. The page is protected by HTTP Basic Auth with username `pouch` and password `DOCS_SECRET`:
 
 ```sh
-open https://pouch:[JWT_SECRET]@pouch-cms.[account].workers.dev/docs
+open https://pouch:[DOCS_SECRET]@pouch-cms.[account].workers.dev/docs
 ```
 
 The page is generated from the same OpenAPI spec as `/openapi.json`, so it reflects the current collections, scopes, error responses, and examples. For local development use `http://localhost:3200/docs`.
@@ -335,11 +361,12 @@ Then pass the service binding's `fetch` to `openapi-fetch`. The binding ignores 
 import createClient from "openapi-fetch";
 import type { paths } from "./generated/pouch.js";
 
-export const createPouchClient = (env: Env) => createClient<paths>({
-  baseUrl: "http://pouch",
-  headers: { Authorization: `Bearer ${TOKEN}` },
-  fetch: (url, init) => env.POUCH_SERVICE.fetch(url, init),
-});
+export const createPouchClient = (env: Env) =>
+  createClient<paths>({
+    baseUrl: "http://pouch",
+    headers: { Authorization: `Bearer ${TOKEN}` },
+    fetch: (url, init) => env.POUCH_SERVICE.fetch(url, init),
+  });
 ```
 
 In your worker, use it like any other client:
@@ -404,4 +431,3 @@ pnpm run deploy
 `pnpm run deploy` runs `db:migrate:prod` before deploying, so D1 migrations are applied automatically.
 
 > **Note:** The `.github/workflows/update.yml` file is added after the first manual update. Once it is present, you can use the GitHub Actions workflow for future updates instead of merging locally.
-

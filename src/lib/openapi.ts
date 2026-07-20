@@ -882,6 +882,8 @@ export const assembleOpenAPIDocument = (
 				buildContentInputSchema(collection.slug);
 			dynamicSchemas[contentBatchInputSchemaRef(collection.slug)] =
 				buildBatchContentInputSchema(collection.slug);
+			dynamicSchemas[contentBatchUpdateInputSchemaRef(collection.slug)] =
+				buildBatchUpdateContentInputSchema(collection.slug);
 
 			const resolvedSchema = buildResolvedCollectionSchema(
 				collection.slug,
