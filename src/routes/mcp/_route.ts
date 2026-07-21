@@ -128,8 +128,8 @@ const CONTENT_PATH_PATTERN = /^\/collections\/([^/]+)\/content(?=\/|:|$)/;
 const CONCRETE_COLLECTION_PATH_PATTERN = /^\/collections\/([^/{}]+)(?=\/|$)/;
 
 /**
- * Resolves the pouch JWT for this request: from OAuth props (consent flow),
- * the Authorization header (plain bearer), or the access_token query param.
+ * Resolves the pouch JWT for this request: from OAuth props (consent flow)
+ * or the Authorization header (plain bearer).
  */
 const resolvePouchToken = (c: Context<HonoVariables>): string | undefined => {
 	const props = (
@@ -140,7 +140,7 @@ const resolvePouchToken = (c: Context<HonoVariables>): string | undefined => {
 	const header = c.req.header("authorization");
 	if (header?.startsWith("Bearer ")) return header.slice(7);
 
-	return c.req.query("access_token");
+	return undefined;
 };
 
 /**
@@ -512,7 +512,7 @@ const executeTool = (input: {
 		).props;
 		const authHeader = props?.accessToken
 			? `Bearer ${props.accessToken}`
-			: (context.req.header("authorization") ?? context.var.accessToken);
+			: context.req.header("authorization");
 		if (authHeader) {
 			headers.set("authorization", authHeader);
 		}
@@ -573,11 +573,6 @@ const executeTool = (input: {
  */
 export const createMcpRouter = (app: Hono<HonoVariables>) => {
 	const router = createRouter().all("/", async (c) => {
-		const accessToken = c.req.query("access_token");
-		if (accessToken) {
-			c.set("accessToken", `Bearer ${accessToken}`);
-		}
-
 		const server = new Server(
 			{ name: "pouch", version: packageJson.version },
 			{ capabilities: { tools: {} } },

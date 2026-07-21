@@ -14,8 +14,9 @@ The worker needs the following bindings to run:
 2. `MEDIA_BUCKET` - [Cloudflare R2](https://developers.cloudflare.com/r2/) - Object storage for uploaded media files.
 3. `OAUTH_KV` - [Cloudflare KV](https://developers.cloudflare.com/kv/) - Token and grant storage for the OAuth provider. Separate from D1.
 4. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
-5. `MCP_ADMIN_PASSPHRASE` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
-6. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
+5. `DOCS_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Password for the `/docs` interactive API reference (HTTP Basic Auth).
+6. `MCP_ADMIN_PASSPHRASE` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
+7. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
 
 ### Quick deploy
 
@@ -55,7 +56,7 @@ npx wrangler login
 3. Create a D1 database
 
 ```sh
-npx wrangler d1 create pouch
+npx wrangler d1 create pouch-cms
 ```
 
 Copy the database ID from the output and update `wrangler.jsonc`:
@@ -64,7 +65,7 @@ Copy the database ID from the output and update `wrangler.jsonc`:
 "d1_databases": [
   {
     "binding": "DB",
-    "database_name": "pouch",
+    "database_name": "pouch-cms",
     "database_id": "[DATABASE_ID]",
     "migrations_dir": "src/lib/db/migrations"
   }
@@ -112,6 +113,14 @@ npx wrangler secret put MCP_ADMIN_PASSPHRASE
 
 This is the single shared passphrase used to log in to the OAuth consent screen at `/authorize`.
 
+8. Set the `DOCS_SECRET` secret
+
+```sh
+npx wrangler secret put DOCS_SECRET
+```
+
+This is the password for the `/docs` interactive API reference (HTTP Basic Auth, username `pouch`).
+
 ## Local development
 
 1. Install dependencies
@@ -124,6 +133,7 @@ pnpm install
 
 ```sh
 JWT_SECRET='your-local-dev-secret-min-32-chars-long'
+DOCS_SECRET='your-local-docs-password'
 MCP_ADMIN_PASSPHRASE='your-local-dev-passphrase'
 ```
 
@@ -154,7 +164,7 @@ pnpm test
 
 ## Generating API keys
 
-All API routes except `/auth/keys` require a Bearer token. Generate a key by posting your `JWT_SECRET`:
+All REST API routes (`/collections`, `/media`, `/audit-logs`, `/openapi.json`) require a Bearer token — `/auth/keys` is gated by the worker `JWT_SECRET` instead, and the OAuth endpoints (`/register`, `/authorize`, `/token`) plus `/docs` have their own auth. Generate a key by posting your `JWT_SECRET`:
 
 ```sh
 curl -X POST http://localhost:3200/auth/keys \
@@ -195,6 +205,8 @@ Scopes mirror the endpoint groups:
 | `media:read` | `GET /media*` |
 | `media:write` | `POST/DELETE /media*` |
 | `audit:read` | `GET /audit-logs*` |
+
+`GET /openapi.json` requires `collection:read`.
 
 ### Per-collection keys
 
@@ -238,7 +250,7 @@ https://pouch-cms.[account].workers.dev/mcp
 
 For local development, use `http://localhost:3200/mcp`.
 
-The MCP server reads `/openapi.json` on the first request and registers one tool per operation. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes — read tools need the matching `:read` scope, write tools the matching `:write` scope (see the scope table above). A key restricted via `collections` only sees tools for its permitted collections; collection-level tools like `list_collections` stay visible and filter their results.
+The MCP server assembles the OpenAPI document in-process on every request (no HTTP call, no caching) and registers one tool per operation, so the tool list always reflects the collections that exist right now. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes — read tools need the matching `:read` scope, write tools the matching `:write` scope (see the scope table above). A key restricted via `collections` only sees tools for its permitted collections; collection-level tools like `list_collections` stay visible and filter their results.
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
 

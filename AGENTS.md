@@ -22,6 +22,7 @@ UUIDv7, prefixed by namespace:
 - `med_` — media
 - `cix_` — content indexes
 - `key_` — API keys
+- `aud_` — audit log entries
 
 Time-sortable. No separate ordering column.
 
@@ -95,7 +96,7 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 
 ## Scopes and per-collection keys
 
-- Seven scopes, one read/write pair per endpoint group: `collection:read|write` (`/collections`), `content:read|write` (`/collections/:slug/content`), `media:read|write` (`/media`), `audit:read` (`/audit-logs`). `schema:admin` no longer exists.
+- Seven scopes, one read/write pair per endpoint group plus a read-only audit scope: `collection:read|write` (`/collections`), `content:read|write` (`/collections/:slug/content`), `media:read|write` (`/media`), `audit:read` (`/audit-logs`). `schema:admin` no longer exists. `GET /openapi.json` requires `collection:read`.
 - Content routes require both `collection:read` and the matching content scope — `requireScopes("collection:read", "content:read")` etc. Multiple scopes on a route are ANDed.
 - JWTs may carry a `collections` claim (array of slugs, set via `/auth/keys`) confining the key to those collections. `requireCollectionAccess()` middleware enforces it on every route with a `:slug` param (content, schema, delete); `GET /collections` filters its result instead of 403ing. Media and audit-log routes ignore the claim. Absent claim = all collections.
 - The MCP `tools/list` applies the same restriction: tools bound to a concrete collection slug outside the claim are hidden, while parameterized tools (`get_collection_by_slug`, `list_collections`, …) stay visible and rely on execution-time enforcement.
@@ -119,7 +120,7 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - DCR-registered clients expire after the library default of 90 days; clients are expected to re-register.
 - Clients are public (PKCE-only, `tokenEndpointAuthMethod: "none"`). Never issue client secrets.
 - Client lookups outside the provider wrapper (e.g. the consent flow) use `getOAuthHelpers(env).lookupClient(clientId)` from `src/lib/oauth.ts` — there is no data layer for OAuth clients.
-- The consent flow (`GET/POST /authorize`) lives in `src/routes/oauth/` and renders JSX pages via `hono/jsx`. Human-facing pages use the shared `Layout` from `src/components/Layout.tsx` — fully self-contained, styles inlined, no static assets.
+- The consent flow (`GET/POST /authorize`) lives in `src/routes/oauth/` and renders JSX pages via `hono/jsx`. Human-facing pages use the shared `Layout` from `src/routes/oauth/Layout.tsx` — fully self-contained, styles inlined, no static assets.
 - The consent flow router is mounted by the `OAuthProvider` defaultHandler in `src/index.ts`, outside the main app pipeline, so it applies `depsMiddleware` itself.
 - Plain pouch JWTs remain valid on `/mcp` via the `resolveExternalToken` callback in `src/lib/oauth.ts`. OAuth-issued and JWT-issued requests both reach tool handlers as `executionCtx.props.accessToken` — tool dispatch must read props before the incoming `Authorization` header.
 - Multi-value form fields (e.g. scope checkboxes) must be read with `formData.getAll()` — Hono's `parseBody()` keeps only the last repeated key.
