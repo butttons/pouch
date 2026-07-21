@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	adminToken,
 	createCollection,
+	createToken,
 	fetchWorker,
 	readerToken,
 } from "../utils.js";
@@ -163,6 +164,35 @@ describe("GET /openapi.json", () => {
 });
 
 describe("POST /mcp tools/list", () => {
+	it("filters collection tools to the key's permitted collections", async () => {
+		await createCollection({
+			slug: "mcp_scoped_a",
+			name: "MCP Scoped A",
+			schema: widgetSchema,
+		});
+		await createCollection({
+			slug: "mcp_scoped_b",
+			name: "MCP Scoped B",
+			schema: widgetSchema,
+		});
+
+		const token = await createToken({
+			scopes: ["collection:read", "content:read"],
+			collections: ["mcp_scoped_a"],
+		});
+		const tools = await listTools({ token });
+		const names = tools.map((tool) => tool.name);
+
+		// Content tools for the permitted collection are listed…
+		expect(names).toContain("list_mcp_scoped_a_content");
+		expect(names).toContain("get_mcp_scoped_a_content_by_id");
+		// …tools bound to other collections are hidden…
+		expect(names.some((name) => name.includes("mcp_scoped_b"))).toBe(false);
+		// …and collection-level tools stay visible (they filter/403 at execution).
+		expect(names).toContain("list_collections");
+		expect(names).toContain("get_collection_by_slug");
+	});
+
 	it("registers snake_case content tools for existing collections", async () => {
 		await createCollection({
 			slug: "mcp_widgets",

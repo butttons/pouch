@@ -238,7 +238,7 @@ https://pouch-cms.[account].workers.dev/mcp
 
 For local development, use `http://localhost:3200/mcp`.
 
-The MCP server reads `/openapi.json` on the first request and registers one tool per operation. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes — read tools need the matching `:read` scope, write tools the matching `:write` scope (see the scope table above). A key restricted via `collections` can still see every tool, but calls against other collections fail with 403.
+The MCP server reads `/openapi.json` on the first request and registers one tool per operation. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes — read tools need the matching `:read` scope, write tools the matching `:write` scope (see the scope table above). A key restricted via `collections` only sees tools for its permitted collections; collection-level tools like `list_collections` stay visible and filter their results.
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
 
