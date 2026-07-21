@@ -101,7 +101,7 @@ export const mediaPaths = {
 					},
 				},
 			},
-			["content:read"],
+			["media:read"],
 		),
 		post: withOperation(
 			{
@@ -141,7 +141,7 @@ export const mediaPaths = {
 					},
 				},
 			},
-			["content:write"],
+			["media:write"],
 		),
 	},
 	"/media/{id}": {
@@ -174,7 +174,7 @@ export const mediaPaths = {
 					"404": errorResponse(404, "Media not found"),
 				},
 			},
-			["content:read"],
+			["media:read"],
 		),
 		delete: withOperation(
 			{
@@ -202,7 +202,7 @@ export const mediaPaths = {
 					),
 				},
 			},
-			["content:write"],
+			["media:write"],
 		),
 	},
 	"/media/{id}/file": {
@@ -236,7 +236,7 @@ export const mediaPaths = {
 					"404": errorResponse(404, "Media not found"),
 				},
 			},
-			["content:read"],
+			["media:read"],
 		),
 	},
 };

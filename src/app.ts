@@ -30,6 +30,9 @@ const createKeyInputSchema = Type.Object(
 		scopes: Type.Array(Type.Union(SCOPES.map((scope) => Type.Literal(scope))), {
 			minItems: 1,
 		}),
+		collections: Type.Optional(
+			Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
+		),
 		expiresInSeconds: Type.Optional(Type.Number({ minimum: 60 })),
 	},
 	{ additionalProperties: false },
@@ -56,12 +59,20 @@ const app: Hono<HonoVariables> = createRouter()
 
 			const jti = typedId("key");
 			const scopes = input.scopes;
+			const collections = input.collections;
 			const iat = Math.floor(Date.now() / 1000);
 			const exp = iat + (input.expiresInSeconds ?? SIX_MONTHS);
 			const name = input.name;
 
 			const token = await sign(
-				{ jti, name, scopes, iat, exp },
+				{
+					jti,
+					name,
+					scopes,
+					...(collections ? { collections } : {}),
+					iat,
+					exp,
+				},
 				c.env.JWT_SECRET,
 			);
 
@@ -69,13 +80,23 @@ const app: Hono<HonoVariables> = createRouter()
 				action: "key.create",
 				actor: c.var.deps.actor,
 				targetId: jti,
-				diff: { name, scopes },
+				diff: { name, scopes, ...(collections ? { collections } : {}) },
 			});
 
-			return c.json({ token, jti, name, scopes, exp }, 201);
+			return c.json(
+				{
+					token,
+					jti,
+					name,
+					scopes,
+					...(collections ? { collections } : {}),
+					exp,
+				},
+				201,
+			);
 		},
 	)
-	.get("/openapi.json", requireScopes("content:read"), async (c) => {
+	.get("/openapi.json", requireScopes("collection:read"), async (c) => {
 		const url = new URL(c.req.url);
 		const baseUrl = `${url.protocol}//${url.host}`;
 		const result = await assembleOpenAPIDocument(c.var.deps, baseUrl);

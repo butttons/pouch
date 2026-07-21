@@ -50,7 +50,7 @@ export const collectionPaths = {
 					},
 				},
 			},
-			["content:read"],
+			["collection:read"],
 		),
 		post: withOperation(
 			{
@@ -83,7 +83,7 @@ export const collectionPaths = {
 					"400": errorResponse(400, "Schema must be an object"),
 				},
 			},
-			["schema:admin"],
+			["collection:write"],
 		),
 	},
 	"/collections/{slug}/schema": {
@@ -116,7 +116,7 @@ export const collectionPaths = {
 					"404": errorResponse(404, "Collection not found"),
 				},
 			},
-			["content:read"],
+			["collection:read"],
 		),
 		patch: withOperation(
 			{
@@ -163,7 +163,7 @@ export const collectionPaths = {
 					"400": errorResponse(400, "Schema must be an object"),
 				},
 			},
-			["schema:admin"],
+			["collection:write"],
 		),
 	},
 	"/collections/{slug}": {
@@ -196,7 +196,7 @@ export const collectionPaths = {
 					"404": errorResponse(404, "Collection not found"),
 				},
 			},
-			["content:read"],
+			["collection:read"],
 		),
 		delete: withOperation(
 			{
@@ -230,7 +230,7 @@ export const collectionPaths = {
 					),
 				},
 			},
-			["schema:admin"],
+			["collection:write"],
 		),
 	},
 };

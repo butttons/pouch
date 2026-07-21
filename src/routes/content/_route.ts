@@ -6,7 +6,7 @@ import {
 	collectionSlugParamSchema,
 } from "@/routes/collection/_schema";
 
-import { requireScopes } from "@/middleware/auth";
+import { requireCollectionAccess, requireScopes } from "@/middleware/auth";
 import { createRouter } from "@/utils";
 
 import {
@@ -35,9 +35,10 @@ import { updateContent } from "./_service.patch";
 import { createContent } from "./_service.post";
 
 export const contentRouter = createRouter()
+	.use(requireCollectionAccess())
 	.get(
 		"/",
-		requireScopes("content:read"),
+		requireScopes("collection:read", "content:read"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		queryValidator<ContentQuery>(contentQuerySchema),
 		async (c) => {
@@ -53,7 +54,7 @@ export const contentRouter = createRouter()
 	)
 	.post(
 		"/",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<CreateContentInput>(createContentInputSchema),
 		async (c) => {
@@ -73,7 +74,7 @@ export const contentRouter = createRouter()
 	)
 	.post(
 		"/batch",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<CreateContentBatchInput>(createContentBatchInputSchema),
 		async (c) => {
@@ -92,7 +93,7 @@ export const contentRouter = createRouter()
 	)
 	.patch(
 		"/batch",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<UpdateContentBatchInput>(updateContentBatchInputSchema),
 		async (c) => {
@@ -111,7 +112,7 @@ export const contentRouter = createRouter()
 	)
 	.delete(
 		"/batch",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<DeleteContentBatchInput>(deleteContentBatchInputSchema),
 		async (c) => {
@@ -130,7 +131,7 @@ export const contentRouter = createRouter()
 	)
 	.get(
 		"/:id",
-		requireScopes("content:read"),
+		requireScopes("collection:read", "content:read"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
 		queryValidator<ContentQuery>(contentQuerySchema),
 		async (c) => {
@@ -146,7 +147,7 @@ export const contentRouter = createRouter()
 	)
 	.patch(
 		"/:id",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
 		jsonValidator<UpdateContentInput>(updateContentInputSchema),
 		async (c) => {
@@ -167,7 +168,7 @@ export const contentRouter = createRouter()
 	)
 	.delete(
 		"/:id",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
 		paramValidator<ContentRouteParams>(contentRouteParamsSchema),
 		async (c) => {
 			const params = c.req.valid("param");

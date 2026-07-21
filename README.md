@@ -134,7 +134,7 @@ If you need an admin token for local scripts or remote management, post your `JW
 ```sh
 curl -X POST http://localhost:3200/auth/keys \
   -H "Content-Type: application/json" \
-  -d '{"secret": "[JWT_SECRET]", "name": "local-admin", "scopes": ["schema:admin","content:write","content:read"]}' \
+  -d '{"secret": "[JWT_SECRET]", "name": "local-admin", "scopes": ["collection:read","collection:write","content:read","content:write","media:read","media:write","audit:read"]}' \
   | jq -r '.token' > .env.local
 ```
 
@@ -162,7 +162,8 @@ curl -X POST http://localhost:3200/auth/keys \
   -d '{
     "secret": "[JWT_SECRET]",
     "name": "my-agent",
-    "scopes": ["schema:admin", "content:write", "content:read"]
+    "scopes": ["collection:read", "content:read", "content:write"],
+    "collections": ["faqs", "pages"]
   }'
 ```
 
@@ -173,12 +174,31 @@ Response:
   "token": "JWT_STRING",
   "jti": "key_...",
   "name": "my-agent",
-  "scopes": ["schema:admin", "content:write", "content:read"],
+  "scopes": ["collection:read", "content:read", "content:write"],
+  "collections": ["faqs", "pages"],
   "exp": 1234567890
 }
 ```
 
 `name` and `scopes` are required — the name identifies the key holder in audit logs, and every key must declare its scopes explicitly. Use `expiresInSeconds` to override the default 180-day expiry.
+
+### Scopes
+
+Scopes mirror the endpoint groups:
+
+| Scope | Endpoints |
+| --- | --- |
+| `collection:read` | `GET /collections*` |
+| `collection:write` | `POST/PATCH/DELETE /collections*` |
+| `content:read` | `GET /collections/:slug/content*` (also requires `collection:read`) |
+| `content:write` | mutations under `/collections/:slug/content*` (also requires `collection:read`) |
+| `media:read` | `GET /media*` |
+| `media:write` | `POST/DELETE /media*` |
+| `audit:read` | `GET /audit-logs*` |
+
+### Per-collection keys
+
+Pass `collections` (an array of slugs) when creating a key to confine it to those collections. Every route under a collection — content, schema, delete — responds 403 for any slug outside the list, and `GET /collections` only returns the permitted collections. Media and audit-log routes are not collection-scoped and are unaffected. Omit `collections` for a key that works across all collections.
 
 ## Read replication
 
@@ -218,10 +238,7 @@ https://pouch-cms.[account].workers.dev/mcp
 
 For local development, use `http://localhost:3200/mcp`.
 
-The MCP server reads `/openapi.json` on the first request and registers one tool per operation. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes:
-
-- `content:read` for read tools.
-- `content:write` / `schema:admin` for write tools.
+The MCP server reads `/openapi.json` on the first request and registers one tool per operation. Auth is passed through, so each tool call needs a valid `Authorization: Bearer [TOKEN]` header. The available tools depend on the token's scopes — read tools need the matching `:read` scope, write tools the matching `:write` scope (see the scope table above). A key restricted via `collections` can still see every tool, but calls against other collections fail with 403.
 
 `/auth/keys` and other sensitive paths are excluded from the tool list.
 

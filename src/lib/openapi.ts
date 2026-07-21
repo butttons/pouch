@@ -75,15 +75,37 @@ const authPaths = {
 											"The JWT_SECRET value from the worker environment.",
 										example: "a1b2c3d4e5f6...",
 									},
+									name: {
+										type: "string",
+										description:
+											"Human-readable name identifying the key holder. Recorded in audit logs.",
+										example: "my-agent",
+									},
 									scopes: {
 										type: "array",
 										items: {
 											type: "string",
-											enum: ["content:read", "content:write", "schema:admin"],
+											enum: [
+												"content:read",
+												"content:write",
+												"collection:read",
+												"collection:write",
+												"media:read",
+												"media:write",
+												"audit:read",
+											],
 										},
-										description:
-											"Scopes for the new key. Defaults to all scopes.",
+										minItems: 1,
+										description: "Scopes for the new key.",
 										example: ["content:read", "content:write"],
+									},
+									collections: {
+										type: "array",
+										items: { type: "string" },
+										minItems: 1,
+										description:
+											"Restricts the key to these collection slugs. Every collection-scoped route (content, schema, delete) 403s for other collections. Omit for access to all collections.",
+										example: ["faqs", "pages"],
 									},
 									expiresInSeconds: {
 										type: "number",
@@ -93,7 +115,7 @@ const authPaths = {
 										example: 86400,
 									},
 								},
-								required: ["secret"],
+								required: ["secret", "name", "scopes"],
 								additionalProperties: false,
 							},
 						},
@@ -124,6 +146,12 @@ const authPaths = {
 											type: "array",
 											items: { type: "string" },
 											description: "Scopes granted to the key.",
+										},
+										collections: {
+											type: "array",
+											items: { type: "string" },
+											description:
+												"Collection slugs the key is restricted to. Absent when unrestricted.",
 										},
 										exp: {
 											type: "number",
@@ -564,7 +592,7 @@ const buildCollectionContentPaths = (
 						},
 					},
 				},
-				["content:read"],
+				["collection:read", "content:read"],
 			),
 			post: withOperation(
 				{
@@ -600,7 +628,7 @@ const buildCollectionContentPaths = (
 						),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 		},
 		[`/collections/${slug}/content/batch`]: {
@@ -648,7 +676,7 @@ const buildCollectionContentPaths = (
 						),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 			patch: withOperation(
 				{
@@ -692,7 +720,7 @@ const buildCollectionContentPaths = (
 						"409": errorResponse(409),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 			delete: withOperation(
 				{
@@ -718,7 +746,7 @@ const buildCollectionContentPaths = (
 						"404": errorResponse(404, "Content not found"),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 		},
 		[`/collections/${slug}/content:validate`]: {
@@ -758,7 +786,7 @@ const buildCollectionContentPaths = (
 						"400": errorResponse(400, "Content validation failed"),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 		},
 		[`/collections/${slug}/content/{id}`]: {
@@ -792,7 +820,7 @@ const buildCollectionContentPaths = (
 						"404": errorResponse(404, "Content not found"),
 					},
 				},
-				["content:read"],
+				["collection:read", "content:read"],
 			),
 			patch: withOperation(
 				{
@@ -834,7 +862,7 @@ const buildCollectionContentPaths = (
 						"409": errorResponse(409),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 			delete: withOperation(
 				{
@@ -858,7 +886,7 @@ const buildCollectionContentPaths = (
 						"404": errorResponse(404, "Content not found"),
 					},
 				},
-				["content:write"],
+				["collection:read", "content:write"],
 			),
 		},
 	};

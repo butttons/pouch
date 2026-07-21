@@ -87,7 +87,7 @@ export const auditLogPaths = {
 					},
 				},
 			},
-			["schema:admin"],
+			["audit:read"],
 		),
 	},
 	"/audit-logs/{id}": {
@@ -120,7 +120,7 @@ export const auditLogPaths = {
 					"404": errorResponse(404, "Audit log not found"),
 				},
 			},
-			["schema:admin"],
+			["audit:read"],
 		),
 	},
 };

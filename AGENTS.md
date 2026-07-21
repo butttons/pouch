@@ -93,6 +93,14 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - Property keys are immutable. Renaming a label is not the same as removing and re-adding a key.
 - No EAV, no table-per-collection, no views. The shared `content` table shape is fixed.
 
+## Scopes and per-collection keys
+
+- Seven scopes, one read/write pair per endpoint group: `collection:read|write` (`/collections`), `content:read|write` (`/collections/:slug/content`), `media:read|write` (`/media`), `audit:read` (`/audit-logs`). `schema:admin` no longer exists.
+- Content routes require both `collection:read` and the matching content scope — `requireScopes("collection:read", "content:read")` etc. Multiple scopes on a route are ANDed.
+- JWTs may carry a `collections` claim (array of slugs, set via `/auth/keys`) confining the key to those collections. `requireCollectionAccess()` middleware enforces it on every route with a `:slug` param (content, schema, delete); `GET /collections` filters its result instead of 403ing. Media and audit-log routes ignore the claim. Absent claim = all collections.
+- `/auth/keys` requires `name` and `scopes` (both mandatory); `collections` is optional. OAuth consent grants carry scopes but no `collections` claim.
+- Route scopes and the OpenAPI `x-required-scopes` values must stay in sync — both derive from the mapping above.
+
 ## Code patterns
 
 - Use `neverthrow` for all fallible operations. No `try/catch` for control flow.

@@ -18,7 +18,7 @@ import { createMedia } from "./_service.post";
 export const mediaRouter = createRouter()
 	.get(
 		"/",
-		requireScopes("content:read"),
+		requireScopes("media:read"),
 		queryValidator<MediaQuery>(mediaQuerySchema),
 		async (c) => {
 			const query = c.req.valid("query");
@@ -27,7 +27,7 @@ export const mediaRouter = createRouter()
 			return c.json(value);
 		},
 	)
-	.post("/", requireScopes("content:write"), async (c) => {
+	.post("/", requireScopes("media:write"), async (c) => {
 		const body = await c.req.parseBody({ all: false });
 		const file = body.file;
 
@@ -48,7 +48,7 @@ export const mediaRouter = createRouter()
 	})
 	.get(
 		"/:id",
-		requireScopes("content:read"),
+		requireScopes("media:read"),
 		paramValidator<MediaIdParam>(mediaIdParamSchema),
 		async (c) => {
 			const params = c.req.valid("param");
@@ -59,7 +59,7 @@ export const mediaRouter = createRouter()
 	)
 	.get(
 		"/:id/file",
-		requireScopes("content:read"),
+		requireScopes("media:read"),
 		paramValidator<MediaIdParam>(mediaIdParamSchema),
 		async (c) => {
 			const params = c.req.valid("param");
@@ -89,7 +89,7 @@ export const mediaRouter = createRouter()
 	)
 	.delete(
 		"/:id",
-		requireScopes("content:write"),
+		requireScopes("media:write"),
 		paramValidator<MediaIdParam>(mediaIdParamSchema),
 		async (c) => {
 			const params = c.req.valid("param");

@@ -16,7 +16,7 @@ import { getAuditLogById } from "./_service.get-by-id";
 export const auditLogRouter = createRouter()
 	.get(
 		"/",
-		requireScopes("schema:admin"),
+		requireScopes("audit:read"),
 		queryValidator<AuditLogQuery>(auditLogQuerySchema),
 		async (c) => {
 			const query = c.req.valid("query");
@@ -27,7 +27,7 @@ export const auditLogRouter = createRouter()
 	)
 	.get(
 		"/:id",
-		requireScopes("schema:admin"),
+		requireScopes("audit:read"),
 		paramValidator<AuditLogIdParam>(auditLogIdParamSchema),
 		async (c) => {
 			const params = c.req.valid("param");

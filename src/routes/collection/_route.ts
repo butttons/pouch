@@ -8,7 +8,11 @@ import {
 } from "@/routes/content/_schema";
 import { validateContent } from "@/routes/content/_service.validate";
 
-import { requireScopes } from "@/middleware/auth";
+import {
+	getPermittedCollections,
+	requireCollectionAccess,
+	requireScopes,
+} from "@/middleware/auth";
 import { createRouter } from "@/utils";
 
 import {
@@ -29,14 +33,22 @@ import { patchCollectionSchema } from "./_service.patch-schema";
 import { createCollection } from "./_service.post";
 
 export const collectionRouter = createRouter()
-	.get("/", requireScopes("content:read"), async (c) => {
+	.get("/", requireScopes("collection:read"), async (c) => {
 		const result = await listCollections(c.var.deps);
 		const value = unwrapResult(result);
-		return c.json(value);
+		const permittedCollections = getPermittedCollections(c.var.jwtPayload);
+		if (permittedCollections === null) {
+			return c.json(value);
+		}
+		return c.json(
+			value.filter((collection) =>
+				permittedCollections.includes(collection.slug),
+			),
+		);
 	})
 	.post(
 		"/",
-		requireScopes("schema:admin"),
+		requireScopes("collection:write"),
 		jsonValidator<CreateCollectionInput>(createCollectionInputSchema),
 		async (c) => {
 			const input = c.req.valid("json");
@@ -47,7 +59,8 @@ export const collectionRouter = createRouter()
 	)
 	.get(
 		"/:slug/schema",
-		requireScopes("content:read"),
+		requireScopes("collection:read"),
+		requireCollectionAccess(),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		async (c) => {
 			const input = c.req.valid("param");
@@ -58,7 +71,8 @@ export const collectionRouter = createRouter()
 	)
 	.patch(
 		"/:slug/schema",
-		requireScopes("schema:admin"),
+		requireScopes("collection:write"),
+		requireCollectionAccess(),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<PatchCollectionSchemaInput>(patchCollectionSchemaInputSchema),
 		async (c) => {
@@ -78,7 +92,8 @@ export const collectionRouter = createRouter()
 	)
 	.post(
 		"/:slug/content:validate",
-		requireScopes("content:write"),
+		requireScopes("collection:read", "content:write"),
+		requireCollectionAccess(),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		jsonValidator<CreateContentInput>(validateContentInputSchema),
 		async (c) => {
@@ -99,7 +114,8 @@ export const collectionRouter = createRouter()
 	.route("/:slug/content", contentRouter)
 	.get(
 		"/:slug",
-		requireScopes("content:read"),
+		requireScopes("collection:read"),
+		requireCollectionAccess(),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		async (c) => {
 			const input = c.req.valid("param");
@@ -110,7 +126,8 @@ export const collectionRouter = createRouter()
 	)
 	.delete(
 		"/:slug",
-		requireScopes("schema:admin"),
+		requireScopes("collection:write"),
+		requireCollectionAccess(),
 		paramValidator<CollectionSlugParam>(collectionSlugParamSchema),
 		queryValidator<DeleteCollectionQuery>(deleteCollectionQuerySchema),
 		async (c) => {

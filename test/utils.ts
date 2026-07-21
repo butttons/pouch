@@ -31,9 +31,20 @@ export async function createToken(scopes: Scope[]) {
 	return sign({ jti, scopes, iat, exp }, env.JWT_SECRET);
 }
 
-export const adminToken = () => createToken(["schema:admin"]);
-export const writerToken = () => createToken(["content:write"]);
-export const readerToken = () => createToken(["content:read"]);
+export const adminToken = () =>
+	createToken([
+		"content:read",
+		"content:write",
+		"collection:read",
+		"collection:write",
+		"media:read",
+		"media:write",
+		"audit:read",
+	]);
+export const writerToken = () =>
+	createToken(["collection:read", "content:write", "media:write"]);
+export const readerToken = () =>
+	createToken(["collection:read", "content:read", "media:read"]);
 
 export async function fetchWorker(
 	path: string,
@@ -59,7 +70,7 @@ export async function createCollection(input: {
 	schema: Record<string, unknown>;
 	titleField?: string;
 }) {
-	const token = await createToken(["schema:admin"]);
+	const token = await createToken(["collection:write"]);
 	const response = await fetchWorker(
 		"/collections",
 		{
@@ -89,7 +100,7 @@ export async function createContent(
 	slug: string,
 	input: { data: Record<string, unknown>; status?: string },
 ) {
-	const token = await createToken(["content:write"]);
+	const token = await createToken(["collection:read", "content:write"]);
 	const response = await fetchWorker(
 		`/collections/${slug}/content`,
 		{
@@ -120,7 +131,7 @@ export async function createContentBatch(
 	slug: string,
 	items: Array<{ data: Record<string, unknown>; status?: string }>,
 ) {
-	const token = await createToken(["content:write"]);
+	const token = await createToken(["collection:read", "content:write"]);
 	const response = await fetchWorker(
 		`/collections/${slug}/content/batch`,
 		{
@@ -157,7 +168,7 @@ export async function updateContentBatch(
 		status?: string;
 	}>,
 ) {
-	const token = await createToken(["content:write"]);
+	const token = await createToken(["collection:read", "content:write"]);
 	const response = await fetchWorker(
 		`/collections/${slug}/content/batch`,
 		{
@@ -187,7 +198,7 @@ export async function updateContentBatch(
 }
 
 export async function deleteContentBatch(slug: string, ids: string[]) {
-	const token = await createToken(["content:write"]);
+	const token = await createToken(["collection:read", "content:write"]);
 	const response = await fetchWorker(
 		`/collections/${slug}/content/batch`,
 		{
@@ -205,7 +216,7 @@ export async function deleteContentBatch(slug: string, ids: string[]) {
 }
 
 export async function createMedia(file: File) {
-	const token = await createToken(["content:write"]);
+	const token = await createToken(["media:write"]);
 	const formData = new FormData();
 	formData.append("file", file);
 
