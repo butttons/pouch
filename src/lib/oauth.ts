@@ -11,6 +11,7 @@ import { SCOPES } from "@/middleware/auth";
 
 export const OAUTH_AUTHORIZE_ENDPOINT = "/authorize";
 export const OAUTH_TOKEN_ENDPOINT = "/token";
+export const OAUTH_REGISTRATION_ENDPOINT = "/register";
 
 /**
  * Provider options shared between the OAuthProvider wrapper (src/index.ts)
@@ -21,8 +22,10 @@ export const baseOAuthProviderOptions = {
 	authorizeEndpoint: OAUTH_AUTHORIZE_ENDPOINT,
 	tokenEndpoint: OAUTH_TOKEN_ENDPOINT,
 	scopesSupported: [...SCOPES],
-	// Clients are provisioned via /oauth/clients (JWT-protected), never DCR.
-	// No clientRegistrationEndpoint is set anywhere.
+	// RFC 7591 dynamic client registration — MCP clients self-register.
+	// Registered clients expire after the library default of 90 days and
+	// re-register on demand.
+	clientRegistrationEndpoint: OAUTH_REGISTRATION_ENDPOINT,
 } satisfies Partial<OAuthProviderOptions<Env>>;
 
 /**

@@ -13,7 +13,7 @@ import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import { getOAuthHelpers } from "@/lib/oauth";
 import { typedId } from "@/lib/typed-id";
 
-import type { Scope } from "@/middleware/auth";
+import { SCOPES, type Scope } from "@/middleware/auth";
 
 import type { Deps } from "@/deps";
 
@@ -46,10 +46,43 @@ const parseUrl = (raw: string) =>
 	)();
 
 /**
+ * Looks up a DCR-registered client from the OAUTH_KV registry and enforces
+ * the open-redirect guard (redirect_uri must be registered for the client).
+ */
+const requireRegisteredClient = (
+	input: { clientId: string; redirectUri: string },
+	deps: Deps,
+) =>
+	safeTry(async function* () {
+		const client = yield* ResultAsync.fromPromise(
+			getOAuthHelpers(deps.env).lookupClient(input.clientId),
+			(cause) =>
+				new AppHTTPException({
+					code: ErrorCodes.INTERNAL_ERROR,
+					message: "Failed to look up OAuth client",
+					status: 500,
+					cause,
+				}),
+		);
+
+		if (client === null || !client.redirectUris.includes(input.redirectUri)) {
+			return err(
+				new AppHTTPException({
+					code: ErrorCodes.UNAUTHORIZED,
+					message: "Invalid client_id or redirect_uri",
+					status: 400,
+				}),
+			);
+		}
+
+		return ok(client);
+	});
+
+/**
  * Prepares the GET /authorize view: validates the client against the KV
  * registry (client_id AND redirect_uri must match — the open-redirect guard),
  * then returns either the login view or the consent view with the scope
- * intersection (requested ∩ client.maxScopes).
+ * intersection (requested ∩ supported scopes).
  */
 export const prepareConsent = (
 	input: { requestUrl: string; isAuthenticated: boolean },
@@ -64,24 +97,15 @@ export const prepareConsent = (
 			return err(invalidRequest("Missing client_id or redirect_uri"));
 		}
 
-		const client = yield* deps.DL.oauthClient.getById({ clientId });
-		const isAllowed =
-			client !== null && client.redirectUris.includes(redirectUri);
-
-		if (!isAllowed) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.UNAUTHORIZED,
-					message: "Invalid client_id or redirect_uri",
-					status: 400,
-				}),
-			);
-		}
+		const client = yield* requireRegisteredClient(
+			{ clientId, redirectUri },
+			deps,
+		);
 
 		if (!input.isAuthenticated) {
 			return ok({
 				type: "login" as const,
-				clientName: client.name,
+				clientName: client.clientName ?? client.clientId,
 				returnUrl: input.requestUrl,
 			});
 		}
@@ -91,8 +115,8 @@ export const prepareConsent = (
 
 		return ok({
 			type: "consent" as const,
-			clientName: client.name,
-			scopes: computeGrantedScopes(requested, client.maxScopes),
+			clientName: client.clientName ?? client.clientId,
+			scopes: computeGrantedScopes(requested, [...SCOPES]),
 			returnUrl: input.requestUrl,
 		});
 	});
@@ -134,26 +158,15 @@ export const completeConsent = (
 				),
 		);
 
-		const client = yield* deps.DL.oauthClient.getById({
-			clientId: authRequest.clientId,
-		});
-		const isAllowed =
-			client !== null && client.redirectUris.includes(authRequest.redirectUri);
-
-		if (!isAllowed) {
-			return err(
-				new AppHTTPException({
-					code: ErrorCodes.UNAUTHORIZED,
-					message: "Invalid client",
-					status: 400,
-				}),
-			);
-		}
-
-		const grantedScopes = computeGrantedScopes(
-			input.submittedScopes,
-			client.maxScopes,
+		const client = yield* requireRegisteredClient(
+			{ clientId: authRequest.clientId, redirectUri: authRequest.redirectUri },
+			deps,
 		);
+		const clientName = client.clientName ?? client.clientId;
+
+		const grantedScopes = computeGrantedScopes(input.submittedScopes, [
+			...SCOPES,
+		]);
 
 		const jti = typedId("key");
 		const iat = Math.floor(Date.now() / 1000);
@@ -161,7 +174,7 @@ export const completeConsent = (
 			sign(
 				{
 					jti,
-					name: client.name,
+					name: clientName,
 					scopes: grantedScopes,
 					iat,
 					exp: iat + TOKEN_TTL_SECONDS,
@@ -183,7 +196,7 @@ export const completeConsent = (
 				userId: jti,
 				scope: grantedScopes,
 				props: { accessToken },
-				metadata: { clientName: client.name },
+				metadata: { clientName },
 			}),
 			(error) =>
 				new AppHTTPException({
@@ -201,7 +214,7 @@ export const completeConsent = (
 			action: "auth.oauth.grant",
 			actor: jti,
 			targetId: jti,
-			diff: { client: client.name, scopes: grantedScopes },
+			diff: { client: clientName, scopes: grantedScopes },
 		});
 
 		return ok({ redirectTo: result.redirectTo });

@@ -15,7 +15,6 @@ import { auditLogRouter } from "@/routes/audit-log/_route";
 import { collectionRouter } from "@/routes/collection/_route";
 import { createMcpRouter } from "@/routes/mcp/_route";
 import { mediaRouter } from "@/routes/media/_route";
-import { oauthClientsRouter } from "@/routes/oauth/_route";
 
 import { requireScopes, SCOPES } from "@/middleware/auth";
 import { depsMiddleware } from "@/middleware/deps";
@@ -28,9 +27,9 @@ const createKeyInputSchema = Type.Object(
 	{
 		secret: Type.String({ minLength: 1 }),
 		name: Type.String({ minLength: 1 }),
-		scopes: Type.Optional(
-			Type.Array(Type.Union(SCOPES.map((scope) => Type.Literal(scope)))),
-		),
+		scopes: Type.Array(Type.Union(SCOPES.map((scope) => Type.Literal(scope))), {
+			minItems: 1,
+		}),
 		expiresInSeconds: Type.Optional(Type.Number({ minimum: 60 })),
 	},
 	{ additionalProperties: false },
@@ -56,7 +55,7 @@ const app: Hono<HonoVariables> = createRouter()
 			}
 
 			const jti = typedId("key");
-			const scopes = input.scopes ?? [...SCOPES];
+			const scopes = input.scopes;
 			const iat = Math.floor(Date.now() / 1000);
 			const exp = iat + (input.expiresInSeconds ?? SIX_MONTHS);
 			const name = input.name;
@@ -105,7 +104,6 @@ const app: Hono<HonoVariables> = createRouter()
 	.route("/collections", collectionRouter)
 	.route("/media", mediaRouter)
 	.route("/audit-logs", auditLogRouter)
-	.route("/oauth/clients", oauthClientsRouter)
 	.notFound((c) =>
 		c.json(
 			{

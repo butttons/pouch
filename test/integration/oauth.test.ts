@@ -2,207 +2,52 @@ import { describe, expect, it } from "vitest";
 
 import { typedId } from "@/lib/typed-id";
 
-import { adminToken, fetchWorker, readerToken } from "../utils";
-
-const uniqueClientId = () => `test-${crypto.randomUUID().slice(0, 8)}`;
+import { fetchWorker, readerToken } from "../utils";
 
 const registerClient = async (
-	token: string,
-	input: {
-		clientId?: string;
-		name?: string;
-		redirectUris?: string[];
-		maxScopes?: string[];
-	} = {},
+	input: { clientName?: string; redirectUris?: string[] } = {},
 ) =>
-	fetchWorker(
-		"/oauth/clients",
-		{
+	fetchWorker("/register", {
+		method: "POST",
+		body: JSON.stringify({
+			client_name: input.clientName ?? "Test Client",
+			redirect_uris: input.redirectUris ?? ["https://client.example/callback"],
+			token_endpoint_auth_method: "none",
+		}),
+	});
+
+describe("dynamic client registration", () => {
+	it("registers a public client without any credentials", async () => {
+		const response = await registerClient({ clientName: "Claude.ai" });
+
+		expect(response.status).toBe(201);
+		const body = (await response.json()) as Record<string, unknown>;
+		expect(body.client_id).toEqual(expect.any(String));
+		expect(body.client_name).toBe("Claude.ai");
+		expect(body.redirect_uris).toEqual(["https://client.example/callback"]);
+		expect(body.token_endpoint_auth_method).toBe("none");
+		expect(body.client_secret).toBeUndefined();
+	});
+
+	it("rejects registrations without redirect URIs", async () => {
+		const response = await fetchWorker("/register", {
 			method: "POST",
 			body: JSON.stringify({
-				clientId: input.clientId ?? uniqueClientId(),
-				name: input.name ?? "Test Client",
-				redirectUris: input.redirectUris ?? ["https://client.example/callback"],
-				maxScopes: input.maxScopes ?? ["content:read", "content:write"],
+				client_name: "No URIs",
+				token_endpoint_auth_method: "none",
 			}),
-		},
-		token,
-	);
-
-describe("oauth clients", () => {
-	describe("POST /oauth/clients", () => {
-		it("creates a client with a caller-supplied ID", async () => {
-			const token = await adminToken();
-			const clientId = uniqueClientId();
-
-			const response = await registerClient(token, { clientId });
-
-			expect(response.status).toBe(201);
-			const body = (await response.json()) as Record<string, unknown>;
-			expect(body).toMatchObject({
-				clientId,
-				name: "Test Client",
-				redirectUris: ["https://client.example/callback"],
-				maxScopes: ["content:read", "content:write"],
-			});
 		});
 
-		it("falls back to a generated ocl_ ID", async () => {
-			const token = await adminToken();
-
-			const response = await fetchWorker(
-				"/oauth/clients",
-				{
-					method: "POST",
-					body: JSON.stringify({
-						name: "No ID Client",
-						redirectUris: ["https://client.example/callback"],
-						maxScopes: ["content:read"],
-					}),
-				},
-				token,
-			);
-
-			expect(response.status).toBe(201);
-			const body = (await response.json()) as { clientId: string };
-			expect(body.clientId).toMatch(/^ocl_/);
-		});
-
-		it("rejects duplicate client IDs with 409", async () => {
-			const token = await adminToken();
-			const clientId = uniqueClientId();
-
-			await registerClient(token, { clientId });
-			const duplicate = await registerClient(token, { clientId });
-
-			expect(duplicate.status).toBe(409);
-		});
-
-		it("requires schema:admin scope", async () => {
-			const reader = await readerToken();
-
-			const response = await registerClient(reader);
-
-			expect(response.status).toBe(403);
-		});
-	});
-
-	describe("GET /oauth/clients", () => {
-		it("lists registered clients", async () => {
-			const token = await adminToken();
-			const clientId = uniqueClientId();
-			await registerClient(token, { clientId });
-
-			const response = await fetchWorker("/oauth/clients", {}, token);
-
-			expect(response.status).toBe(200);
-			const body = (await response.json()) as {
-				data: Array<{ clientId: string }>;
-			};
-			const found = body.data.find(
-				(client: { clientId: string }) => client.clientId === clientId,
-			);
-			expect(found).toBeDefined();
-		});
-	});
-
-	describe("GET /oauth/clients/:id", () => {
-		it("returns a single client", async () => {
-			const token = await adminToken();
-			const clientId = uniqueClientId();
-			await registerClient(token, { clientId });
-
-			const response = await fetchWorker(
-				`/oauth/clients/${clientId}`,
-				{},
-				token,
-			);
-
-			expect(response.status).toBe(200);
-			const body = (await response.json()) as { clientId: string };
-			expect(body.clientId).toBe(clientId);
-		});
-
-		it("returns 404 for unknown clients", async () => {
-			const token = await adminToken();
-
-			const response = await fetchWorker("/oauth/clients/nope", {}, token);
-
-			expect(response.status).toBe(404);
-		});
-	});
-
-	describe("PATCH /oauth/clients/:id", () => {
-		it("updates redirect URIs and max scopes", async () => {
-			const token = await adminToken();
-			const clientId = uniqueClientId();
-			await registerClient(token, { clientId });
-
-			const response = await fetchWorker(
-				`/oauth/clients/${clientId}`,
-				{
-					method: "PATCH",
-					body: JSON.stringify({
-						redirectUris: ["https://client.example/new-callback"],
-						maxScopes: ["content:read"],
-					}),
-				},
-				token,
-			);
-
-			expect(response.status).toBe(200);
-			const body = (await response.json()) as {
-				redirectUris: string[];
-				maxScopes: string[];
-			};
-			expect(body.redirectUris).toEqual([
-				"https://client.example/new-callback",
-			]);
-			expect(body.maxScopes).toEqual(["content:read"]);
-		});
-
-		it("returns 404 for unknown clients", async () => {
-			const token = await adminToken();
-
-			const response = await fetchWorker(
-				"/oauth/clients/nope",
-				{ method: "PATCH", body: JSON.stringify({ name: "Nope" }) },
-				token,
-			);
-
-			expect(response.status).toBe(404);
-		});
-	});
-
-	describe("DELETE /oauth/clients/:id", () => {
-		it("deletes the client", async () => {
-			const token = await adminToken();
-			const clientId = uniqueClientId();
-			await registerClient(token, { clientId });
-
-			const response = await fetchWorker(
-				`/oauth/clients/${clientId}`,
-				{ method: "DELETE" },
-				token,
-			);
-
-			expect(response.status).toBe(204);
-
-			const getAfter = await fetchWorker(
-				`/oauth/clients/${clientId}`,
-				{},
-				token,
-			);
-			expect(getAfter.status).toBe(404);
-		});
+		expect(response.status).toBe(400);
 	});
 });
 
 describe("oauth consent flow", () => {
 	const setupConsentFlow = async () => {
-		const token = await adminToken();
-		const clientId = uniqueClientId();
-		await registerClient(token, { clientId });
+		const registerResponse = await registerClient();
+		const { client_id: clientId } = (await registerResponse.json()) as {
+			client_id: string;
+		};
 
 		const verifier = "test-verifier-test-verifier-test-verifier";
 		const authPath =
@@ -212,7 +57,7 @@ describe("oauth consent flow", () => {
 			`&state=teststate&scope=${encodeURIComponent("content:read content:write")}`;
 		const authUrl = `http://example.com${authPath}`;
 
-		return { token, clientId, verifier, authPath, authUrl };
+		return { clientId, verifier, authPath, authUrl };
 	};
 
 	const login = async (authUrl: string, passphrase: string) =>
@@ -332,20 +177,18 @@ describe("oauth consent flow", () => {
 		expect(location.searchParams.get("state")).toBe("teststate");
 	});
 
-	it("enforces the client maxScopes ceiling on grants", async () => {
-		const token = await adminToken();
-		const clientId = uniqueClientId();
-		await registerClient(token, {
-			clientId,
-			maxScopes: ["content:read"],
-		});
+	it("filters unsupported scopes out of the consent screen", async () => {
+		const registerResponse = await registerClient();
+		const { client_id: clientId } = (await registerResponse.json()) as {
+			client_id: string;
+		};
 
 		const verifier = "test-verifier-test-verifier-test-verifier";
 		const authPath =
 			`/authorize?response_type=code&client_id=${clientId}` +
 			`&redirect_uri=${encodeURIComponent("https://client.example/callback")}` +
 			`&code_challenge=${verifier}&code_challenge_method=plain` +
-			`&scope=${encodeURIComponent("content:read schema:admin")}`;
+			`&scope=${encodeURIComponent("content:read bogus:scope")}`;
 		const authUrl = `http://example.com${authPath}`;
 
 		const loginResponse = await login(authUrl, "local-dev-passphrase");
@@ -357,7 +200,7 @@ describe("oauth consent flow", () => {
 		});
 		const consentHtml = await consentPage.text();
 		expect(consentHtml).toContain("content:read");
-		expect(consentHtml).not.toContain("schema:admin");
+		expect(consentHtml).not.toContain("bogus:scope");
 	});
 });
 

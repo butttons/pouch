@@ -24,7 +24,6 @@ import {
 	mediaPaths,
 	mediaSchemas,
 } from "@/routes/media/_openapi";
-import { oauthClientPaths, oauthClientSchemas } from "@/routes/oauth/_openapi";
 
 import packageJson from "../../package.json";
 import type { Deps } from "@/deps";
@@ -117,6 +116,10 @@ const authPaths = {
 											type: "string",
 											description: "Unique key identifier.",
 										},
+										name: {
+											type: "string",
+											description: "Name identifying the key holder.",
+										},
 										scopes: {
 											type: "array",
 											items: { type: "string" },
@@ -127,7 +130,7 @@ const authPaths = {
 											description: "Unix timestamp when the key expires.",
 										},
 									},
-									required: ["token", "jti", "scopes", "exp"],
+									required: ["token", "jti", "name", "scopes", "exp"],
 									additionalProperties: false,
 								},
 							},
@@ -920,7 +923,7 @@ export const assembleOpenAPIDocument = (
 			"x-tagGroups": [
 				{
 					name: "Management",
-					tags: ["Auth", "Collections", "Media", "Audit Log", "OAuth"],
+					tags: ["Auth", "Collections", "Media", "Audit Log"],
 				},
 				{ name: "Content", tags: collectionSlugs },
 			],
@@ -930,7 +933,6 @@ export const assembleOpenAPIDocument = (
 				...collectionPaths,
 				...mediaPaths,
 				...auditLogPaths,
-				...oauthClientPaths,
 				...dynamicPaths,
 			},
 			components: {
@@ -947,7 +949,6 @@ export const assembleOpenAPIDocument = (
 					...collectionSchemas,
 					...mediaSchemas,
 					...auditLogSchemas,
-					...oauthClientSchemas,
 					...dynamicSchemas,
 				},
 			},

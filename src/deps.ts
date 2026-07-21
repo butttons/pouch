@@ -26,7 +26,7 @@ export const createDeps = ({
 
 	const db = createDB(session.db);
 	const batch = createBatcher({ database: session.db, kysely: db });
-	const DL = new DataLayer({ db, batch, env });
+	const DL = new DataLayer({ db, batch });
 
 	return {
 		DL,

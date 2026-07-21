@@ -134,7 +134,7 @@ If you need an admin token for local scripts or remote management, post your `JW
 ```sh
 curl -X POST http://localhost:3200/auth/keys \
   -H "Content-Type: application/json" \
-  -d '{"secret": "[JWT_SECRET]", "scopes": ["schema:admin","content:write","content:read"]}' \
+  -d '{"secret": "[JWT_SECRET]", "name": "local-admin", "scopes": ["schema:admin","content:write","content:read"]}' \
   | jq -r '.token' > .env.local
 ```
 
@@ -161,6 +161,7 @@ curl -X POST http://localhost:3200/auth/keys \
   -H "Content-Type: application/json" \
   -d '{
     "secret": "[JWT_SECRET]",
+    "name": "my-agent",
     "scopes": ["schema:admin", "content:write", "content:read"]
   }'
 ```
@@ -171,12 +172,13 @@ Response:
 {
   "token": "JWT_STRING",
   "jti": "key_...",
+  "name": "my-agent",
   "scopes": ["schema:admin", "content:write", "content:read"],
   "exp": 1234567890
 }
 ```
 
-If `scopes` is omitted, the key gets all scopes. Use `expiresInSeconds` to override the default 180-day expiry.
+`name` and `scopes` are required — the name identifies the key holder in audit logs, and every key must declare its scopes explicitly. Use `expiresInSeconds` to override the default 180-day expiry.
 
 ## Read replication
 
@@ -227,62 +229,23 @@ The MCP server reads `/openapi.json` on the first request and registers one tool
 
 Some MCP clients (the Claude chat app, ChatGPT connectors) only support OAuth and have no custom-headers option. pouch supports OAuth 2.1 authorization for the `/mcp` route specifically, while the REST API continues to use the existing bearer-token auth.
 
-There is no dynamic client registration (and no CIMD). OAuth clients live in a KV registry managed through the REST API (`schema:admin` scope required) — register each client app once, then connect as many times as you like. When a client asks how it should register, always choose its "use your own client credentials" option (e.g. **User-Defined OAuth Client** in ChatGPT).
+Clients self-register via RFC 7591 Dynamic Client Registration at `POST /register` — there is no operator-managed client registry. Registered clients are stored in `OAUTH_KV` and expire after 90 days; MCP clients re-register on demand. Clients are public (PKCE-only) — no client secrets are issued for `token_endpoint_auth_method: "none"` registrations.
 
-**Registering a client:**
-
-```sh
-curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
-  -H "Authorization: Bearer [TOKEN]" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "clientId": "claude-ai",
-    "name": "Claude.ai",
-    "redirectUris": ["https://claude.ai/api/mcp/auth_callback"],
-    "maxScopes": ["content:read", "content:write", "schema:admin"]
-  }'
-```
-
-- `clientId` is caller-supplied so setup instructions can use stable IDs. Omit it to get a generated `ocl_` ID.
-- `redirectUris` must match exactly what the client app sends — this is the open-redirect guard. Claude uses one fixed URI; ChatGPT generates a per-connector callback URI (see below).
-- `maxScopes` is the ceiling of scopes this client may ever be granted. The consent screen shows only the intersection of requested scopes and `maxScopes`.
-
-Manage clients with `GET/PATCH/DELETE /oauth/clients/{id}` — all operations are audited (`auth.oauth.client.*`). Agents with a `schema:admin` key can register themselves.
-
-Whichever client you connect, the flow ends at the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_PASSPHRASE`), review the scope checkboxes, and approve. On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1. Deleting a client revokes all of its grants.
+Whichever client you connect, the flow ends at the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_PASSPHRASE`), review the scope checkboxes, and approve. On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1.
 
 #### Claude (claude.ai Custom Connectors)
 
 1. Open Settings → Connectors → Add custom connector.
 2. MCP server URL: `https://pouch-cms.[account].workers.dev/mcp`
-3. Under Advanced settings, set OAuth Client ID to `claude-ai` (or whatever you registered). Leave OAuth Client Secret blank — clients are public and use PKCE only.
+3. Leave the OAuth client fields blank — Claude registers itself via DCR on first connect.
 4. Click Connect and complete the pouch consent screen.
 
 #### ChatGPT (Developer Mode connectors)
 
-ChatGPT assigns every connector its own callback URI, so create the connector shell first, then register the client with the URI ChatGPT gives you:
-
 1. In ChatGPT, open Settings → Apps & Connectors → Advanced Settings and enable Developer Mode.
 2. Click Create → New App. Set MCP server URL to `https://pouch-cms.[account].workers.dev/mcp` and Authentication to OAuth.
-3. Under Advanced settings / Client registration, choose **User-Defined OAuth Client** (DCR and CIMD are not supported).
-4. Copy the Callback URL ChatGPT shows — it looks like `https://chatgpt.com/connector/oauth/{callback_id}`.
-5. Register the pouch client with that exact URI:
-
-   ```sh
-   curl -X POST https://pouch-cms.[account].workers.dev/oauth/clients \
-     -H "Authorization: Bearer [TOKEN]" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "clientId": "chat-gpt",
-       "name": "ChatGPT",
-       "redirectUris": ["https://chatgpt.com/connector/oauth/{callback_id}"],
-       "maxScopes": ["content:read", "content:write", "schema:admin"]
-     }'
-   ```
-
-6. Back in ChatGPT: set OAuth Client ID to `chat-gpt`, leave OAuth Client Secret blank, and set Token endpoint auth method to `none`.
-7. Set Default scopes to `content:read content:write schema:admin` (or a subset — the grant is capped by `maxScopes` either way).
-8. Click Create, then Connect, and complete the pouch consent screen.
+3. Leave client registration on the default (automatic) — ChatGPT registers itself via DCR using its per-connector callback URI.
+4. Click Create, then Connect, and complete the pouch consent screen.
 
 **Note:** Claude Code, Cursor, and other clients that support custom headers should keep using the existing bearer-token approach (e.g. `.mcp.json` with `Authorization: Bearer [TOKEN]`). OAuth is specifically for clients that require it and have no alternative.
 
