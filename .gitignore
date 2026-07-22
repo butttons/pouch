@@ -1,6 +1,7 @@
 .env
 .env.local
 pouch.db
+.tmp
 node_modules
 dist
 .wrangler

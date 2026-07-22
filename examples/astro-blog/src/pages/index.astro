@@ -1,0 +1,41 @@
+---
+import { pouch } from "../lib/pouch";
+
+const { data, error } = await pouch.GET("/collections/articles/content", {
+	params: { query: { resolve: "author" } },
+});
+
+if (error) {
+	throw new Error(`pouch request failed: ${error.code}`);
+}
+
+// The list endpoint returns every status; a public site wants published only.
+const articles = data.data.filter(
+	(article) => article.status === "published",
+);
+---
+
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Blog</title>
+	</head>
+	<body>
+		<h1>Articles</h1>
+		<ul>
+			{
+				articles.map((article) => (
+					<li>
+						<h2>{article.data.title}</h2>
+						<Fragment set:html={article.data.body} />
+						<p>
+							By {article.data.author.data.name} &middot; Views:{" "}
+							{article.data.views} &middot; Published:{" "}
+							{article.data.published_at}
+						</p>
+					</li>
+				))
+			}
+		</ul>
+	</body>
+</html>

@@ -1,0 +1,8 @@
+# Token for your pouch instance (scopes: collection:read, content:read/write)
+POUCH_TOKEN=
+# Only used by `npm run generate-types` to fetch the OpenAPI spec
+POUCH_URL=http://localhost:3200
+# Zone purge credentials for tag-based cache invalidation on mutations.
+# The worker must run on a custom domain in this zone.
+CF_ZONE_ID=
+CF_API_TOKEN=

@@ -1,0 +1,12 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "caching-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-07-22",
+	"services": [
+		{
+			"binding": "POUCH",
+			"service": "pouch-cms"
+		}
+	]
+}

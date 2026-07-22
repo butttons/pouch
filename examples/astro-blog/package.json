@@ -1,0 +1,19 @@
+{
+  "name": "astro-blog",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "generate-types": "source .env && curl -sf \"$POUCH_URL/openapi.json\" -H \"Authorization: Bearer $POUCH_TOKEN\" -o openapi.json && openapi-typescript openapi.json -o src/generated/pouch.ts && rm openapi.json"
+  },
+  "dependencies": {
+    "astro": "^5.0.0",
+    "openapi-fetch": "^0.14.0"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.13.0"
+  }
+}

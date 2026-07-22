@@ -1,0 +1,21 @@
+{
+  "name": "caching-worker",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "generate-types": "source .dev.vars && curl -sf \"$POUCH_URL/openapi.json\" -H \"Authorization: Bearer $POUCH_TOKEN\" -o openapi.json && openapi-typescript openapi.json -o src/generated/pouch.ts && rm openapi.json",
+    "cf-typegen": "wrangler types"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
+    "openapi-typescript": "^7.13.0",
+    "typescript": "^5.5.0",
+    "wrangler": "^4.24.0"
+  },
+  "dependencies": {
+    "openapi-fetch": "^0.14.0"
+  }
+}

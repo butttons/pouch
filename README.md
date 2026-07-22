@@ -2,7 +2,7 @@
 
 A minimal, API-first headless CMS for Cloudflare Workers and D1. Define collections with standard JSON Schema, create content, and query it over HTTP. Built for AI agents and services.
 
-For agent-specific conventions, see [AGENTS.md](./AGENTS.md). To contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+For agent-specific conventions, see [AGENTS.md](./AGENTS.md). To contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md). For runnable client examples, see [examples/](./examples).
 
 ## Deployment
 
@@ -302,9 +302,11 @@ open https://pouch:[DOCS_SECRET]@pouch-cms.[account].workers.dev/docs
 
 The page is generated from the same OpenAPI spec as `/openapi.json`, so it reflects the current collections, scopes, error responses, and examples. For local development use `http://localhost:3200/docs`.
 
-## Generating a typed client
+## Usage
 
-pouch serves a live OpenAPI 3.1 spec at `/openapi.json`. Because the assembler expands `/collections/{slug}/content` into concrete paths per collection, the generated client uses those concrete paths directly and types query filters from each collection's JSON Schema.
+pouch serves a live OpenAPI 3.1 spec at `/openapi.json`. Because the assembler expands `/collections/{slug}/content` into concrete paths per collection, a generated client uses those concrete paths directly and types query filters from each collection's JSON Schema. Runnable versions of everything below live in [`examples/`](./examples).
+
+### Generating a typed client
 
 Install the tooling in your consumer project:
 
@@ -313,19 +315,20 @@ npm install openapi-fetch
 npm install -D openapi-typescript
 ```
 
-Generate the types from your deployed pouch instance:
+Fetch the spec with your token, then generate types from it:
 
 ```sh
-npx openapi-typescript https://pouch-cms.[account].workers.dev/openapi.json \
-  --header "Authorization: Bearer [TOKEN]" \
-  -o ./src/generated/pouch.ts
+curl -sf https://pouch-cms.[account].workers.dev/openapi.json \
+  -H "Authorization: Bearer [TOKEN]" -o openapi.json
+npx openapi-typescript openapi.json -o ./src/generated/pouch.ts
+rm openapi.json
 ```
 
 Then create a client:
 
 ```ts
 import createClient from "openapi-fetch";
-import type { paths } from "./generated/pouch.js";
+import type { paths } from "./generated/pouch";
 
 const client = createClient<paths>({
   baseUrl: "https://pouch-cms.[account].workers.dev",
@@ -337,44 +340,81 @@ const { data, error } = await client.GET("/collections/best_deals/content", {
 });
 ```
 
-## Using the client in Cloudflare Workers
+### Cloudflare Workers (service bindings)
 
-If you are calling pouch from another Cloudflare Worker, do not go over the network. Use a [service binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/http/) instead.
+If you are calling pouch from another Cloudflare Worker, do not go over the public network. Use a [service binding](https://developers.cloudflare.com/workers/runtime-apis/bindings/service-bindings/http/) instead.
 
-Add the binding to your worker's `wrangler.jsonc`:
+Add the binding to your worker's `wrangler.jsonc`, pointing at your pouch worker's name:
 
 ```json
 "services": [
   {
-    "binding": "POUCH_SERVICE",
-    "service": "pouch"
+    "binding": "POUCH",
+    "service": "pouch-cms"
   }
 ]
 ```
 
-Then pass the service binding's `fetch` to `openapi-fetch`. The binding ignores the hostname, so `baseUrl` can be anything:
+Then pass the binding's `fetch` to `openapi-fetch`. The binding ignores the hostname, so `baseUrl` can be anything:
 
 ```ts
 import createClient from "openapi-fetch";
-import type { paths } from "./generated/pouch.js";
+import type { paths } from "./generated/pouch";
 
-export const createPouchClient = (env: Env) =>
-  createClient<paths>({
-    baseUrl: "http://pouch",
-    headers: { Authorization: `Bearer ${TOKEN}` },
-    fetch: (url, init) => env.POUCH_SERVICE.fetch(url, init),
-  });
-```
-
-In your worker, use it like any other client:
-
-```ts
-const pouch = createPouchClient(env);
+const pouch = createClient<paths>({
+  baseUrl: "https://pouch",
+  headers: { Authorization: `Bearer ${env.POUCH_TOKEN}` },
+  fetch: (input) => env.POUCH.fetch(input),
+});
 
 const { data, error } = await pouch.GET("/collections/faqs/content", {
   params: { query: { type: "faq", limit: 5 } },
 });
 ```
+
+Run `npx wrangler types` after adding the binding so the `Env` type includes it. Full runnable worker: [`examples/consumer-worker`](./examples/consumer-worker).
+
+### Caching pouch responses in a Worker
+
+For read-heavy consumers, cache pouch GET responses inside your worker with the [Cache API](https://developers.cloudflare.com/workers/runtime-apis/cache/) and invalidate on writes:
+
+- Cache only successful GETs, keyed by URL, with a long `s-maxage` as a backstop TTL.
+- Stamp each entry with `Cache-Tag`: the collection (`col-articles`), the content id for item responses, and the target collection of every `resolve=` relation (resolved data is embedded, so those entries must die when the *related* collection changes).
+- After any mutation, purge the affected `col-*` tag via the [zone purge API](https://developers.cloudflare.com/cache/how-to/purge-cache/) (`POST /zones/{zone_id}/purge_cache`). This requires the worker to run on a custom domain and an API token with cache-purge permission.
+
+Full runnable worker with a mutation endpoint that demonstrates purging: [`examples/caching-worker`](./examples/caching-worker).
+
+### Astro
+
+Fetch content at build time with the typed client; environment variables come from `.env` via `import.meta.env`:
+
+```ts
+// src/lib/pouch.ts
+import createClient from "openapi-fetch";
+import type { paths } from "../generated/pouch";
+
+export const pouch = createClient<paths>({
+  baseUrl: import.meta.env.POUCH_URL,
+  headers: { Authorization: `Bearer ${import.meta.env.POUCH_TOKEN}` },
+});
+```
+
+```astro
+---
+// src/pages/index.astro
+import { pouch } from "../lib/pouch";
+
+const { data, error } = await pouch.GET("/collections/articles/content", {
+  params: { query: { resolve: "author" } },
+});
+if (error) throw new Error(`pouch request failed: ${error.code}`);
+
+// List endpoints return content in every status; keep published only.
+const articles = data.data.filter((a) => a.status === "published");
+---
+```
+
+Full runnable site: [`examples/astro-blog`](./examples/astro-blog).
 
 ## Updating
 
