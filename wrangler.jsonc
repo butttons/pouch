@@ -1,52 +1,59 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "pouch-cms",
-	"main": "src/index.ts",
-	"compatibility_date": "2025-09-27",
-	"compatibility_flags": ["nodejs_als", "global_fetch_strictly_public"],
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pouch-cms",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-09-27",
+  "compatibility_flags": ["nodejs_als", "global_fetch_strictly_public"],
 
-	"dev": {
-		"port": 3200
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "pouch-cms",
-			"database_id": "00000000-0000-0000-0000-000000000000",
-			"migrations_dir": "src/lib/db/migrations"
-		}
-	],
-	"r2_buckets": [
-		{
-			"binding": "MEDIA_BUCKET",
-			"bucket_name": "pouch-media"
-		}
-	],
-	"kv_namespaces": [
-		{
-			"binding": "OAUTH_KV",
-			"id": "00000000-0000-0000-0000-000000000000"
-		}
-	],
-	"vars": {
-		"MEDIA_PUBLIC_URL": "http://localhost:3200"
-	},
-	"secrets": {
-		"required": ["JWT_SECRET", "DOCS_SECRET", "MCP_ADMIN_PASSPHRASE"]
-	},
-	"observability": {
-		"enabled": false,
-		"head_sampling_rate": 1,
-		"logs": {
-			"enabled": true,
-			"head_sampling_rate": 1,
-			"persist": true,
-			"invocation_logs": true
-		},
-		"traces": {
-			"enabled": true,
-			"persist": true,
-			"head_sampling_rate": 1
-		}
-	}
+  "dev": {
+    "port": 3200,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pouch-cms",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "src/lib/db/migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "pouch-media",
+    },
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+  "ratelimits": [
+    {
+      "name": "RATE_LIMITER",
+      "namespace_id": "1234",
+      "simple": { "limit": 100, "period": 10 },
+    },
+  ],
+  "vars": {
+    "MEDIA_PUBLIC_URL": "http://localhost:3200",
+  },
+  "secrets": {
+    "required": ["JWT_SECRET", "DOCS_SECRET", "MCP_ADMIN_SECRET"],
+  },
+  "observability": {
+    "enabled": false,
+    "head_sampling_rate": 1,
+    "logs": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "persist": true,
+      "invocation_logs": true,
+    },
+    "traces": {
+      "enabled": true,
+      "persist": true,
+      "head_sampling_rate": 1,
+    },
+  },
 }

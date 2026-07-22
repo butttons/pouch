@@ -1,6 +1,6 @@
 {
   "name": "@butttons/pouch",
-  "version": "0.0.28",
+  "version": "0.0.29",
   "private": true,
   "type": "module",
   "scripts": {
@@ -59,7 +59,7 @@
       "MEDIA_BUCKET": {
         "description": "R2 bucket for storing uploaded media files."
       },
-      "MCP_ADMIN_PASSPHRASE": {
+      "MCP_ADMIN_SECRET": {
         "description": "MCP Admin password."
       }
     }

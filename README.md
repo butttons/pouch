@@ -15,7 +15,7 @@ The worker needs the following bindings to run:
 3. `OAUTH_KV` - [Cloudflare KV](https://developers.cloudflare.com/kv/) - Token and grant storage for the OAuth provider. Separate from D1.
 4. `JWT_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - The secret used to sign and verify API keys.
 5. `DOCS_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Password for the `/docs` interactive API reference (HTTP Basic Auth).
-6. `MCP_ADMIN_PASSPHRASE` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
+6. `MCP_ADMIN_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
 7. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
 
 ### Quick deploy
@@ -105,10 +105,10 @@ npx wrangler secret put JWT_SECRET
 
 Generate a strong secret and keep it safe. You will need it to create API keys.
 
-7. Set the `MCP_ADMIN_PASSPHRASE` secret (optional — only needed for OAuth MCP)
+7. Set the `MCP_ADMIN_SECRET` secret (optional — only needed for OAuth MCP)
 
 ```sh
-npx wrangler secret put MCP_ADMIN_PASSPHRASE
+npx wrangler secret put MCP_ADMIN_SECRET
 ```
 
 This is the single shared passphrase used to log in to the OAuth consent screen at `/authorize`.
@@ -134,7 +134,7 @@ pnpm install
 ```sh
 JWT_SECRET='your-local-dev-secret-min-32-chars-long'
 DOCS_SECRET='your-local-docs-password'
-MCP_ADMIN_PASSPHRASE='your-local-dev-passphrase'
+MCP_ADMIN_SECRET='your-local-dev-passphrase'
 ```
 
 3. Generate an admin key (optional)
@@ -196,15 +196,15 @@ Response:
 
 Scopes mirror the endpoint groups:
 
-| Scope | Endpoints |
-| --- | --- |
-| `collection:read` | `GET /collections*` |
-| `collection:write` | `POST/PATCH/DELETE /collections*` |
-| `content:read` | `GET /collections/:slug/content*` (also requires `collection:read`) |
-| `content:write` | mutations under `/collections/:slug/content*` (also requires `collection:read`) |
-| `media:read` | `GET /media*` |
-| `media:write` | `POST/DELETE /media*` |
-| `audit:read` | `GET /audit-logs*` |
+| Scope              | Endpoints                                                                       |
+| ------------------ | ------------------------------------------------------------------------------- |
+| `collection:read`  | `GET /collections*`                                                             |
+| `collection:write` | `POST/PATCH/DELETE /collections*`                                               |
+| `content:read`     | `GET /collections/:slug/content*` (also requires `collection:read`)             |
+| `content:write`    | mutations under `/collections/:slug/content*` (also requires `collection:read`) |
+| `media:read`       | `GET /media*`                                                                   |
+| `media:write`      | `POST/DELETE /media*`                                                           |
+| `audit:read`       | `GET /audit-logs*`                                                              |
 
 `GET /openapi.json` requires `collection:read`.
 
@@ -260,7 +260,7 @@ Some MCP clients (the Claude chat app, ChatGPT connectors) only support OAuth an
 
 Clients self-register via RFC 7591 Dynamic Client Registration at `POST /register` — there is no operator-managed client registry. Registered clients are stored in `OAUTH_KV` and expire after 90 days; MCP clients re-register on demand. Clients are public (PKCE-only) — no client secrets are issued for `token_endpoint_auth_method: "none"` registrations.
 
-Whichever client you connect, the flow ends at the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_PASSPHRASE`), review the scope checkboxes, and approve. On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1.
+Whichever client you connect, the flow ends at the pouch consent screen: enter the operator passphrase (`MCP_ADMIN_SECRET`), review the scope checkboxes, and approve. On successful grant, an `auth.oauth.grant` audit log entry is written with the client name and granted scopes. Grants and tokens are stored in `OAUTH_KV`, separate from D1.
 
 #### Claude (claude.ai Custom Connectors)
 

@@ -18,6 +18,7 @@ import { mediaRouter } from "@/routes/media/_route";
 
 import { requireScopes, SCOPES } from "@/middleware/auth";
 import { depsMiddleware } from "@/middleware/deps";
+import { rateLimitMiddleware } from "@/middleware/rate-limit";
 
 import { createRouter, type HonoVariables } from "./utils";
 
@@ -43,6 +44,7 @@ type CreateKeyInput = Type.Static<typeof createKeyInputSchema>;
 const app: Hono<HonoVariables> = createRouter()
 	.use(contextStorage())
 	.use(depsMiddleware)
+	.use(rateLimitMiddleware)
 	.post(
 		"/auth/keys",
 		jsonValidator<CreateKeyInput>(createKeyInputSchema),
