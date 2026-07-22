@@ -2,7 +2,7 @@
 
 A minimal, API-first headless CMS for Cloudflare Workers and D1. Define collections with standard JSON Schema, create content, and query it over HTTP. Built for AI agents and services.
 
-For agent-specific conventions, see [AGENTS.md](./AGENTS.md).
+For agent-specific conventions, see [AGENTS.md](./AGENTS.md). To contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 ## Deployment
 
@@ -17,6 +17,7 @@ The worker needs the following bindings to run:
 5. `DOCS_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Password for the `/docs` interactive API reference (HTTP Basic Auth).
 6. `MCP_ADMIN_SECRET` - [Secret](https://developers.cloudflare.com/workers/configuration/secrets/) - Single shared passphrase for the OAuth consent screen login. Only the operator needs this.
 7. `MEDIA_PUBLIC_URL` - [Var](https://developers.cloudflare.com/workers/configuration/environment-variables/) - Public URL for the R2 bucket (e.g. `https://pub-abc123.r2.dev`). Optional. Enables direct access to uploaded files without going through the worker.
+8. `RATE_LIMITER` - [Rate limiting](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/) - Already configured in `wrangler.jsonc` (100 requests per 10 seconds). No setup needed.
 
 ### Quick deploy
 
@@ -211,6 +212,10 @@ Scopes mirror the endpoint groups:
 ### Per-collection keys
 
 Pass `collections` (an array of slugs) when creating a key to confine it to those collections. Every route under a collection — content, schema, delete — responds 403 for any slug outside the list, and `GET /collections` only returns the permitted collections. Media and audit-log routes are not collection-scoped and are unaffected. Omit `collections` for a key that works across all collections.
+
+## Rate limiting
+
+Every request passes through the `RATE_LIMITER` binding (100 requests per 10 seconds, configured in `wrangler.jsonc`). Requests with a valid API key are limited per key (`jti`); unauthenticated requests are limited per client IP. Exceeding the limit returns `429` with a JSON error body (`RATE_LIMITED`).
 
 ## Read replication
 
@@ -423,3 +428,7 @@ pnpm run deploy
 `pnpm run deploy` runs `db:migrate:prod` before deploying, so D1 migrations are applied automatically.
 
 > **Note:** The `.github/workflows/update.yml` file is added after the first manual update. Once it is present, you can use the GitHub Actions workflow for future updates instead of merging locally.
+
+## License
+
+[MIT](./LICENSE)

@@ -86,7 +86,7 @@ Content list endpoints accept `?field=value` (equality) and `?field[op]=value`. 
 - `string` (all other): `eq`, `ne`, `in`, `nin`
 - `array`, `object`: not filterable
 
-Both the request validator in `src/routes/content/_service.get.ts` and the OpenAPI generator in `src/lib/openapi.ts` must derive allowed operators from the same mapping in `src/lib/query-filter.ts`.
+Both the request validator in `src/routes/content/_service.get.ts` and the OpenAPI generator in `src/routes/content/_openapi.ts` must derive allowed operators from the same mapping in `src/lib/query-filter.ts`.
 
 ## Schema philosophy
 
@@ -107,6 +107,7 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 
 - Use `neverthrow` for all fallible operations. No `try/catch` for control flow.
 - Every error response must be JSON, including 404s and unhandled exceptions.
+- Request pipeline order in `src/app.ts`: `contextStorage` → `depsMiddleware` → `rateLimitMiddleware` → routes. The rate limiter uses the Cloudflare `RATE_LIMITER` binding, keyed on the token's `jti` when a JWT is present, falling back to `cf-connecting-ip`.
 - Data layer methods are thin Kysely wrappers. Business rules live in services.
 - `DataLayer` is a class with public sub-layer properties (`auditLog`, `collection`, `content`, `contentIndex`, `media`). Instantiate it with `new DataLayer({ db, batch })` — do not use a factory function.
 - Audit log inserts are built via `AuditLogDataLayer.createInsert(db, event)` static method. Other data layers import this from `./audit-log` sibling module, not from `@/lib/audit-log`.
@@ -120,6 +121,8 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - Route folders use `_`-prefixed files: `_route.ts` (router only), `_openapi.ts`, `_schema.ts`, `_service.*.ts`, `_util.*.ts`, `_types.ts`, `_page.*.tsx`.
 - `src/lib` subfolders (`data/`, `db/`, `openapi/`, `schema/`) use plain filenames with a barrel `index.ts` (`export * from ...`) so `@/lib/<name>` imports stay stable.
 
+For contributor-facing how-tos (adding routes, scopes, DB changes), see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
 ## OAuth for MCP
 
 - OAuth clients self-register via RFC 7591 DCR at `POST /register` (enabled via `clientRegistrationEndpoint` in `src/lib/oauth.ts`), stored in `OAUTH_KV` by the library. There is no operator-managed client registry.
@@ -127,7 +130,7 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - Clients are public (PKCE-only, `tokenEndpointAuthMethod: "none"`). Never issue client secrets.
 - Client lookups outside the provider wrapper (e.g. the consent flow) use `getOAuthHelpers(env).lookupClient(clientId)` from `src/lib/oauth.ts` — there is no data layer for OAuth clients.
 - The consent flow (`GET/POST /authorize`) lives in `src/routes/oauth/` and renders JSX pages via `hono/jsx`. Human-facing pages use the shared `Layout` from `src/routes/oauth/Layout.tsx` — fully self-contained, styles inlined, no static assets.
-- The consent flow router is mounted by the `OAuthProvider` defaultHandler in `src/index.ts`, outside the main app pipeline, so it applies `depsMiddleware` itself.
+- The consent flow router is mounted by the `OAuthProvider` defaultHandler in `src/index.ts`, outside the main app pipeline, so it applies `depsMiddleware` and `rateLimitMiddleware` itself.
 - Plain pouch JWTs remain valid on `/mcp` via the `resolveExternalToken` callback in `src/lib/oauth.ts`. OAuth-issued and JWT-issued requests both reach tool handlers as `executionCtx.props.accessToken` — tool dispatch must read props before the incoming `Authorization` header.
 - Multi-value form fields (e.g. scope checkboxes) must be read with `formData.getAll()` — Hono's `parseBody()` keeps only the last repeated key.
 
