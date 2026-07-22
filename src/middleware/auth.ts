@@ -45,14 +45,14 @@ export const requireScopes = (...requiredScopes: Scope[]) =>
 
 		const scopes = getScopes(payload);
 
-		const hasRequiredScopes = requiredScopes.every((scope) =>
-			scopes.includes(scope),
+		const missingScopes = requiredScopes.filter(
+			(scope) => !scopes.includes(scope),
 		);
 
-		if (!hasRequiredScopes) {
+		if (missingScopes.length > 0) {
 			throw new AppHTTPException({
 				code: ErrorCodes.UNAUTHORIZED,
-				message: "Missing required scopes",
+				message: `Missing required scopes: ${missingScopes.join(", ")}`,
 				status: 403,
 			});
 		}

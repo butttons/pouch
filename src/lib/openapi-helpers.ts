@@ -74,7 +74,10 @@ export const withErrorResponses = (
 	const responses: Record<string, unknown> = {
 		...(operation.responses as Record<string, unknown>),
 		"401": errorResponse(401, "Invalid or missing Bearer token"),
-		"403": errorResponse(403, "Missing required scopes"),
+		"403": errorResponse(
+			403,
+			"Missing required scopes (the message lists which ones)",
+		),
 		"500": errorResponse(500, "Unknown error"),
 	};
 	return { ...operation, responses };
