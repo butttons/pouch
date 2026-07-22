@@ -1,7 +1,7 @@
-import { env } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
 import { createCollection, fetchWorker } from "../utils";
+import { env } from "cloudflare:test";
 
 const widgetSchema = {
 	type: "object",

@@ -1,175 +1,8 @@
-import { ok, ResultAsync, safeTry } from "neverthrow";
-
-import type { DataLayerError } from "@/lib/data";
-import {
-	d1BookmarkHeader,
-	d1BookmarkParam,
-	errorResponse,
-	errorSchema,
-	errorSchemaRef,
-	withD1Bookmark,
-	withErrorResponses,
-	withOperation,
-} from "@/lib/openapi-helpers";
+import { errorResponse, withOperation } from "@/lib/openapi/helpers";
 import { getAllowedOperators } from "@/lib/query-filter";
 import { getMediaFields } from "@/lib/schema";
 
-import { auditLogPaths, auditLogSchemas } from "@/routes/audit-log/_openapi";
-import {
-	collectionPaths,
-	collectionSchemas,
-} from "@/routes/collection/_openapi";
-import {
-	mediaObjectSchemaRef,
-	mediaPaths,
-	mediaSchemas,
-} from "@/routes/media/_openapi";
-
-import packageJson from "../../package.json";
-import type { Deps } from "@/deps";
-
-const baseInfo = {
-	title: "pouch",
-	version: packageJson.version,
-	description:
-		"API-first headless CMS backed by Cloudflare D1. All endpoints except /auth/keys require a Bearer token with the appropriate scope. Read-after-write consistency across D1 replicas is supported via the x-d1-bookmark header. Collection schemas are standard JSON Schema with five CMS extensions: x-label (display name), x-widget (authoring hint, e.g. richtext), x-relation (target collection slug), x-index (filterable generated column), and x-media (media reference).",
-};
-
-const tags = [
-	{ name: "Auth", description: "API key management" },
-	{ name: "Collections", description: "Collection and schema management" },
-	{ name: "Media", description: "File uploads and media records" },
-	{ name: "Audit Log", description: "Audit log entries" },
-	{ name: "OAuth", description: "OAuth client registry for the MCP endpoint" },
-];
-
-const securitySchemes = {
-	bearerAuth: {
-		type: "http",
-		scheme: "bearer",
-		bearerFormat: "JWT",
-		description:
-			"JWT API key. Create a key via POST /auth/keys using the worker JWT_SECRET, then send it as `Authorization: Bearer <token>`. Tokens carry scopes that determine which endpoints are accessible. See each operation's x-required-scopes extension for the required scope.",
-	},
-};
-
-const authPaths = {
-	"/auth/keys": {
-		post: withErrorResponses(
-			withD1Bookmark({
-				summary: "Create API key",
-				description:
-					"Creates a new JWT API key. Requires the JWT_SECRET configured on the worker.",
-				operationId: "create_api_key",
-				tags: ["Auth"],
-				requestBody: {
-					required: true,
-					content: {
-						"application/json": {
-							schema: {
-								type: "object",
-								properties: {
-									secret: {
-										type: "string",
-										description:
-											"The JWT_SECRET value from the worker environment.",
-										example: "a1b2c3d4e5f6...",
-									},
-									name: {
-										type: "string",
-										description:
-											"Human-readable name identifying the key holder. Recorded in audit logs.",
-										example: "my-agent",
-									},
-									scopes: {
-										type: "array",
-										items: {
-											type: "string",
-											enum: [
-												"content:read",
-												"content:write",
-												"collection:read",
-												"collection:write",
-												"media:read",
-												"media:write",
-												"audit:read",
-											],
-										},
-										minItems: 1,
-										description: "Scopes for the new key.",
-										example: ["content:read", "content:write"],
-									},
-									collections: {
-										type: "array",
-										items: { type: "string" },
-										minItems: 1,
-										description:
-											"Restricts the key to these collection slugs. Every collection-scoped route (content, schema, delete) 403s for other collections. Omit for access to all collections.",
-										example: ["faqs", "pages"],
-									},
-									expiresInSeconds: {
-										type: "number",
-										minimum: 60,
-										description:
-											"Key lifetime in seconds. Defaults to 180 days.",
-										example: 86400,
-									},
-								},
-								required: ["secret", "name", "scopes"],
-								additionalProperties: false,
-							},
-						},
-					},
-				},
-				responses: {
-					"201": {
-						description: "Created API key",
-						content: {
-							"application/json": {
-								schema: {
-									type: "object",
-									properties: {
-										token: {
-											type: "string",
-											description:
-												"JWT token to use as `Authorization: Bearer <token>`.",
-										},
-										jti: {
-											type: "string",
-											description: "Unique key identifier.",
-										},
-										name: {
-											type: "string",
-											description: "Name identifying the key holder.",
-										},
-										scopes: {
-											type: "array",
-											items: { type: "string" },
-											description: "Scopes granted to the key.",
-										},
-										collections: {
-											type: "array",
-											items: { type: "string" },
-											description:
-												"Collection slugs the key is restricted to. Absent when unrestricted.",
-										},
-										exp: {
-											type: "number",
-											description: "Unix timestamp when the key expires.",
-										},
-									},
-									required: ["token", "jti", "name", "scopes", "exp"],
-									additionalProperties: false,
-								},
-							},
-						},
-					},
-					"401": errorResponse(401, "Invalid secret"),
-				},
-			}),
-		),
-	},
-};
+import { mediaObjectSchemaRef } from "@/routes/media/_openapi";
 
 const baseSecurity = [{ bearerAuth: [] }];
 
@@ -179,10 +12,11 @@ const contentBatchInputSchemaRef = (slug: string) =>
 	`__ContentBatchInput_${slug}`;
 const contentBatchUpdateInputSchemaRef = (slug: string) =>
 	`__ContentBatchUpdateInput_${slug}`;
-const contentBatchDeleteInputSchemaRef = "ContentBatchDeleteInput";
 const resolvedContentSchemaRef = (slug: string) => `__Resolved_${slug}`;
 const resolvedContentWrapperSchemaRef = (slug: string) =>
 	`__ResolvedContent_${slug}`;
+
+export const contentBatchDeleteInputSchemaRef = "ContentBatchDeleteInput";
 
 type JsonSchemaProperty = {
 	type?: string | string[];
@@ -520,7 +354,7 @@ const buildBatchUpdateContentInputSchema = (slug: string) => ({
 	additionalProperties: false,
 });
 
-const contentBatchDeleteInputSchema = {
+export const contentBatchDeleteInputSchema = {
 	type: "object",
 	properties: {
 		ids: {
@@ -550,10 +384,57 @@ const buildContentItemSchema = (
 	};
 };
 
-const buildCollectionContentPaths = (
-	slug: string,
-	schema: Record<string, unknown>,
-) => {
+/**
+ * Builds every dynamic component schema a collection contributes to the
+ * OpenAPI document: the raw data schema (keyed by slug), the content wrapper
+ * and input schemas, and — when the collection has relation or media fields —
+ * the resolved variants.
+ */
+export const buildContentSchemas = (input: {
+	slug: string;
+	schema: Record<string, unknown>;
+}): Record<string, unknown> => {
+	const schemas: Record<string, unknown> = {
+		[input.slug]: input.schema,
+		[contentWrapperSchemaRef(input.slug)]: buildContentWrapperSchema(
+			input.slug,
+		),
+		[contentInputSchemaRef(input.slug)]: buildContentInputSchema(input.slug),
+		[contentBatchInputSchemaRef(input.slug)]: buildBatchContentInputSchema(
+			input.slug,
+		),
+		[contentBatchUpdateInputSchemaRef(input.slug)]:
+			buildBatchUpdateContentInputSchema(input.slug),
+	};
+
+	const resolvedSchema = buildResolvedCollectionSchema(
+		input.slug,
+		input.schema,
+	);
+	const resolvedWrapper = buildResolvedContentWrapperSchema(
+		input.slug,
+		input.schema,
+	);
+
+	if (resolvedSchema) {
+		schemas[resolvedContentSchemaRef(input.slug)] = resolvedSchema;
+	}
+
+	if (resolvedWrapper) {
+		schemas[resolvedContentWrapperSchemaRef(input.slug)] = resolvedWrapper;
+	}
+
+	return schemas;
+};
+
+/**
+ * Builds the OpenAPI paths for a collection's content endpoints.
+ */
+export const buildContentPaths = (input: {
+	slug: string;
+	schema: Record<string, unknown>;
+}): Record<string, unknown> => {
+	const { slug, schema } = input;
 	const collectionTag = slug;
 
 	return {
@@ -891,94 +772,3 @@ const buildCollectionContentPaths = (
 		},
 	};
 };
-
-/**
- * Builds the full OpenAPI document including dynamic content schemas and paths.
- */
-export const assembleOpenAPIDocument = (
-	deps: Deps,
-	baseUrl?: string,
-): ResultAsync<Record<string, unknown>, DataLayerError> =>
-	safeTry(async function* () {
-		const collections = yield* deps.DL.collection.listCollectionsWithSchema();
-
-		const dynamicSchemas: Record<string, unknown> = {};
-		const dynamicPaths: Record<string, unknown> = {};
-
-		for (const collection of collections) {
-			dynamicSchemas[collection.slug] = collection.schema;
-			dynamicSchemas[contentWrapperSchemaRef(collection.slug)] =
-				buildContentWrapperSchema(collection.slug);
-			dynamicSchemas[contentInputSchemaRef(collection.slug)] =
-				buildContentInputSchema(collection.slug);
-			dynamicSchemas[contentBatchInputSchemaRef(collection.slug)] =
-				buildBatchContentInputSchema(collection.slug);
-			dynamicSchemas[contentBatchUpdateInputSchemaRef(collection.slug)] =
-				buildBatchUpdateContentInputSchema(collection.slug);
-
-			const resolvedSchema = buildResolvedCollectionSchema(
-				collection.slug,
-				collection.schema,
-			);
-			const resolvedWrapper = buildResolvedContentWrapperSchema(
-				collection.slug,
-				collection.schema,
-			);
-
-			if (resolvedSchema) {
-				dynamicSchemas[resolvedContentSchemaRef(collection.slug)] =
-					resolvedSchema;
-			}
-
-			if (resolvedWrapper) {
-				dynamicSchemas[resolvedContentWrapperSchemaRef(collection.slug)] =
-					resolvedWrapper;
-			}
-
-			Object.assign(
-				dynamicPaths,
-				buildCollectionContentPaths(collection.slug, collection.schema),
-			);
-		}
-
-		const collectionSlugs = collections.map((c) => c.slug);
-		const servers = baseUrl ? [{ url: baseUrl }] : undefined;
-
-		return ok({
-			openapi: "3.1.0",
-			info: baseInfo,
-			tags,
-			"x-tagGroups": [
-				{
-					name: "Management",
-					tags: ["Auth", "Collections", "Media", "Audit Log"],
-				},
-				{ name: "Content", tags: collectionSlugs },
-			],
-			servers,
-			paths: {
-				...authPaths,
-				...collectionPaths,
-				...mediaPaths,
-				...auditLogPaths,
-				...dynamicPaths,
-			},
-			components: {
-				securitySchemes,
-				parameters: {
-					d1Bookmark: d1BookmarkParam,
-				},
-				headers: {
-					d1Bookmark: d1BookmarkHeader,
-				},
-				schemas: {
-					[errorSchemaRef]: errorSchema,
-					[contentBatchDeleteInputSchemaRef]: contentBatchDeleteInputSchema,
-					...collectionSchemas,
-					...mediaSchemas,
-					...auditLogSchemas,
-					...dynamicSchemas,
-				},
-			},
-		});
-	});

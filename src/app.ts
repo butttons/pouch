@@ -3,101 +3,26 @@ import { Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
 import { contextStorage } from "hono/context-storage";
 import { HTTPException } from "hono/http-exception";
-import { sign } from "hono/jwt";
-import { Type } from "typebox";
 
 import { AppHTTPException, ErrorCodes, unwrapResult } from "@/lib/errors";
 import { assembleOpenAPIDocument } from "@/lib/openapi";
-import { typedId } from "@/lib/typed-id";
-import { jsonValidator } from "@/lib/validator";
 
 import { auditLogRouter } from "@/routes/audit-log/_route";
+import { authRouter } from "@/routes/auth/_route";
 import { collectionRouter } from "@/routes/collection/_route";
 import { createMcpRouter } from "@/routes/mcp/_route";
 import { mediaRouter } from "@/routes/media/_route";
 
-import { requireScopes, SCOPES } from "@/middleware/auth";
+import { requireScopes } from "@/middleware/auth";
 import { depsMiddleware } from "@/middleware/deps";
 import { rateLimitMiddleware } from "@/middleware/rate-limit";
 
 import { createRouter, type HonoVariables } from "./utils";
 
-const SIX_MONTHS = 60 * 60 * 24 * 180;
-
-const createKeyInputSchema = Type.Object(
-	{
-		secret: Type.String({ minLength: 1 }),
-		name: Type.String({ minLength: 1 }),
-		scopes: Type.Array(Type.Union(SCOPES.map((scope) => Type.Literal(scope))), {
-			minItems: 1,
-		}),
-		collections: Type.Optional(
-			Type.Array(Type.String({ minLength: 1 }), { minItems: 1 }),
-		),
-		expiresInSeconds: Type.Optional(Type.Number({ minimum: 60 })),
-	},
-	{ additionalProperties: false },
-);
-
-type CreateKeyInput = Type.Static<typeof createKeyInputSchema>;
-
 const app: Hono<HonoVariables> = createRouter()
 	.use(contextStorage())
 	.use(depsMiddleware)
 	.use(rateLimitMiddleware)
-	.post(
-		"/auth/keys",
-		jsonValidator<CreateKeyInput>(createKeyInputSchema),
-		async (c) => {
-			const input = c.req.valid("json");
-
-			if (input.secret !== c.env.JWT_SECRET) {
-				throw new AppHTTPException({
-					code: ErrorCodes.UNAUTHORIZED,
-					message: "Invalid secret",
-					status: 401,
-				});
-			}
-
-			const jti = typedId("key");
-			const scopes = input.scopes;
-			const collections = input.collections;
-			const iat = Math.floor(Date.now() / 1000);
-			const exp = iat + (input.expiresInSeconds ?? SIX_MONTHS);
-			const name = input.name;
-
-			const token = await sign(
-				{
-					jti,
-					name,
-					scopes,
-					...(collections ? { collections } : {}),
-					iat,
-					exp,
-				},
-				c.env.JWT_SECRET,
-			);
-
-			await c.var.deps.DL.auditLog.insert({
-				action: "key.create",
-				actor: c.var.deps.actor,
-				targetId: jti,
-				diff: { name, scopes, ...(collections ? { collections } : {}) },
-			});
-
-			return c.json(
-				{
-					token,
-					jti,
-					name,
-					scopes,
-					...(collections ? { collections } : {}),
-					exp,
-				},
-				201,
-			);
-		},
-	)
 	.get("/openapi.json", requireScopes("collection:read"), async (c) => {
 		const url = new URL(c.req.url);
 		const baseUrl = `${url.protocol}//${url.host}`;
@@ -127,6 +52,7 @@ const app: Hono<HonoVariables> = createRouter()
 	.route("/collections", collectionRouter)
 	.route("/media", mediaRouter)
 	.route("/audit-logs", auditLogRouter)
+	.route("/auth", authRouter)
 	.notFound((c) =>
 		c.json(
 			{

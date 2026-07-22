@@ -6,3 +6,6 @@ dist
 .wrangler
 .dev.vars
 README.local.md
+
+# dora code context index
+.dora/

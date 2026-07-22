@@ -1,9 +1,9 @@
 import {
-	type RootOperationNode,
 	type Compilable,
-	type QueryExecutor,
 	Kysely,
+	type QueryExecutor,
 	type QueryResult,
+	type RootOperationNode,
 	type UnknownRow,
 } from "kysely";
 

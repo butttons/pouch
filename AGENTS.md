@@ -112,7 +112,13 @@ Both the request validator in `src/routes/content/_service.get.ts` and the OpenA
 - Audit log inserts are built via `AuditLogDataLayer.createInsert(db, event)` static method. Other data layers import this from `./audit-log` sibling module, not from `@/lib/audit-log`.
 - Audit is required on all mutating data layer methods (create, update, delete). Callers in services always pass an `AuditLogEvent`.
 - Define route schemas with TypeBox and infer TS types from them. Do not hand-write interfaces that duplicate the schema.
-- Colocate static OpenAPI pieces with routes (`_openapi.ts`). `src/lib/openapi.ts` only assembles.
+- Colocate OpenAPI pieces with routes (`_openapi.ts`), including per-collection dynamic builders (`src/routes/content/_openapi.ts`). `src/lib/openapi/index.ts` only assembles.
+
+## File organization
+
+- Keep files small. When a file grows past ~200 lines or mixes concerns, split it into focused files colocated in a folder.
+- Route folders use `_`-prefixed files: `_route.ts` (router only), `_openapi.ts`, `_schema.ts`, `_service.*.ts`, `_util.*.ts`, `_types.ts`, `_page.*.tsx`.
+- `src/lib` subfolders (`data/`, `db/`, `openapi/`, `schema/`) use plain filenames with a barrel `index.ts` (`export * from ...`) so `@/lib/<name>` imports stay stable.
 
 ## OAuth for MCP
 

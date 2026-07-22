@@ -2,6 +2,7 @@ import { ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { DataLayerError } from "@/lib/data";
 import type { AppHTTPException } from "@/lib/errors";
+import { enrichMediaPaths } from "@/lib/schema";
 
 import { requireCollectionBySlug } from "@/routes/collection/_util.require-collection";
 
@@ -10,8 +11,6 @@ import type {
 	ContentRouteParams,
 	UpdateContentInput,
 } from "./_schema";
-import { enrichMediaPaths } from "@/lib/schema";
-
 import { requireContentInCollection } from "./_util.require-content";
 import {
 	validateContentOrFail,

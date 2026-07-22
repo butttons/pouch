@@ -1,4 +1,4 @@
-import { errorResponse, withOperation } from "@/lib/openapi-helpers";
+import { errorResponse, withOperation } from "@/lib/openapi/helpers";
 
 import {
 	collectionSchema,

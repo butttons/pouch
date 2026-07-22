@@ -1,7 +1,7 @@
 import { createMiddleware } from "hono/factory";
 import { verify } from "hono/jwt";
 
-import { d1BookmarkSchema } from "@/lib/openapi-helpers";
+import { d1BookmarkSchema } from "@/lib/openapi/helpers";
 import { isValid } from "@/lib/validator";
 
 import type { HonoVariables } from "@/utils";
