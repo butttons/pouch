@@ -28,7 +28,19 @@ type JsonSchemaProperty = {
 
 const buildParameterSchema = (
 	property: JsonSchemaProperty,
+	op: string,
 ): Record<string, unknown> => {
+	if (
+		(op === "in" || op === "nin") &&
+		property.enum &&
+		property.type === "string"
+	) {
+		return {
+			type: "string",
+			description: "Comma-separated values.",
+		};
+	}
+
 	const schema: Record<string, unknown> = {};
 
 	if (property.enum) {
@@ -167,7 +179,7 @@ const buildContentQueryParameters = (
 				name,
 				in: "query",
 				required: false,
-				schema: buildParameterSchema(property),
+				schema: buildParameterSchema(property, op),
 			});
 		}
 	}
