@@ -20,11 +20,14 @@ export type ContentFilter = {
 };
 
 export type ContentSort = {
-	column: "created_at" | "updated_at";
+	/** Public field name (createdAt, updatedAt, or a data field). */
+	field: "createdAt" | "updatedAt" | string;
+	/** SQL ordering expression: a real column for built-ins, json_extract for data fields. */
+	expression: string;
 	direction: "asc" | "desc";
 };
 
-export type SortCursor = { value: number; id: string };
+export type SortCursor = { value: number | string; id: string };
 
 const encodeSortCursor = (cursor: SortCursor): string =>
 	btoa(JSON.stringify([cursor.value, cursor.id]))
@@ -43,7 +46,10 @@ export const decodeSortCursor = (cursor: string): SortCursor | null => {
 	}
 
 	const base64 = cursor.replaceAll("-", "+").replaceAll("_", "/");
-	const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+	const padded = base64.padEnd(
+		base64.length + ((4 - (base64.length % 4)) % 4),
+		"=",
+	);
 	const parsed = Result.fromThrowable(
 		() => JSON.parse(atob(padded)) as unknown,
 		() => null,
@@ -58,7 +64,7 @@ export const decodeSortCursor = (cursor: string): SortCursor | null => {
 	if (
 		!Array.isArray(value) ||
 		value.length !== 2 ||
-		typeof value[0] !== "number" ||
+		(typeof value[0] !== "number" && typeof value[0] !== "string") ||
 		typeof value[1] !== "string"
 	) {
 		return null;
@@ -139,12 +145,12 @@ export class ContentDataLayer extends BaseDataLayer {
 					q.where("id", backward ? ">" : "<", input.cursor!),
 				)
 				.$if(sort !== undefined && sortCursor !== undefined, (q) => {
-					const { column, direction: sortDirection } = sort!;
+					const { expression, direction: sortDirection } = sort!;
 					const asc = sortDirection === "asc";
 					const cmp = backward ? (asc ? "<" : ">") : asc ? ">" : "<";
 
 					return q.where(
-						sql<boolean>`(${sql.ref(column)} ${sql.raw(cmp)} ${sortCursor!.value}) OR (${sql.ref(column)} = ${sortCursor!.value} AND id ${sql.raw(cmp)} ${sortCursor!.id})`,
+						sql<boolean>`(${sql.raw(expression)} ${sql.raw(cmp)} ${sortCursor!.value}) OR (${sql.raw(expression)} = ${sortCursor!.value} AND id ${sql.raw(cmp)} ${sortCursor!.id})`,
 					);
 				})
 				.$if(input.filters.length > 0, (q) => {
@@ -166,7 +172,9 @@ export class ContentDataLayer extends BaseDataLayer {
 							: "asc"
 						: sort!.direction;
 
-					return q.orderBy(sort!.column, order).orderBy("id", order);
+					return q
+						.orderBy(sql.raw(sort!.expression), order)
+						.orderBy("id", order);
 				})
 				.limit(pageSize + 1)
 				.execute(),
@@ -181,13 +189,30 @@ export class ContentDataLayer extends BaseDataLayer {
 			const page = hasMore ? fetched.slice(0, pageSize) : fetched;
 			const rows = backward ? page.reverse() : page;
 
+			const sortValueOf = (
+				row: (typeof rows)[number],
+				sort: ContentSort,
+			): number | string => {
+				if (sort.field === "createdAt") {
+					return row.createdAt;
+				}
+
+				if (sort.field === "updatedAt") {
+					return row.updatedAt;
+				}
+
+				// Indexed scalar data fields hold a number or string value; coerce
+				// anything unexpected (e.g. a missing field) to the empty string so
+				// the cursor stays well-formed rather than throwing mid-pagination.
+				const value = row.data[sort.field];
+				return typeof value === "number" || typeof value === "string"
+					? value
+					: "";
+			};
+
 			const cursorOf = (row: (typeof rows)[number]) =>
 				sort
-					? encodeSortCursor({
-							value:
-								sort.column === "created_at" ? row.createdAt : row.updatedAt,
-							id: row.id,
-						})
+					? encodeSortCursor({ value: sortValueOf(row, sort), id: row.id })
 					: row.id;
 
 			const first = rows[0];
@@ -201,7 +226,9 @@ export class ContentDataLayer extends BaseDataLayer {
 				};
 			}
 
-			const hasCursor = sort ? sortCursor !== undefined : input.cursor !== undefined;
+			const hasCursor = sort
+				? sortCursor !== undefined
+				: input.cursor !== undefined;
 
 			return {
 				rows,

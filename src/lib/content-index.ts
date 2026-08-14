@@ -90,6 +90,33 @@ export const getIndexedFields = (schema: Record<string, unknown>): string[] => {
 		.map(([key]) => key);
 };
 
+export type SortableFieldType = "integer" | "number" | "string";
+
+export type SortableField = {
+	field: string;
+	type: SortableFieldType;
+};
+
+/**
+ * Returns the fields that are both x-index-ed and a sortable scalar type.
+ * Booleans are excluded: SQLite does not meaningfully order them as cursors.
+ */
+export const getSortableFields = (
+	schema: Record<string, unknown>,
+): SortableField[] => {
+	const properties = getProperties(schema);
+
+	return Object.entries(properties)
+		.filter(([, property]) => property["x-index"] === true)
+		.map(([field, property]) => ({ field, type: property.type }))
+		.filter(
+			(entry): entry is { field: string; type: SortableFieldType } =>
+				entry.type === "integer" ||
+				entry.type === "number" ||
+				entry.type === "string",
+		);
+};
+
 export type IndexDiff = {
 	added: string[];
 	removed: string[];

@@ -2,6 +2,10 @@ import { err, ok, ResultAsync, safeTry } from "neverthrow";
 
 import type { ContentFilter, ContentSort, DataLayerError } from "@/lib/data";
 import { decodeSortCursor, type SortCursor } from "@/lib/data/content";
+import {
+	buildJsonExtractExpression,
+	getSortableFields,
+} from "@/lib/content-index";
 import { AppHTTPException, ErrorCodes } from "@/lib/errors";
 import {
 	type FilterOperator,
@@ -67,13 +71,14 @@ const QUERY_META_KEYS = new Set([
 	"direction",
 ]);
 
-const SORT_COLUMNS: Record<string, ContentSort["column"]> = {
-	createdAt: "created_at",
-	updatedAt: "updated_at",
+const BUILTIN_SORT_FIELDS: Record<string, { expression: string }> = {
+	createdAt: { expression: "created_at" },
+	updatedAt: { expression: "updated_at" },
 };
 
 const parseSort = (
 	raw: unknown,
+	schema: Record<string, unknown>,
 ): { sort?: ContentSort; error?: AppHTTPException } => {
 	if (raw === undefined) {
 		return {};
@@ -82,19 +87,40 @@ const parseSort = (
 	const text = String(Array.isArray(raw) ? raw[0] : raw);
 	const direction = text.startsWith("-") ? "desc" : "asc";
 	const field = text.startsWith("-") ? text.slice(1) : text;
-	const column = SORT_COLUMNS[field];
 
-	if (!column) {
+	const builtin = BUILTIN_SORT_FIELDS[field];
+
+	if (builtin) {
+		return {
+			sort: {
+				field,
+				expression: builtin.expression,
+				direction,
+			},
+		};
+	}
+
+	const sortable = getSortableFields(schema).find(
+		(candidate) => candidate.field === field,
+	);
+
+	if (!sortable) {
 		return {
 			error: new AppHTTPException({
 				code: ErrorCodes.VALIDATION_FAILED,
-				message: `Invalid sort field: ${field} (allowed: createdAt, updatedAt)`,
+				message: `Invalid sort field: ${field} (allowed: createdAt, updatedAt, or an x-index scalar field)`,
 				status: 400,
 			}),
 		};
 	}
 
-	return { sort: { column, direction } };
+	return {
+		sort: {
+			field,
+			expression: buildJsonExtractExpression({ field }),
+			direction,
+		},
+	};
 };
 
 const parseLimit = (raw: unknown): number => {
@@ -261,7 +287,10 @@ export const listContent = (
 		const cursor =
 			typeof input.query.cursor === "string" ? input.query.cursor : undefined;
 
-		const { sort, error: sortError } = parseSort(input.query.sort);
+		const { sort, error: sortError } = parseSort(
+			input.query.sort,
+			collection.schema,
+		);
 
 		if (sortError) {
 			return err(sortError);

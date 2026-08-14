@@ -173,4 +173,143 @@ describe("sorting", () => {
 		const body = (await response.json()) as { code: string };
 		expect(body.code).toBe("VALIDATION_FAILED");
 	});
+
+	it("sorts by an x-index string data field", async () => {
+		await createCollection({
+			slug: "sort-indexed-string",
+			name: "Sort Indexed String",
+			schema: {
+				type: "object",
+				properties: {
+					title: { type: "string" },
+					label: { type: "string", "x-index": true },
+				},
+				required: ["title", "label"],
+				additionalProperties: false,
+			},
+		});
+
+		await createContent("sort-indexed-string", {
+			data: { title: "A", label: "beta" },
+		});
+		await createContent("sort-indexed-string", {
+			data: { title: "B", label: "alpha" },
+		});
+		await createContent("sort-indexed-string", {
+			data: { title: "C", label: "gamma" },
+		});
+
+		const token = await readerToken();
+
+		const ascResponse = await fetchWorker(
+			"/collections/sort-indexed-string/content?sort=label",
+			{},
+			token,
+		);
+		expect(ascResponse.status).toBe(200);
+		expect(titles(await ascResponse.json())).toEqual(["B", "A", "C"]);
+
+		const descResponse = await fetchWorker(
+			"/collections/sort-indexed-string/content?sort=-label",
+			{},
+			token,
+		);
+		expect(descResponse.status).toBe(200);
+		expect(titles(await descResponse.json())).toEqual(["C", "A", "B"]);
+	});
+
+	it("sorts by an x-index integer data field and paginates across a boundary", async () => {
+		await createCollection({
+			slug: "sort-indexed-int",
+			name: "Sort Indexed Int",
+			schema: {
+				type: "object",
+				properties: {
+					title: { type: "string" },
+					rank: { type: "integer", "x-index": true },
+				},
+				required: ["title", "rank"],
+				additionalProperties: false,
+			},
+		});
+
+		await createContent("sort-indexed-int", { data: { title: "A", rank: 30 } });
+		await createContent("sort-indexed-int", { data: { title: "B", rank: 10 } });
+		await createContent("sort-indexed-int", { data: { title: "C", rank: 20 } });
+		await createContent("sort-indexed-int", { data: { title: "D", rank: 40 } });
+
+		const token = await readerToken();
+
+		const page1 = await fetchWorker(
+			"/collections/sort-indexed-int/content?sort=rank&limit=2",
+			{},
+			token,
+		);
+		expect(page1.status).toBe(200);
+		const page1Body = (await page1.json()) as {
+			data: Array<{ data: Record<string, unknown> }>;
+			nextCursor: string | null;
+		};
+		expect(titles(page1Body)).toEqual(["B", "C"]);
+		expect(page1Body.nextCursor).not.toBeNull();
+
+		const page2 = await fetchWorker(
+			`/collections/sort-indexed-int/content?sort=rank&limit=2&cursor=${encodeURIComponent(page1Body.nextCursor!)}`,
+			{},
+			token,
+		);
+		expect(page2.status).toBe(200);
+		const page2Body = (await page2.json()) as {
+			data: Array<{ data: Record<string, unknown> }>;
+			nextCursor: string | null;
+		};
+		expect(titles(page2Body)).toEqual(["A", "D"]);
+		expect(page2Body.nextCursor).toBeNull();
+
+		// Descending pagination across a boundary.
+		const descPage1 = await fetchWorker(
+			"/collections/sort-indexed-int/content?sort=-rank&limit=2",
+			{},
+			token,
+		);
+		expect(descPage1.status).toBe(200);
+		const descPage1Body = (await descPage1.json()) as {
+			data: Array<{ data: Record<string, unknown> }>;
+			nextCursor: string | null;
+		};
+		expect(titles(descPage1Body)).toEqual(["D", "A"]);
+		expect(descPage1Body.nextCursor).not.toBeNull();
+
+		const descPage2 = await fetchWorker(
+			`/collections/sort-indexed-int/content?sort=-rank&limit=2&cursor=${encodeURIComponent(descPage1Body.nextCursor!)}`,
+			{},
+			token,
+		);
+		expect(descPage2.status).toBe(200);
+		const descPage2Body = (await descPage2.json()) as {
+			data: Array<{ data: Record<string, unknown> }>;
+			nextCursor: string | null;
+		};
+		expect(titles(descPage2Body)).toEqual(["C", "B"]);
+		expect(descPage2Body.nextCursor).toBeNull();
+	});
+
+	it("rejects a non-indexed field as a sort field", async () => {
+		await createCollection({
+			slug: "sort-non-indexed",
+			name: "Sort Non Indexed",
+			schema: makeSchema(),
+		});
+
+		const token = await readerToken();
+		const response = await fetchWorker(
+			"/collections/sort-non-indexed/content?sort=title",
+			{},
+			token,
+		);
+		expect(response.status).toBe(400);
+
+		const body = (await response.json()) as { code: string };
+		expect(body.code).toBe("VALIDATION_FAILED");
+	});
 });

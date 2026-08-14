@@ -131,9 +131,8 @@ const buildContentQueryParameters = (
 			required: false,
 			schema: {
 				type: "string",
-				enum: ["createdAt", "-createdAt", "updatedAt", "-updatedAt"],
 				description:
-					"Sort order. Prefix with - for descending. Defaults to newest first.",
+					"Sort field. Any x-index scalar field (e.g. createdAt, updatedAt, or an indexed data field). Prefix with - for descending. Defaults to newest first.",
 			},
 		},
 		{
