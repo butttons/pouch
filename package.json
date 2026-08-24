@@ -1,6 +1,6 @@
 {
 	"name": "@butttons/pouch",
-	"version": "0.0.31",
+	"version": "0.1.0",
 	"license": "MIT",
 	"private": true,
 	"type": "module",
